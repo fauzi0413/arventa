@@ -1,32 +1,52 @@
 import "dotenv/config";
 import { prisma } from "../src/lib/prisma";
 import { seedUsers } from "./seeders/users.seeder";
+import { seedSaaS } from "./seeders/saas.seeder";
+import { seedRolesAndMenus } from "./seeders/roles-menus.seeder";
 import { seedProperties } from "./seeders/properties.seeder";
 import { seedUnits } from "./seeders/units.seeder";
+import { seedHousekeeping } from "./seeders/housekeeping.seeder";
 import { seedLeasesAndInvoices } from "./seeders/leases.seeder";
 import { seedExpenses } from "./seeders/expenses.seeder";
-import { seedMaintenanceTasks } from "./seeders/tasks.seeder";
+import { seedCommunity } from "./seeders/community.seeder";
+import { seedSystem } from "./seeders/system.seeder";
 
 /**
- * ARVENTA Property Management System - Safe Idempotent Database Seeder
- * Orchestrates domain-specific seeders in order WITHOUT deleting existing data.
- * Safe to run multiple times in production/development without creating duplicate records.
+ * ARVENTA Property Management System - Full 8-Module Database Seeder
+ * Orchestrates all domain seeders in sequential order without data loss.
  */
 async function main() {
-  console.log("🌱 Starting ARVENTA Safe Database Seeding (Idempotent)...");
+  console.log("🌱 Starting ARVENTA Full System Database Seeding (8 Modules)...");
 
-  // 1. Seed Users & Tenant Profiles
-  const { ownerHendra, housekeepingBudi, tenantSiti, tenantRizky } =
+  // 1. Users & Tenant Profiles
+  const { admin, ownerHendra, housekeepingBudi, tenantSiti, tenantRizky } =
     await seedUsers();
 
-  // 2. Seed Properties
+  // 2. Roles, Permissions & Dynamic Menus
+  await seedRolesAndMenus();
+
+  // 3. SaaS Subscriptions & Billing
+  await seedSaaS(ownerHendra);
+
+  // 4. Properties
   const { kosGrahaAsri, aptGatewayPasteur } = await seedProperties(ownerHendra);
 
-  // 3. Seed Units & Unit Inventories
-  const { unitKos101, unitKos102, unitApt12B01, unitApt12B02 } =
-    await seedUnits({ kosGrahaAsri, aptGatewayPasteur });
+  // 5. Units & Room-Based Accounts
+  const { unitKos101, unitKos102, unitApt12B01 } = await seedUnits({
+    kosGrahaAsri,
+    aptGatewayPasteur,
+  });
 
-  // 4. Seed Leases & Invoices
+  // 6. Housekeeping Property Assignments & Status Logs
+  await seedHousekeeping({
+    housekeeping: housekeepingBudi,
+    kosGrahaAsri,
+    aptGatewayPasteur,
+    unitKos101,
+    unitKos102,
+  });
+
+  // 7. Active Leases & Invoices
   await seedLeasesAndInvoices({
     unitKos101,
     unitApt12B01,
@@ -34,22 +54,24 @@ async function main() {
     tenantRizkyProfile: tenantRizky.tenantProfile!,
   });
 
-  // 5. Seed Operational Expenses
+  // 8. Operational Expenses (OpEx)
   await seedExpenses({
     kosGrahaAsri,
     owner: ownerHendra,
   });
 
-  // 6. Seed Maintenance Tasks (Housekeeping Board)
-  await seedMaintenanceTasks({
-    unitApt12B02,
-    unitKos102,
-    unitKos101,
+  // 9. Community Announcements & Resident Forum
+  await seedCommunity({
+    kosGrahaAsri,
     owner: ownerHendra,
-    housekeeping: housekeepingBudi,
+    tenantSiti,
+    tenantRizky,
   });
 
-  console.log("\n🎉 ARVENTA Safe Database Seeding Completed Successfully!");
+  // 10. System Settings & Audit Logs
+  await seedSystem(admin);
+
+  console.log("\n🎉 ARVENTA Full System Seeding Completed Successfully!");
 }
 
 main()

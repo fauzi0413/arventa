@@ -105,7 +105,6 @@ export class PropertyService {
               select: {
                 inventories: true,
                 leases: true,
-                tasks: true,
               },
             },
           },
