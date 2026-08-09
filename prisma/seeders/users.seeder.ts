@@ -161,7 +161,7 @@ export async function seedUsers() {
         email: "tenant.siti@gmail.com",
         fullName: "Siti Rahmawati",
         phoneNumber: "081444444444",
-        role: UserRole.TENANT,
+        role: UserRole.USER,
         supabaseAuthId: sitiAuthId,
         tenantProfile: {
           create: {
@@ -176,7 +176,7 @@ export async function seedUsers() {
       },
       include: { tenantProfile: true },
     });
-    console.log(`✅ Created Public User [Tenant]: ${tenantSiti.fullName}`);
+    console.log(`✅ Created Public User [User]: ${tenantSiti.fullName}`);
   } else {
     if (!tenantSiti.supabaseAuthId && sitiAuthId) {
       tenantSiti = await prisma.user.update({
@@ -220,7 +220,7 @@ export async function seedUsers() {
         email: "tenant.rizky@gmail.com",
         fullName: "Rizky Pratama",
         phoneNumber: "081555555555",
-        role: UserRole.TENANT,
+        role: UserRole.USER,
         supabaseAuthId: rizkyAuthId,
         tenantProfile: {
           create: {

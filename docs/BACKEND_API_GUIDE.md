@@ -285,8 +285,8 @@ Untuk keperluan testing autentikasi dan API, berikut akun seeder yang tersedia:
 | **Platform Admin** | `admin@arventa.id` | `Password123!` |
 | **Owner** | `owner@arventa.id` | `Password123!` |
 | **Housekeeping** | `hk.budi@arventa.id` | `Password123!` |
-| **Tenant** | `tenant.siti@gmail.com` | `Password123!` |
-| **Tenant** | `tenant.rizky@gmail.com` | `Password123!` |
+| **User** | `tenant.siti@gmail.com` | `Password123!` |
+| **User** | `tenant.rizky@gmail.com` | `Password123!` |
 
 ---
 

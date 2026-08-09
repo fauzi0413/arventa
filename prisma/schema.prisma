@@ -19,7 +19,7 @@ enum UserRole {
   PLATFORM_ADMIN
   OWNER
   HOUSEKEEPING
-  TENANT
+  USER
 }
 
 enum PropertyType {
@@ -98,7 +98,7 @@ model User {
   fullName      String    @map("full_name")
   phoneNumber   String?   @map("phone_number")
   avatarUrl     String?   @map("avatar_url")
-  role          UserRole  @default(TENANT)
+  role          UserRole  @default(USER)
   
   // Timestamps
   createdAt     DateTime  @default(now()) @map("created_at")
