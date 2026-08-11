@@ -62,15 +62,19 @@ export async function GET() {
     return ApiResponse.success({
       message: "Berhasil mengambil data role & permission",
       data: {
-        roles: roles.map((r) => ({
-          id: r.id,
-          name: r.name,
-          code: r.code,
-          description: r.description,
-          isSystem: r.isSystem,
-          userCount: r.users.length,
-          permissionIds: r.rolePermissions.map((rp) => rp.permissionId),
-        })),
+        roles: roles.map((r) => {
+          const systemUsers = users.filter((u) => u.role === r.code && !u.customRoleId).length;
+          const customUsers = r.users.length;
+          return {
+            id: r.id,
+            name: r.name,
+            code: r.code,
+            description: r.description,
+            isSystem: r.isSystem,
+            userCount: r.isSystem ? systemUsers + customUsers : customUsers,
+            permissionIds: r.rolePermissions.map((rp) => rp.permissionId),
+          };
+        }),
         permissions: permissions.map((p) => ({
           id: p.id,
           module: p.module,
@@ -112,7 +116,7 @@ export async function POST(req: Request) {
         });
       }
 
-      const existing = await prisma.role.findUnique({ where: { code } });
+      const existing = await prisma.role.findUnique({ where: { code: code.toUpperCase().trim() } });
       if (existing) {
         return ApiResponse.error({
           message: "Kode Role sudah digunakan",
@@ -123,7 +127,7 @@ export async function POST(req: Request) {
       const newRole = await prisma.role.create({
         data: {
           name,
-          code: code.toUpperCase(),
+          code: code.toUpperCase().trim(),
           description,
           isSystem: false,
         },
@@ -205,6 +209,144 @@ export async function POST(req: Request) {
       });
     }
 
+    // 4. Update Custom Role
+    if (action === "UPDATE_ROLE") {
+      const { id, name, code, description } = body;
+      if (!id || !name || !code) {
+        return ApiResponse.error({
+          message: "ID, Nama, dan Kode Role wajib diisi",
+          status: 400,
+        });
+      }
+
+      const role = await prisma.role.findUnique({
+        where: { id },
+      });
+
+      if (!role) {
+        return ApiResponse.error({
+          message: "Role tidak ditemukan",
+          status: 404,
+        });
+      }
+
+      if (role.isSystem) {
+        return ApiResponse.error({
+          message: "Role bawaan sistem tidak dapat diubah",
+          status: 400,
+        });
+      }
+
+      const SYSTEM_USER_ROLES = ["PLATFORM_ADMIN", "OWNER", "HOUSEKEEPING", "USER", "TENANT"];
+      const isSystemRoleEnum = SYSTEM_USER_ROLES.includes(role.code);
+
+      // Check if role is used by any user
+      const userCount = await prisma.user.count({
+        where: isSystemRoleEnum
+          ? {
+              OR: [
+                { customRoleId: id },
+                { role: role.code as any },
+              ],
+            }
+          : { customRoleId: id },
+      });
+
+      if (userCount > 0) {
+        return ApiResponse.error({
+          message: `Role ini sedang digunakan oleh ${userCount} pengguna dan tidak dapat diubah`,
+          status: 400,
+        });
+      }
+
+      const formattedCode = code.toUpperCase().trim();
+
+      if (formattedCode !== role.code) {
+        const existingCode = await prisma.role.findUnique({
+          where: { code: formattedCode },
+        });
+        if (existingCode && existingCode.id !== id) {
+          return ApiResponse.error({
+            message: "Kode Role sudah digunakan oleh role lain",
+            status: 400,
+          });
+        }
+      }
+
+      const updatedRole = await prisma.role.update({
+        where: { id },
+        data: {
+          name,
+          code: formattedCode,
+          description,
+        },
+      });
+
+      return ApiResponse.success({
+        message: "Role berhasil diperbarui",
+        data: updatedRole,
+      });
+    }
+
+    // 5. Delete Custom Role
+    if (action === "DELETE_ROLE") {
+      const { id } = body;
+      if (!id) {
+        return ApiResponse.error({
+          message: "ID Role wajib diisi",
+          status: 400,
+        });
+      }
+
+      const role = await prisma.role.findUnique({
+        where: { id },
+      });
+
+      if (!role) {
+        return ApiResponse.error({
+          message: "Role tidak ditemukan",
+          status: 404,
+        });
+      }
+
+      if (role.isSystem) {
+        return ApiResponse.error({
+          message: "Role bawaan sistem tidak dapat dihapus",
+          status: 400,
+        });
+      }
+
+      const SYSTEM_USER_ROLES = ["PLATFORM_ADMIN", "OWNER", "HOUSEKEEPING", "USER", "TENANT"];
+      const isSystemRoleEnum = SYSTEM_USER_ROLES.includes(role.code);
+
+      // Check if role is used by any user
+      const userCount = await prisma.user.count({
+        where: isSystemRoleEnum
+          ? {
+              OR: [
+                { customRoleId: id },
+                { role: role.code as any },
+              ],
+            }
+          : { customRoleId: id },
+      });
+
+      if (userCount > 0) {
+        return ApiResponse.error({
+          message: `Role ini sedang digunakan oleh ${userCount} pengguna dan tidak dapat dihapus`,
+          status: 400,
+        });
+      }
+
+      await prisma.role.delete({
+        where: { id },
+      });
+
+      return ApiResponse.success({
+        message: "Role berhasil dihapus",
+      });
+    }
+
     return ApiResponse.error({
       message: "Aksi tidak valid",
       status: 400,
@@ -218,3 +360,4 @@ export async function POST(req: Request) {
     });
   }
 }
+

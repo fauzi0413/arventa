@@ -1,12 +1,5 @@
-import { DeveloperModePlaceholder } from "@/components/shared/developer-mode";
+import { PlatformSettingsManager } from "@/components/admin/platform-settings-manager";
 
 export default function PlatformSettingsPage() {
-  return (
-    <DeveloperModePlaceholder
-      title="Platform Settings & Integrasi"
-      path="/platform/settings"
-      description="Konfigurasi sistem global, maintenance mode toggle, dan integrasi API Gateway (Gemini AI, Resend Email)."
-      features={["Global Maintenance Mode", "API Key Gateway", "Security Audit Log"]}
-    />
-  );
+  return <PlatformSettingsManager />;
 }

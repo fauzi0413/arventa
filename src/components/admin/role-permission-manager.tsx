@@ -17,6 +17,9 @@ import {
   IconFileText,
   IconSettings,
   IconSearch,
+  IconPencil,
+  IconTrash,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +60,8 @@ export function RolePermissionManager() {
   const [activeTab, setActiveTab] = useState<"roles" | "matrix" | "users">("matrix");
   const [searchUser, setSearchUser] = useState("");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [selectedMatrixRoleId, setSelectedMatrixRoleId] = useState<string>("ALL");
 
   // New Role Form State
   const [showNewRoleModal, setShowNewRoleModal] = useState(false);
@@ -64,6 +69,15 @@ export function RolePermissionManager() {
   const [newRoleCode, setNewRoleCode] = useState("");
   const [newRoleDesc, setNewRoleDesc] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Edit Role Form State
+  const [editingRole, setEditingRole] = useState<RoleItem | null>(null);
+  const [editRoleName, setEditRoleName] = useState("");
+  const [editRoleCode, setEditRoleCode] = useState("");
+  const [editRoleDesc, setEditRoleDesc] = useState("");
+
+  // Delete Role Form State
+  const [deletingRole, setDeletingRole] = useState<RoleItem | null>(null);
 
   // Toggle Loading State
   const [togglingMap, setTogglingMap] = useState<Record<string, boolean>>({});
@@ -94,6 +108,7 @@ export function RolePermissionManager() {
     if (!newRoleName || !newRoleCode) return alert("Nama dan Kode Role wajib diisi");
 
     setIsSubmitting(true);
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/roles-permissions", {
         method: "POST",
@@ -114,11 +129,105 @@ export function RolePermissionManager() {
         setNewRoleDesc("");
         fetchData();
       } else {
-        alert(json.message);
+        setErrorMsg(json.message);
       }
     } catch (err) {
       console.error(err);
-      alert("Gagal membuat role.");
+      setErrorMsg("Gagal membuat role.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openEditModal = (role: RoleItem) => {
+    setErrorMsg(null);
+    if (role.isSystem) {
+      setErrorMsg("Role bawaan sistem tidak dapat diubah.");
+      return;
+    }
+    if (role.userCount > 0) {
+      setErrorMsg(`Role "${role.name}" sedang digunakan oleh ${role.userCount} pengguna dan tidak dapat diubah.`);
+      return;
+    }
+    setEditingRole(role);
+    setEditRoleName(role.name);
+    setEditRoleCode(role.code);
+    setEditRoleDesc(role.description || "");
+  };
+
+  const handleUpdateRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRole) return;
+    if (!editRoleName || !editRoleCode) return alert("Nama dan Kode Role wajib diisi");
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/roles-permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE_ROLE",
+          id: editingRole.id,
+          name: editRoleName,
+          code: editRoleCode,
+          description: editRoleDesc,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSuccessMsg(`Role "${editRoleName}" berhasil diperbarui!`);
+        setEditingRole(null);
+        fetchData();
+      } else {
+        setErrorMsg(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Gagal memperbarui role.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const openDeleteModal = (role: RoleItem) => {
+    setErrorMsg(null);
+    if (role.isSystem) {
+      setErrorMsg("Role bawaan sistem tidak dapat dihapus.");
+      return;
+    }
+    if (role.userCount > 0) {
+      setErrorMsg(`Role "${role.name}" sedang digunakan oleh ${role.userCount} pengguna dan tidak dapat dihapus.`);
+      return;
+    }
+    setDeletingRole(role);
+  };
+
+  const handleDeleteRole = async () => {
+    if (!deletingRole) return;
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/roles-permissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_ROLE",
+          id: deletingRole.id,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSuccessMsg(`Role "${deletingRole.name}" berhasil dihapus!`);
+        setDeletingRole(null);
+        fetchData();
+      } else {
+        setErrorMsg(json.message);
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Gagal menghapus role.");
     } finally {
       setIsSubmitting(false);
     }
@@ -140,16 +249,14 @@ export function RolePermissionManager() {
       });
       const json = await res.json();
       if (json.success) {
-        setRoles((prevRoles) =>
-          prevRoles.map((r) => {
+        setRoles((prev) =>
+          prev.map((r) => {
             if (r.id === roleId) {
               const hasPerm = r.permissionIds.includes(permissionId);
-              return {
-                ...r,
-                permissionIds: hasPerm
-                  ? r.permissionIds.filter((id) => id !== permissionId)
-                  : [...r.permissionIds, permissionId],
-              };
+              const nextPerms = hasPerm
+                ? r.permissionIds.filter((id) => id !== permissionId)
+                : [...r.permissionIds, permissionId];
+              return { ...r, permissionIds: nextPerms };
             }
             return r;
           })
@@ -178,21 +285,26 @@ export function RolePermissionManager() {
       });
       const json = await res.json();
       if (json.success) {
-        setSuccessMsg(`Role pengguna berhasil diperbarui`);
+        setSuccessMsg("Role pengguna berhasil diperbarui!");
         fetchData();
+      } else {
+        alert(json.message);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
+  const filteredUsers = (users || []).filter((u) => {
+    const query = (searchUser || "").toLowerCase().trim();
+    if (!query) return true;
+    const nameMatch = u.fullName?.toLowerCase().includes(query) ?? false;
+    const emailMatch = u.email?.toLowerCase().includes(query) ?? false;
+    return nameMatch || emailMatch;
+  });
+
   // Group permissions by module
   const modulesList = Array.from(new Set(permissions.map((p) => p.module)));
-  const filteredUsers = users.filter(
-    (u) =>
-      u.fullName.toLowerCase().includes(searchUser.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchUser.toLowerCase())
-  );
 
   const getModuleLabel = (mod: string) => {
     switch (mod) {
@@ -262,7 +374,7 @@ export function RolePermissionManager() {
         </div>
       </div>
 
-      {/* Success Notification */}
+      {/* Alert Banners */}
       {successMsg && (
         <div className="flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
           <div className="flex items-center gap-2">
@@ -270,6 +382,18 @@ export function RolePermissionManager() {
             <span>{successMsg}</span>
           </div>
           <button onClick={() => setSuccessMsg(null)} className="text-xs hover:underline">
+            Tutup
+          </button>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 p-3.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+          <div className="flex items-center gap-2">
+            <IconAlertTriangle className="size-4 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+          <button onClick={() => setErrorMsg(null)} className="text-xs hover:underline">
             Tutup
           </button>
         </div>
@@ -298,89 +422,117 @@ export function RolePermissionManager() {
       {/* TAB 1: PERMISSION MATRIX GRID */}
       {activeTab === "matrix" && (
         <Card className="border-border/60 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold flex items-center gap-2">
-              <IconLock className="size-5 text-purple-600" />
-              Granular Permission Matrix Grid
-            </CardTitle>
-            <CardDescription>
-              Klik kotak akses untuk mengaktifkan atau menonaktifkan izin hak akses per role secara real-time.
-            </CardDescription>
+          <CardHeader className="pb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <IconLock className="size-5 text-purple-600" />
+                Granular Permission Matrix Grid
+              </CardTitle>
+              <CardDescription>
+                Pilih role dan atur izin hak akses per modul secara real-time.
+              </CardDescription>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Role Target:</label>
+              <select
+                value={selectedMatrixRoleId}
+                onChange={(e) => setSelectedMatrixRoleId(e.target.value)}
+                className="rounded-lg border bg-background px-3 py-1.5 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary cursor-pointer"
+              >
+                <option value="ALL">Semua Role (Grid Matriks)</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.code})
+                  </option>
+                ))}
+              </select>
+            </div>
           </CardHeader>
+
           <CardContent className="overflow-x-auto">
-            <table className="w-full text-xs text-left border-collapse">
-              <thead>
-                <tr className="bg-muted text-muted-foreground font-bold border-b">
-                  <th className="p-3.5 min-w-[220px]">Modul & Aksi Hak Akses</th>
-                  {roles.map((r) => (
-                    <th key={r.id} className="p-3.5 text-center min-w-[140px]">
-                      <div className="flex flex-col items-center">
-                        <span className="text-foreground font-extrabold text-sm">{r.name}</span>
-                        <Badge variant={r.isSystem ? "default" : "secondary"} className="text-[9px] mt-0.5">
-                          {r.code}
-                        </Badge>
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {modulesList.map((mod) => {
-                  const modInfo = getModuleLabel(mod);
-                  const ModIcon = modInfo.icon;
-                  const modPermissions = permissions.filter((p) => p.module === mod);
+            {(() => {
+              const visibleRoles =
+                selectedMatrixRoleId === "ALL"
+                  ? roles
+                  : roles.filter((r) => r.id === selectedMatrixRoleId);
 
-                  return (
-                    <tr key={mod} className="hover:bg-muted/30 transition-colors">
-                      <td className="p-3.5 align-top">
-                        <div className="flex items-center gap-2 font-bold text-foreground text-sm">
-                          <ModIcon className="size-4 text-primary" />
-                          <span>{modInfo.label}</span>
-                        </div>
-                        <span className="text-[10px] text-muted-foreground block mt-0.5 uppercase tracking-wider font-semibold">
-                          {mod} module
-                        </span>
-                      </td>
-
-                      {roles.map((r) => (
-                        <td key={r.id} className="p-3 align-top">
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {modPermissions.map((p) => {
-                              const isChecked = r.permissionIds.includes(p.id);
-                              const toggleKey = `${r.id}-${p.id}`;
-                              const isToggling = togglingMap[toggleKey];
-
-                              return (
-                                <button
-                                  key={p.id}
-                                  disabled={isToggling}
-                                  onClick={() => handleTogglePermission(r.id, p.id)}
-                                  className={`flex items-center justify-between p-1.5 rounded border text-[10px] font-bold transition-all ${
-                                    isChecked
-                                      ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
-                                      : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
-                                  }`}
-                                  title={`${p.action.toUpperCase()} - ${p.description || ""}`}
-                                >
-                                  <span className="uppercase">{p.action}</span>
-                                  {isToggling ? (
-                                    <IconLoader2 className="size-3 animate-spin" />
-                                  ) : isChecked ? (
-                                    <IconCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
-                                  ) : (
-                                    <IconX className="size-3 text-muted-foreground/50" />
-                                  )}
-                                </button>
-                              );
-                            })}
+              return (
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="bg-muted text-muted-foreground font-bold border-b">
+                      <th className="p-3.5 min-w-[220px]">Modul & Aksi Hak Akses</th>
+                      {visibleRoles.map((r) => (
+                        <th key={r.id} className="p-3.5 text-center min-w-[140px]">
+                          <div className="flex flex-col items-center">
+                            <span className="text-foreground font-extrabold text-sm">{r.name}</span>
+                            <Badge variant={r.isSystem ? "default" : "secondary"} className="text-[9px] mt-0.5">
+                              {r.code}
+                            </Badge>
                           </div>
-                        </td>
+                        </th>
                       ))}
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y">
+                    {modulesList.map((mod) => {
+                      const modInfo = getModuleLabel(mod);
+                      const ModIcon = modInfo.icon;
+                      const modPermissions = permissions.filter((p) => p.module === mod);
+
+                      return (
+                        <tr key={mod} className="hover:bg-muted/30 transition-colors">
+                          <td className="p-3.5 align-top">
+                            <div className="flex items-center gap-2 font-bold text-foreground text-sm">
+                              <ModIcon className="size-4 text-primary" />
+                              <span>{modInfo.label}</span>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground block mt-0.5 uppercase tracking-wider font-semibold">
+                              {mod} module
+                            </span>
+                          </td>
+
+                          {visibleRoles.map((r) => (
+                            <td key={r.id} className="p-3 align-top">
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {modPermissions.map((p) => {
+                                  const isChecked = r.permissionIds.includes(p.id);
+                                  const toggleKey = `${r.id}-${p.id}`;
+                                  const isToggling = togglingMap[toggleKey];
+
+                                  return (
+                                    <button
+                                      key={p.id}
+                                      disabled={isToggling}
+                                      onClick={() => handleTogglePermission(r.id, p.id)}
+                                      className={`flex items-center justify-between p-1.5 rounded border text-[10px] font-bold transition-all ${
+                                        isChecked
+                                          ? "bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400"
+                                          : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+                                      }`}
+                                      title={`${p.action.toUpperCase()} - ${p.description || ""}`}
+                                    >
+                                      <span className="uppercase">{p.action}</span>
+                                      {isToggling ? (
+                                        <IconLoader2 className="size-3 animate-spin" />
+                                      ) : isChecked ? (
+                                        <IconCheck className="size-3 text-emerald-600 dark:text-emerald-400" />
+                                      ) : (
+                                        <IconX className="size-3 text-muted-foreground/50" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              );
+            })()}
           </CardContent>
         </Card>
       )}
@@ -404,30 +556,77 @@ export function RolePermissionManager() {
           </CardHeader>
 
           <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {roles.map((r) => (
-              <div key={r.id} className="rounded-xl border p-4 space-y-3 bg-card shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-extrabold text-base text-foreground">{r.name}</h3>
-                    <Badge variant={r.isSystem ? "default" : "secondary"} className="text-[10px] mt-1">
-                      {r.isSystem ? "SYSTEM DEFAULT" : "CUSTOM ROLE"}
-                    </Badge>
+            {roles.map((r) => {
+              const isUsed = r.userCount > 0;
+              const isLocked = r.isSystem || isUsed;
+
+              return (
+                <div key={r.id} className="rounded-xl border p-4 space-y-3 bg-card shadow-sm flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h3 className="font-extrabold text-base text-foreground">{r.name}</h3>
+                        <Badge variant={r.isSystem ? "default" : "secondary"} className="text-[10px] mt-1">
+                          {r.isSystem ? "SYSTEM DEFAULT" : "CUSTOM ROLE"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                          {r.code}
+                        </span>
+
+                        {/* Action buttons (Edit & Delete) */}
+                        <div className="flex items-center gap-0.5 ml-1">
+                          <button
+                            type="button"
+                            onClick={() => openEditModal(r)}
+                            disabled={isLocked}
+                            title={
+                              r.isSystem
+                                ? "Role sistem tidak dapat diubah"
+                                : isUsed
+                                ? `Role sedang digunakan oleh ${r.userCount} pengguna`
+                                : "Edit Role"
+                            }
+                            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <IconPencil className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openDeleteModal(r)}
+                            disabled={isLocked}
+                            title={
+                              r.isSystem
+                                ? "Role sistem tidak dapat dihapus"
+                                : isUsed
+                                ? `Role sedang digunakan oleh ${r.userCount} pengguna`
+                                : "Hapus Role"
+                            }
+                            className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <IconTrash className="size-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground min-h-[32px]">
+                      {r.description || "TIDAK ADA DESKRIPSI"}
+                    </p>
                   </div>
-                  <span className="font-mono text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                    {r.code}
-                  </span>
-                </div>
 
-                <p className="text-xs text-muted-foreground min-h-[32px]">
-                  {r.description || "TIDAK ADA DESKRIPSI"}
-                </p>
-
-                <div className="flex items-center justify-between text-xs pt-2 border-t font-semibold">
-                  <span className="text-muted-foreground">Pengguna: <strong className="text-foreground">{r.userCount}</strong></span>
-                  <span className="text-primary">Akses: <strong>{r.permissionIds.length}</strong> Izin</span>
+                  <div className="flex items-center justify-between text-xs pt-2 border-t font-semibold mt-auto">
+                    <span className="text-muted-foreground">
+                      Pengguna: <strong className="text-foreground">{r.userCount}</strong>
+                    </span>
+                    <span className="text-primary">
+                      Akses: <strong>{r.permissionIds.length}</strong> Izin
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -553,6 +752,100 @@ export function RolePermissionManager() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT ROLE MODAL */}
+      {editingRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-card border shadow-2xl p-6 space-y-4">
+            <h3 className="text-lg font-extrabold text-foreground flex items-center gap-2">
+              <IconPencil className="size-5 text-primary" /> Edit Custom Role
+            </h3>
+
+            <form onSubmit={handleUpdateRole} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold block mb-1">Nama Role</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Resepsionis Gedung"
+                  value={editRoleName}
+                  onChange={(e) => setEditRoleName(e.target.value)}
+                  className="w-full rounded-lg border p-2.5 bg-background focus:ring-2 focus:ring-primary text-xs"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold block mb-1">Kode Role (Unik)</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: RECEPTIONIST"
+                  value={editRoleCode}
+                  onChange={(e) => setEditRoleCode(e.target.value.toUpperCase())}
+                  className="w-full rounded-lg border p-2.5 bg-background font-mono focus:ring-2 focus:ring-primary text-xs uppercase"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold block mb-1">Deskripsi Role</label>
+                <textarea
+                  placeholder="Penjelasan fungsi dan hak akses staf..."
+                  value={editRoleDesc}
+                  onChange={(e) => setEditRoleDesc(e.target.value)}
+                  className="w-full rounded-lg border p-2.5 bg-background focus:ring-2 focus:ring-primary text-xs h-20"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditingRole(null)}>
+                  Batal
+                </Button>
+                <Button type="submit" size="sm" disabled={isSubmitting} className="gap-1.5 font-bold">
+                  {isSubmitting ? <IconLoader2 className="size-4 animate-spin" /> : <IconCheck className="size-4" />}
+                  Simpan Perubahan
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE ROLE MODAL */}
+      {deletingRole && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-card border shadow-2xl p-6 space-y-4">
+            <h3 className="text-lg font-extrabold text-destructive flex items-center gap-2">
+              <IconTrash className="size-5" /> Hapus Role Custom
+            </h3>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Apakah Anda yakin ingin menghapus role <strong className="text-foreground">{deletingRole.name}</strong> ({deletingRole.code})?
+            </p>
+
+            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-[11px] text-destructive font-medium">
+              Tindakan ini tidak dapat dibatalkan. Semua pengaturan hak akses yang terhubung dengan role ini akan dihapus dari sistem.
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => setDeletingRole(null)}>
+                Batal
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteRole}
+                disabled={isSubmitting}
+                className="gap-1.5 font-bold"
+              >
+                {isSubmitting ? <IconLoader2 className="size-4 animate-spin" /> : <IconTrash className="size-4" />}
+                Hapus Role
+              </Button>
+            </div>
           </div>
         </div>
       )}

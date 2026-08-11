@@ -26,7 +26,80 @@ export async function seedRolesAndMenus() {
     roleMap[role.code] = role.id;
   }
 
-  // 2. Feature Flags
+  // 2. Seed Master Permissions (Module & Action Granular Grid)
+  const modules = ["properties", "finance", "operations", "tenants", "reports", "settings"];
+  const actions = ["create", "read", "update", "delete"];
+
+  const permMap: Record<string, string> = {};
+
+  for (const mod of modules) {
+    for (const act of actions) {
+      const permKey = `${mod}:${act}`;
+      const existing = await prisma.permission.findUnique({
+        where: { module_action: { module: mod, action: act } },
+      });
+
+      let perm = existing;
+      if (!perm) {
+        perm = await prisma.permission.create({
+          data: {
+            module: mod,
+            action: act,
+            description: `Akses ${act.toUpperCase()} untuk modul ${mod}`,
+          },
+        });
+        console.log(`✅ Created Permission: ${mod}:${act}`);
+      }
+      permMap[permKey] = perm.id;
+    }
+  }
+
+  // 3. Seed Default Role-Permission Granular Mappings
+  console.log("🔒 Seeding Default Role-Permission Granular Mappings...");
+  const rolePermissionAssignments: Record<string, string[]> = {
+    PLATFORM_ADMIN: modules.flatMap((m) => actions.map((a) => `${m}:${a}`)),
+    OWNER: [
+      ...actions.map((a) => `properties:${a}`),
+      ...actions.map((a) => `finance:${a}`),
+      ...actions.map((a) => `operations:${a}`),
+      ...actions.map((a) => `tenants:${a}`),
+      ...actions.map((a) => `reports:${a}`),
+      "settings:read",
+      "settings:update",
+    ],
+    HOUSEKEEPING: [
+      "properties:read",
+      "operations:read",
+      "operations:create",
+      "operations:update",
+    ],
+    USER: [
+      "tenants:read",
+      "operations:read",
+    ],
+  };
+
+  for (const [roleCode, permKeys] of Object.entries(rolePermissionAssignments)) {
+    const roleId = roleMap[roleCode];
+    if (!roleId) continue;
+
+    for (const permKey of permKeys) {
+      const permissionId = permMap[permKey];
+      if (!permissionId) continue;
+
+      const existingRP = await prisma.rolePermission.findUnique({
+        where: { roleId_permissionId: { roleId, permissionId } },
+      });
+
+      if (!existingRP) {
+        await prisma.rolePermission.create({
+          data: { roleId, permissionId },
+        });
+      }
+    }
+  }
+
+  // 4. Feature Flags
   const flagsData = [
     { key: "ocr_ktp_enabled", name: "OCR KTP AI Check-In", isEnabled: true, description: "Auto fill tenant data from KTP image" },
     { key: "room_account_enabled", name: "Akun Berbasis Kamar", isEnabled: true, description: "Auto generate room credentials" },

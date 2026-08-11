@@ -91,8 +91,19 @@ export async function POST(req: Request) {
         data: { isEnabled: !flag.isEnabled },
       });
 
+      // Write Audit Log
+      await prisma.auditLog.create({
+        data: {
+          action: "TOGGLE_FEATURE_FLAG",
+          entityName: "FeatureFlag",
+          entityId: updated.id,
+          details: { key: updated.key, name: updated.name, isEnabled: updated.isEnabled },
+          ipAddress: "127.0.0.1",
+        },
+      });
+
       return ApiResponse.success({
-        message: `Feature flag ${updated.name} diubah menjadi ${updated.isEnabled ? "AKTIF" : "NON-AKTIF"}`,
+        message: `Feature flag "${updated.name}" (${updated.key}) diubah menjadi ${updated.isEnabled ? "AKTIF" : "NON-AKTIF"}`,
         data: updated,
       });
     }

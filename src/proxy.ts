@@ -19,6 +19,8 @@ const protectedPrefixes = [
   "/platform",
   "/owner",
   "/housekeeping",
+  "/api-docs",
+  "/api/docs",
 ];
 
 // Routes only for unauthenticated users
@@ -28,7 +30,12 @@ export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  // Redirect unauthenticated users away from protected routes
+  // 1. Allow maintenance page directly without redirect loops
+  if (pathname.startsWith("/maintenance")) {
+    return supabaseResponse;
+  }
+
+  // 2. Redirect unauthenticated users away from protected routes
   const isProtected =
     pathname === "/" ||
     protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
@@ -39,7 +46,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect authenticated users away from auth pages
+  // 3. Redirect authenticated users away from auth pages
   if (user && authRoutes.some((route) => pathname.startsWith(route))) {
     const url = request.nextUrl.clone();
     url.pathname = "/";

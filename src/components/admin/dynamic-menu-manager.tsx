@@ -366,6 +366,8 @@ export function DynamicMenuManager() {
   }, {} as Record<string, MenuItem[]>);
 
   const getRoleBadgeLabel = (code: string) => {
+    const found = roles.find((r) => r.code === code);
+    if (found) return found.name;
     switch (code) {
       case "PLATFORM_ADMIN":
         return "Platform Admin";
@@ -487,24 +489,29 @@ export function DynamicMenuManager() {
               </CardDescription>
             </div>
 
-            {/* Filter Role */}
-            <div className="flex flex-wrap gap-1.5">
-              {[
-                { id: "PLATFORM_ADMIN", label: "Platform Admin" },
-                { id: "OWNER", label: "Owner Properti" },
-                { id: "HOUSEKEEPING", label: "Housekeeping" },
-                { id: "USER", label: "User" },
-              ].map((f) => (
-                <Button
-                  key={f.id}
-                  size="sm"
-                  variant={roleFilter === f.id ? "default" : "outline"}
-                  onClick={() => setRoleFilter(f.id)}
-                  className="text-xs h-8 font-semibold"
-                >
-                  {f.label}
-                </Button>
-              ))}
+            {/* Filter Role Dropdown */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Filter Role Target:</label>
+              <select
+                value={roleFilter}
+                onChange={(e) => setRoleFilter(e.target.value)}
+                className="rounded-lg border bg-background px-3 py-1.5 text-xs font-bold text-foreground focus:ring-2 focus:ring-primary cursor-pointer min-w-[180px]"
+              >
+                {roles.length > 0 ? (
+                  roles.map((r) => (
+                    <option key={r.id} value={r.code}>
+                      {r.name} ({r.code})
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="PLATFORM_ADMIN">Platform Admin (PLATFORM_ADMIN)</option>
+                    <option value="OWNER">Owner Properti (OWNER)</option>
+                    <option value="HOUSEKEEPING">Housekeeping (HOUSEKEEPING)</option>
+                    <option value="USER">User (USER)</option>
+                  </>
+                )}
+              </select>
             </div>
           </CardHeader>
 

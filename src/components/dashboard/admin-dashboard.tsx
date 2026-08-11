@@ -100,7 +100,6 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
   const [ownersState, setOwnersState] = useState(data.owners);
   const [flagsState, setFlagsState] = useState(data.featureFlags);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
 
   const formatIDR = (val: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
@@ -135,18 +134,6 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
             <p className="mt-1 text-sm text-purple-200/80">
               Kelola ekosistem SaaS ARVENTA, data owner, paket langganan, permission matrix, dan integrasi API.
             </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={maintenanceMode ? "destructive" : "secondary"}
-              onClick={() => setMaintenanceMode(!maintenanceMode)}
-              className="font-semibold text-xs gap-1.5"
-            >
-              <IconAlertCircle className="size-4" />
-              {maintenanceMode ? "Maintenance Mode: AKTIF" : "Mode Maintenance: Off"}
-            </Button>
           </div>
         </div>
       </div>
