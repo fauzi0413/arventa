@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 export interface ApiResponseOptions<T = any> {
   success: boolean;
-  message: string;
+  message?: string;
   data?: T;
   error?: any;
   meta?: Record<string, any>;

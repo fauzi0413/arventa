@@ -9,7 +9,17 @@ import { updateSession } from "@/lib/supabase/middleware";
 // ---------------------------------------------------------------------------
 
 // Routes that require authentication
-const protectedPrefixes = ["/properties", "/tenants", "/finance", "/operations", "/reports", "/portal"];
+const protectedPrefixes = [
+  "/properties",
+  "/tenants",
+  "/finance",
+  "/operations",
+  "/reports",
+  "/portal",
+  "/platform",
+  "/owner",
+  "/housekeeping",
+];
 
 // Routes only for unauthenticated users
 const authRoutes = ["/login", "/register"];
