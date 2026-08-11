@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     if (authError || !authUser) {
       return ApiResponse.error({
         message: "Pengguna belum terautentikasi",
-        statusCode: 401,
+        status: 401,
       });
     }
 
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     if (!dbUser) {
       return ApiResponse.error({
         message: "Data profil pengguna tidak ditemukan di database",
-        statusCode: 404,
+        status: 404,
       });
     }
 
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     return ApiResponse.error({
       message: "Gagal mengambil data sesi pengguna",
       error: error?.message || error,
-      statusCode: 500,
+      status: 500,
     });
   }
 }

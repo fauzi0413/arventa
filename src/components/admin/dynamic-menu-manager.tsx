@@ -38,6 +38,7 @@ import {
   IconTools,
   IconQrcode,
   IconSearch,
+  IconFolder,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +49,7 @@ interface MenuItem {
   title: string;
   path: string;
   icon?: string | null;
+  group?: string | null;
   order: number;
   parentId?: string | null;
   roles: Array<{ id: string; name: string; code: string }>;
@@ -95,6 +97,18 @@ const ICON_OPTIONS = [
   { code: "IconQrcode", name: "QR Login / Share", icon: IconQrcode },
 ];
 
+const GROUP_PRESETS = [
+  "UTAMA",
+  "MANAJEMEN SAAS",
+  "PROPERTI & OPERASIONAL",
+  "PENYEWA & KEUANGAN",
+  "LAPANGAN & UNIT",
+  "KEUANGAN & KOMUNITAS",
+  "PORTAL KAMAR",
+  "KOMUNITAS",
+  "SISTEM & KONFIGURASI",
+];
+
 export function DynamicMenuManager() {
   const [loading, setLoading] = useState(true);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -111,7 +125,9 @@ export function DynamicMenuManager() {
   const [newTitle, setNewTitle] = useState("");
   const [newPath, setNewPath] = useState("");
   const [newIcon, setNewIcon] = useState("IconRoute");
+  const [newGroup, setNewGroup] = useState("UTAMA");
   const [newOrder, setNewOrder] = useState("1");
+  const [newParentId, setNewParentId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(["PLATFORM_ADMIN"]);
 
   // Icon Picker Modal State
@@ -129,7 +145,7 @@ export function DynamicMenuManager() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/menus-flags");
+      const res = await fetch("/api/admin/menus-flags", { cache: "no-store" });
       const json = await res.json();
       if (json.success) {
         setMenuItems(json.data.menuItems);
@@ -163,6 +179,8 @@ export function DynamicMenuManager() {
     setNewTitle("");
     setNewPath("");
     setNewIcon("IconRoute");
+    setNewGroup("UTAMA");
+    setNewParentId(null);
     setSelectedRoles([roleFilter]);
 
     const nextOrder = computeNextOrderForRoles([roleFilter]);
@@ -175,6 +193,8 @@ export function DynamicMenuManager() {
     setNewTitle(item.title);
     setNewPath(item.path);
     setNewIcon(item.icon || "IconRoute");
+    setNewGroup(item.group || "UTAMA");
+    setNewParentId(item.parentId || null);
     setNewOrder(String(item.order));
     setSelectedRoles(item.roles.map((r) => r.code));
     setShowMenuModal(true);
@@ -249,8 +269,10 @@ export function DynamicMenuManager() {
           title: newTitle,
           path: newPath,
           icon: newIcon,
+          group: newGroup,
           order: newOrder,
           roleCodes: selectedRoles,
+          parentId: newParentId,
         }),
       });
       const json = await res.json();
@@ -261,6 +283,9 @@ export function DynamicMenuManager() {
         setNewTitle("");
         setNewPath("");
         fetchData();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("menu-updated"));
+        }
       } else {
         alert(json.message);
       }
@@ -294,6 +319,9 @@ export function DynamicMenuManager() {
             })
             .sort((a, b) => a.order - b.order)
         );
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("menu-updated"));
+        }
       }
     } catch (err) {
       console.error("Failed to swap menu order:", err);
@@ -316,6 +344,9 @@ export function DynamicMenuManager() {
       if (json.success) {
         setSuccessMsg(`Menu "${title}" berhasil dihapus`);
         fetchData();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("menu-updated"));
+        }
       }
     } catch (err) {
       console.error(err);
@@ -325,6 +356,14 @@ export function DynamicMenuManager() {
   const filteredMenuItems = menuItems
     .filter((m) => m.roles.some((r) => r.code === roleFilter))
     .sort((a, b) => a.order - b.order);
+
+  // Group menu items by group section title
+  const groupedMenuItems = filteredMenuItems.reduce((acc, item) => {
+    const groupName = item.group || "UTAMA";
+    if (!acc[groupName]) acc[groupName] = [];
+    acc[groupName].push(item);
+    return acc;
+  }, {} as Record<string, MenuItem[]>);
 
   const getRoleBadgeLabel = (code: string) => {
     switch (code) {
@@ -359,6 +398,9 @@ export function DynamicMenuManager() {
     );
   }
 
+  // Global running counter for 1..N order pills across groups
+  let globalRunningIndex = 0;
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -375,7 +417,7 @@ export function DynamicMenuManager() {
               Dynamic Menu & Feature Flags Control
             </h1>
             <p className="mt-1 text-sm text-amber-200/80">
-              Kelola hirarki master menu per role, urutan tampilan (order), dan aktifkan/nonaktifkan fitur sistem secara dinamis.
+              Kelola hirarki master menu per role, grup section (grup menu), urutan tampilan (order), dan aktifkan/nonaktifkan fitur sistem secara dinamis.
             </p>
           </div>
 
@@ -415,7 +457,7 @@ export function DynamicMenuManager() {
       {/* Navigation Tabs */}
       <div className="flex flex-wrap gap-2 border-b pb-3">
         {[
-          { id: "menus", label: "Master Menu per Role", icon: IconRoute },
+          { id: "menus", label: "Master Menu per Role (Dengan Grup Header)", icon: IconRoute },
           { id: "flags", label: "Feature Flags Toggles", icon: IconSparkles },
         ].map((tab) => (
           <Button
@@ -431,17 +473,17 @@ export function DynamicMenuManager() {
         ))}
       </div>
 
-      {/* TAB 1: MASTER MENU PER ROLE */}
+      {/* TAB 1: MASTER MENU PER ROLE (GROUPED BY SECTION HEADER) */}
       {activeTab === "menus" && (
         <Card className="border-border/60 shadow-sm">
           <CardHeader className="pb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <IconRoute className="size-5 text-amber-500" />
-                Menu Role: <span className="text-primary">{getRoleBadgeLabel(roleFilter)}</span> ({filteredMenuItems.length} Menu)
+                Menu Role: <span className="text-primary">{getRoleBadgeLabel(roleFilter)}</span> ({filteredMenuItems.length} Menu Terbagi Dalam {Object.keys(groupedMenuItems).length} Grup)
               </CardTitle>
               <CardDescription>
-                Daftar menu navigasi resmi yang tampil khusus untuk role {getRoleBadgeLabel(roleFilter)}.
+                Daftar menu navigasi resmi yang dikelompokkan secara terstruktur per grup section untuk role {getRoleBadgeLabel(roleFilter)}.
               </CardDescription>
             </div>
 
@@ -466,89 +508,120 @@ export function DynamicMenuManager() {
             </div>
           </CardHeader>
 
-          <CardContent>
-            <div className="divide-y rounded-xl border">
-              {filteredMenuItems.map((item, idx) => {
-                const canMoveUp = idx > 0;
-                const canMoveDown = idx < filteredMenuItems.length - 1;
+          <CardContent className="space-y-6">
+            {Object.entries(groupedMenuItems).map(([groupTitle, groupItems]) => (
+              <div key={groupTitle} className="space-y-2">
+                {/* Group Section Header Badge */}
+                <div className="flex items-center gap-2 px-1 pt-2">
+                  <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                    <IconFolder className="size-4" />
+                    <span>{groupTitle}</span>
+                    <Badge variant="secondary" className="text-[10px] ml-1 bg-amber-500/20">
+                      {groupItems.length} Menu
+                    </Badge>
+                  </div>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
 
-                return (
-                  <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 text-xs">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-9 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs shrink-0">
-                        #{idx + 1}
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm text-foreground">{item.title}</p>
-                        <p className="font-mono text-[11px] text-muted-foreground">Path: {item.path} • Icon: {item.icon || "IconRoute"}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {item.roles.map((r) => (
-                            <Badge key={r.id} variant="secondary" className="text-[9px]">
-                              {r.code}
-                            </Badge>
-                          ))}
+                {/* Menu Items Grid for this Group */}
+                <div className="divide-y rounded-xl border bg-card/60">
+                  {groupItems.map((item) => {
+                    globalRunningIndex += 1;
+                    const itemGlobalIdx = filteredMenuItems.findIndex((m) => m.id === item.id);
+                    const canMoveUp = itemGlobalIdx > 0;
+                    const canMoveDown = itemGlobalIdx < filteredMenuItems.length - 1;
+
+                    const parentMenu = item.parentId ? menuItems.find((m) => m.id === item.parentId) : null;
+
+                    return (
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 gap-3 text-xs hover:bg-muted/30 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs shrink-0">
+                            #{itemGlobalIdx + 1}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-bold text-sm text-foreground">{item.title}</p>
+                              <Badge variant="outline" className="text-[9px] font-mono border-amber-500/30 text-amber-600 dark:text-amber-400">
+                                {item.group || "UTAMA"}
+                              </Badge>
+                              {parentMenu && (
+                                <Badge variant="secondary" className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20">
+                                  ↳ Submenu dari: {parentMenu.title}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="font-mono text-[11px] text-muted-foreground mt-0.5">Path: {item.path} • Icon: {item.icon || "IconRoute"}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {item.roles.map((r) => (
+                                <Badge key={r.id} variant="secondary" className="text-[9px]">
+                                  {r.code}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {/* 1-to-1 Position Swapping Order Control */}
+                          <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/40">
+                            <button
+                              disabled={!canMoveUp}
+                              onClick={() => {
+                                if (canMoveUp) {
+                                  const prevItem = filteredMenuItems[itemGlobalIdx - 1];
+                                  handleSwapOrder(item.id, prevItem.id);
+                                }
+                              }}
+                              className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                              title="Tukar posisi dengan menu di atasnya (Naikkan)"
+                            >
+                              <IconArrowUp className="size-3.5" />
+                            </button>
+                            <span className="font-mono font-bold px-1 text-xs">{itemGlobalIdx + 1}</span>
+                            <button
+                              disabled={!canMoveDown}
+                              onClick={() => {
+                                if (canMoveDown) {
+                                  const nextItem = filteredMenuItems[itemGlobalIdx + 1];
+                                  handleSwapOrder(item.id, nextItem.id);
+                                }
+                              }}
+                              className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
+                              title="Tukar posisi dengan menu di bawahnya (Turunkan)"
+                            >
+                              <IconArrowDown className="size-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Edit Button */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleOpenEditMenuModal(item)}
+                            className="text-amber-500 hover:bg-amber-500/10 h-8 px-2"
+                            title="Edit Menu"
+                          >
+                            <IconPencil className="size-4" />
+                          </Button>
+
+                          {/* Delete Button */}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteMenu(item.id, item.title)}
+                            className="text-destructive hover:bg-destructive/10 h-8 px-2"
+                            title="Hapus Menu"
+                          >
+                            <IconTrash className="size-4" />
+                          </Button>
                         </div>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      {/* 1-to-1 Position Swapping Order Control - Displays role relative order 1, 2, 3... */}
-                      <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/40">
-                        <button
-                          disabled={!canMoveUp}
-                          onClick={() => {
-                            if (canMoveUp) {
-                              const prevItem = filteredMenuItems[idx - 1];
-                              handleSwapOrder(item.id, prevItem.id);
-                            }
-                          }}
-                          className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-                          title="Tukar posisi dengan menu di atasnya (Naikkan)"
-                        >
-                          <IconArrowUp className="size-3.5" />
-                        </button>
-                        <span className="font-mono font-bold px-1 text-xs">{idx + 1}</span>
-                        <button
-                          disabled={!canMoveDown}
-                          onClick={() => {
-                            if (canMoveDown) {
-                              const nextItem = filteredMenuItems[idx + 1];
-                              handleSwapOrder(item.id, nextItem.id);
-                            }
-                          }}
-                          className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-                          title="Tukar posisi dengan menu di bawahnya (Turunkan)"
-                        >
-                          <IconArrowDown className="size-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Edit Button */}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleOpenEditMenuModal(item)}
-                        className="text-amber-500 hover:bg-amber-500/10 h-8 px-2"
-                        title="Edit Menu"
-                      >
-                        <IconPencil className="size-4" />
-                      </Button>
-
-                      {/* Delete Button */}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDeleteMenu(item.id, item.title)}
-                        className="text-destructive hover:bg-destructive/10 h-8 px-2"
-                        title="Hapus Menu"
-                      >
-                        <IconTrash className="size-4" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </CardContent>
         </Card>
       )}
@@ -605,7 +678,7 @@ export function DynamicMenuManager() {
       {/* CREATE / EDIT MENU MODAL */}
       {showMenuModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-card border shadow-2xl p-6 space-y-4">
+          <div className="w-full max-w-md rounded-2xl bg-card border shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-extrabold text-foreground flex items-center gap-2">
               {editMenuItemId ? <IconPencil className="size-5 text-amber-500" /> : <IconPlus className="size-5 text-amber-500" />}
               {editMenuItemId ? "Edit Master Menu" : `Buat Menu Baru (${getRoleBadgeLabel(roleFilter)})`}
@@ -634,6 +707,55 @@ export function DynamicMenuManager() {
                   className="w-full rounded-lg border p-2.5 bg-background font-mono focus:ring-2 focus:ring-amber-500 text-xs"
                   required
                 />
+              </div>
+
+              {/* Group Section Header Selection */}
+              <div>
+                <label className="font-bold block mb-1 flex items-center gap-1">
+                  <IconFolder className="size-3.5 text-amber-500" /> Grup Menu (Section Header)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: UTAMA, MANAJEMEN SAAS, KEUANGAN..."
+                  value={newGroup}
+                  onChange={(e) => setNewGroup(e.target.value.toUpperCase())}
+                  className="w-full rounded-lg border p-2.5 bg-background font-mono uppercase text-xs focus:ring-2 focus:ring-amber-500 mb-1.5"
+                  required
+                />
+                <div className="flex flex-wrap gap-1">
+                  {GROUP_PRESETS.map((preset) => (
+                    <button
+                      type="button"
+                      key={preset}
+                      onClick={() => setNewGroup(preset)}
+                      className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-colors ${
+                        newGroup === preset ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
+                    >
+                      {preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Parent Menu (Hirarki Submenu) */}
+              <div>
+                <label className="font-bold block mb-1">Parent Menu (Hirarki Submenu)</label>
+                <select
+                  value={newParentId || ""}
+                  onChange={(e) => setNewParentId(e.target.value || null)}
+                  className="w-full rounded-lg border p-2.5 bg-background text-xs font-semibold focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="">-- Tidak Ada (Root Menu Utama) --</option>
+                  {menuItems
+                    .filter((m) => m.id !== editMenuItemId && !m.parentId)
+                    .map((m) => (
+                      <option key={m.id} value={m.id}>
+                        ↳ {m.title} ({m.group || "UTAMA"})
+                      </option>
+                    ))}
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">Pilih menu induk jika menu ini dibuat sebagai anak (submenu).</p>
               </div>
 
               <div className="grid grid-cols-2 gap-2">

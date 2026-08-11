@@ -20,6 +20,7 @@ enum UserRole {
   OWNER
   HOUSEKEEPING
   USER
+  TENANT
   CUSTOM
 }
 
@@ -236,6 +237,7 @@ model MenuItem {
   title     String
   path      String
   icon      String?
+  group     String?    @default("UTAMA")
   order     Int        @default(0)
   parentId  String?    @map("parent_id")
   parent    MenuItem?  @relation("MenuSubmenu", fields: [parentId], references: [id])

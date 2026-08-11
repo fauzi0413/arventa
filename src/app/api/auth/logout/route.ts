@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     return ApiResponse.error({
       message: "Gagal memproses logout",
       error: error?.message || error,
-      statusCode: 500,
+      status: 500,
     });
   }
 }

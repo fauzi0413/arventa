@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return ApiResponse.error({
         message: "Validasi data registrasi gagal",
         error: parseResult.error.flatten().fieldErrors,
-        statusCode: 400,
+        status: 400,
       });
     }
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return ApiResponse.error({
         message: "Email sudah terdaftar. Silakan gunakan email lain atau login.",
-        statusCode: 400,
+        status: 400,
       });
     }
 
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       if (authError) {
         return ApiResponse.error({
           message: `Gagal membuat akun autentikasi: ${authError.message}`,
-          statusCode: 400,
+          status: 400,
         });
       }
       supabaseAuthId = authData.user?.id || null;
@@ -84,14 +84,14 @@ export async function POST(request: NextRequest) {
     return ApiResponse.success({
       message: "Registrasi akun berhasil. Silakan login ke sistem.",
       data: newUser,
-      statusCode: 201,
+      status: 201,
     });
   } catch (error: any) {
     console.error("Error in /api/auth/register:", error);
     return ApiResponse.error({
       message: "Terjadi kesalahan pada server saat registrasi",
       error: error?.message || error,
-      statusCode: 500,
+      status: 500,
     });
   }
 }

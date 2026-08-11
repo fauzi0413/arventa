@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApiResponse } from "@/lib/api-response";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     // 1. Fetch all Menu Items with Role Mappings
@@ -35,6 +38,7 @@ export async function GET() {
           title: m.title,
           path: m.path,
           icon: m.icon,
+          group: m.group || "UTAMA",
           order: m.order,
           parentId: m.parentId,
           roles: m.roleMenus.map((rm) => rm.role),
@@ -128,7 +132,7 @@ export async function POST(req: Request) {
 
     // 3. Create New Menu Item & Link to Roles
     if (action === "CREATE_MENU") {
-      const { title, path, icon, order, roleCodes } = body;
+      const { title, path, icon, group, order, roleCodes, parentId } = body;
       if (!title || !path) {
         return ApiResponse.error({
           message: "Judul dan Path menu wajib diisi",
@@ -157,7 +161,9 @@ export async function POST(req: Request) {
           title,
           path,
           icon: icon || "IconRoute",
+          group: group || "UTAMA",
           order: orderVal,
+          parentId: parentId || null,
         },
       });
 
@@ -184,7 +190,7 @@ export async function POST(req: Request) {
 
     // 3.5. Update Existing Menu Item & Role Links
     if (action === "UPDATE_MENU") {
-      const { menuItemId, title, path, icon, order, roleCodes } = body;
+      const { menuItemId, title, path, icon, group, order, roleCodes, parentId } = body;
       if (!menuItemId || !title || !path) {
         return ApiResponse.error({
           message: "menuItemId, Judul, dan Path menu wajib diisi",
@@ -212,7 +218,9 @@ export async function POST(req: Request) {
           title,
           path,
           icon: icon || "IconRoute",
+          group: group || "UTAMA",
           order: order ? parseInt(order, 10) : 10,
+          parentId: parentId && parentId !== menuItemId ? parentId : null,
         },
       });
 
