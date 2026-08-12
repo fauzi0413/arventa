@@ -23,8 +23,54 @@ export const openApiSpec = {
     { name: "Roles & Permissions", description: "API Matriks Hak Akses Granular & Custom Master Roles" },
     { name: "Menus & Feature Flags", description: "API Hirarki Master Menu Navigasi & Dynamic Feature Flags" },
     { name: "Dashboard Telemetry", description: "API Metric Telemetry, Stat Pendapatan, & AI Insight" },
+    { name: "Tenant Management", description: "API Manajemen Penyewa, Profil NIK KTP, & Kontrak Sewa" },
   ],
   paths: {
+    "/api/tenants": {
+      get: {
+        tags: ["Tenant Management"],
+        summary: "Mengambil daftar Penyewa terdaftar",
+        description: "Mengambil daftar penyewa dengan filter pencarian (nama/email/NIK), pagination, dan status kontrak aktif.",
+        parameters: [
+          { name: "search", in: "query", description: "Kata kunci nama/email/nomor HP/NIK penyewa", schema: { type: "string" } },
+          { name: "page", in: "query", description: "Nomor halaman pagination", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", description: "Batas jumlah data per halaman", schema: { type: "integer", default: 10 } },
+        ],
+        responses: {
+          200: { description: "Daftar penyewa berhasil diambil" },
+          500: { description: "Gagal mengambil data penyewa" },
+        },
+      },
+      post: {
+        tags: ["Tenant Management"],
+        summary: "Membuat profil Penyewa baru",
+        description: "Mendaftarkan penyewa baru beserta data NIK, foto KTP, kontak darurat, dan membuatkan akun User penyewa.",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  fullName: { type: "string", example: "Ahmad Subagja" },
+                  email: { type: "string", example: "ahmad.subagja@gmail.com" },
+                  phoneNumber: { type: "string", example: "081234567890" },
+                  nik: { type: "string", example: "3271012345678901" },
+                  ktpImageUrl: { type: "string", example: "https://storage.arventa.id/ktp/3271012345678901.jpg" },
+                  emergencyName: { type: "string", example: "Bpk. Bambang" },
+                  emergencyPhone: { type: "string", example: "081987654321" },
+                  occupation: { type: "string", example: "Karyawan Swasta" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Profil penyewa berhasil dibuat" },
+          400: { description: "Validasi data penyewa gagal" },
+        },
+      },
+    },
     "/api/admin/owners": {
       get: {
         tags: ["Owner Management"],

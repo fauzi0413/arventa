@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import { DeveloperModePlaceholder } from "@/components/shared/developer-mode";
 
 export const metadata: Metadata = {
-  title: "Penyewa",
-  description: "Kelola data penyewa dan kontrak sewa.",
+  title: "Penyewa & Kontrak Sewa",
+  description: "Kelola data penyewa, profil NIK/KTP, dan status kontrak aktif.",
 };
 
 // ---------------------------------------------------------------------------
@@ -11,23 +12,15 @@ export const metadata: Metadata = {
 
 export default function TenantsPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Penyewa</h1>
-          <p className="text-muted-foreground">
-            Data penyewa, profil KTP, dan status kontrak aktif.
-          </p>
-        </div>
-        {/* TODO: Add tenant button */}
-      </div>
-
-      {/* TODO: Tenant table with search, filter by property */}
-      <div className="rounded-lg border bg-card p-6 shadow-sm">
-        <p className="text-center text-sm text-muted-foreground">
-          Belum ada data penyewa terdaftar.
-        </p>
-      </div>
-    </div>
+    <DeveloperModePlaceholder
+      title="Penyewa & Kontrak Sewa"
+      path="/tenants"
+      description="Manajemen data penyewa, verifikasi profil & foto KTP, status kontrak aktif, serta riwayat penyewaan unit properti."
+      features={[
+        "Tenant REST API Active (/api/tenants)",
+        "Verifikasi Profil & NIK KTP",
+        "Manajemen Kontrak & Invoice",
+      ]}
+    />
   );
 }

@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import { DeveloperModePlaceholder } from "@/components/shared/developer-mode";
+
+export const metadata: Metadata = {
+  title: "Komunitas Properti",
+  description: "Pengumuman pengelola gedung, forum diskusi penghuni, dan direct WhatsApp chat ke staf housekeeping.",
+};
 
 export default function TenantCommunityPage() {
   return (
