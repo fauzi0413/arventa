@@ -7,6 +7,7 @@ import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, 
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import PropertyFormModal from '../_components/PropertyFormModal';
 import InventoryManager from '../_components/InventoryManager';
+import { Unit } from '../../units/_types';
 
 export default function PropertyDetailPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function PropertyDetailPage() {
   const [statuses, setStatuses] = useState<PropertyStatus[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [units, setUnits] = useState<Unit[]>([]);
 
   // Tabs state
   const [activeTab, setActiveTab] = useState<'units' | 'inventory'>('units');
@@ -26,16 +28,20 @@ export default function PropertyDetailPage() {
     const storedProps = localStorage.getItem('arventa_properties');
     const storedCats = localStorage.getItem('arventa_categories');
     const storedStats = localStorage.getItem('arventa_statuses');
+    const storedUnits = localStorage.getItem('arventa_units');
 
     let currentProps: Property[] = [];
     let currentCats: PropertyCategory[] = [];
     let currentStats: PropertyStatus[] = [];
+    let currentUnits: Unit[] = [];
 
     if (storedProps) currentProps = JSON.parse(storedProps);
     if (storedCats) currentCats = JSON.parse(storedCats);
     if (storedStats) currentStats = JSON.parse(storedStats);
+    if (storedUnits) currentUnits = JSON.parse(storedUnits);
 
     const found = currentProps.find((p) => p.id === id);
+    const propUnits = currentUnits.filter((u) => u.propertyId === id);
 
     const timer = setTimeout(() => {
       setCategories(currentCats);
@@ -43,6 +49,7 @@ export default function PropertyDetailPage() {
       if (found) {
         setProperty(found);
       }
+      setUnits(propUnits);
       setLoading(false);
     }, 0);
 
@@ -82,8 +89,8 @@ export default function PropertyDetailPage() {
   const category = categories.find((c) => c.id === property.categoryId);
   const status = statuses.find((s) => s.id === property.statusId);
 
-  const total = property.totalUnits;
-  const occupied = property.occupiedUnits;
+  const total = units.length;
+  const occupied = units.filter((u) => u.status === 'Occupied').length;
   const vacant = Math.max(0, total - occupied);
   const rate = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
@@ -246,7 +253,6 @@ export default function PropertyDetailPage() {
 
           {/* Switchable Sections */}
           {activeTab === 'units' ? (
-            /* Unit List Mock Section */
             <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4 animate-in fade-in duration-200">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-bold text-gray-800 flex items-center gap-1.5">
@@ -254,39 +260,52 @@ export default function PropertyDetailPage() {
                   Daftar Kamar / Unit
                 </h3>
                 <span className="text-xs font-semibold text-gray-500">
-                  Total {property.totalUnits} Kamar
+                  Total {units.length} Kamar
                 </span>
               </div>
 
-              {property.totalUnits === 0 ? (
-                <p className="text-center text-xs text-gray-400 py-6">Belum ada unit yang terdaftar di properti ini.</p>
+              {units.length === 0 ? (
+                <div className="text-center py-8 space-y-2">
+                  <p className="text-xs text-gray-400">Belum ada unit yang terdaftar di properti ini.</p>
+                  <Link
+                    href="/units"
+                    className="inline-block text-xs font-bold text-[#8FA28A] hover:underline"
+                  >
+                    Tambah Unit Baru →
+                  </Link>
+                </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {Array.from({ length: property.totalUnits }).map((_, idx) => {
-                    const isRoomOccupied = idx < property.occupiedUnits;
+                  {units.map((unit) => {
+                    const isRoomOccupied = unit.status === 'Occupied';
                     return (
-                      <div
-                        key={idx}
-                        className={`flex items-center justify-between rounded-xl border p-3.5 transition-colors ${
+                      <Link
+                        key={unit.id}
+                        href={`/properties/${id}/units/${unit.id}`}
+                        className={`flex items-center justify-between rounded-xl border p-3.5 transition-all hover:shadow-sm hover:border-[#8FA28A]/50 ${
                           isRoomOccupied
                             ? 'border-[#8FA28A]/30 bg-[#8FA28A]/5'
                             : 'border-gray-200 bg-white'
                         }`}
                       >
                         <div className="space-y-0.5">
-                          <p className="text-sm font-bold text-gray-800">Unit {101 + idx}</p>
-                          <p className="text-[11px] text-gray-400">Tipe Standard Room</p>
+                          <p className="text-sm font-bold text-gray-800">{unit.name}</p>
+                          <p className="text-[11px] text-gray-400">{unit.capacity.dimensions} • Max {unit.capacity.maxPersons} Orang</p>
                         </div>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                            isRoomOccupied
-                              ? 'bg-[#8FA28A] text-white'
-                              : 'bg-gray-100 text-gray-500'
+                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                            unit.status === 'Available' ? 'bg-[#8FA28A] text-white' :
+                            unit.status === 'Occupied' ? 'bg-blue-600 text-white' :
+                            unit.status === 'Need Cleaning' ? 'bg-[#C8A96B] text-white' :
+                            'bg-red-600 text-white'
                           }`}
                         >
-                          {isRoomOccupied ? 'Terisi' : 'Kosong'}
+                          {unit.status === 'Available' ? 'Tersedia' :
+                           unit.status === 'Occupied' ? 'Terisi' :
+                           unit.status === 'Need Cleaning' ? 'Cleaning' :
+                           'Perbaikan'}
                         </span>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { MapPin, BedDouble, Edit3, Trash2, ArrowRight } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
@@ -20,8 +20,21 @@ export default function PropertyCard({
   onEdit,
   onDelete,
 }: PropertyCardProps) {
-  const occupancyRate = property.totalUnits > 0 
-    ? Math.round((property.occupiedUnits / property.totalUnits) * 100) 
+  const [totalUnits, setTotalUnits] = useState(0);
+  const [occupiedUnits, setOccupiedUnits] = useState(0);
+
+  useEffect(() => {
+    const storedUnits = localStorage.getItem('arventa_units');
+    if (storedUnits) {
+      const allUnits = JSON.parse(storedUnits);
+      const propUnits = allUnits.filter((u: any) => u.propertyId === property.id);
+      setTotalUnits(propUnits.length);
+      setOccupiedUnits(propUnits.filter((u: any) => u.status === 'Occupied').length);
+    }
+  }, [property.id]);
+
+  const occupancyRate = totalUnits > 0 
+    ? Math.round((occupiedUnits / totalUnits) * 100) 
     : 0;
 
   // Premium image handling with reliable Unsplash fallback based on category
@@ -100,7 +113,7 @@ export default function PropertyCard({
                 Keterisian Kamar
               </span>
               <span className="font-bold text-gray-700">
-                {property.occupiedUnits}/{property.totalUnits} Kamar ({occupancyRate}%)
+                {occupiedUnits}/{totalUnits} Kamar ({occupancyRate}%)
               </span>
             </div>
 

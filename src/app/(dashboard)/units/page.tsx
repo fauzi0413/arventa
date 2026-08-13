@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { Search, Plus, Filter, LayoutGrid, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Filter, LayoutGrid, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { Unit } from './_types';
 import UnitCard from './_components/UnitCard';
 import UnitFormModal from './_components/UnitFormModal';
@@ -50,6 +50,17 @@ const DEFAULT_UNITS = (propId1: string, propId2: string): Unit[] => [
 export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Stats calculation
+  const stats = useMemo(() => {
+    const total = units.length;
+    const occupied = units.filter((u) => u.status === 'Occupied').length;
+    const available = units.filter((u) => u.status === 'Available').length;
+    const maintenance = units.filter((u) => u.status === 'Maintenance').length;
+    const cleaning = units.filter((u) => u.status === 'Need Cleaning').length;
+    return { total, occupied, available, maintenance, cleaning };
+  }, [units]);
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,6 +92,7 @@ export default function UnitsPage() {
     const timer = setTimeout(() => {
       setProperties(loadedProps);
       setUnits(loadedUnits);
+      setLoading(false);
     }, 0);
 
     return () => clearTimeout(timer);
@@ -131,6 +143,17 @@ export default function UnitsPage() {
 
   return (
     <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-6 rounded-2xl border border-[#C7D3C0]/40">
+      {/* Back Button Navigation */}
+      <div className="flex items-center">
+        <Link
+          href="/properties"
+          className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#8FA28A] transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Kembali ke Properti
+        </Link>
+      </div>
+
       {/* Top Header Card */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -167,6 +190,46 @@ export default function UnitsPage() {
           )}
         </div>
       </div>
+
+      {/* Unit Statistics Section */}
+      {loading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 h-20 animate-pulse" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Total Unit</span>
+              <span className="text-xl font-black text-gray-800">{stats.total}</span>
+            </div>
+            <div className="h-8 w-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 text-xs font-black">∑</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Terisi</span>
+              <span className="text-xl font-black text-blue-600">{stats.occupied}</span>
+            </div>
+            <div className="h-8 w-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500 text-xs font-black">✓</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Kosong (Tersedia)</span>
+              <span className="text-xl font-black text-[#8FA28A]">{stats.available}</span>
+            </div>
+            <div className="h-8 w-8 rounded-lg bg-[#8FA28A]/10 flex items-center justify-center text-[#8FA28A] text-xs font-black">⚡</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Perbaikan / Kotor</span>
+              <span className="text-xl font-black text-[#C8A96B]">{stats.cleaning + stats.maintenance}</span>
+            </div>
+            <div className="h-8 w-8 rounded-lg bg-amber-50 flex items-center justify-center text-[#C8A96B] text-xs font-black">🛠</div>
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center">
@@ -217,7 +280,33 @@ export default function UnitsPage() {
       </div>
 
       {/* Grid Rooms View */}
-      {properties.length === 0 ? (
+      {loading ? (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm space-y-4 animate-pulse">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <div className="h-5 w-24 bg-gray-200 rounded-lg" />
+                  <div className="h-3 w-32 bg-gray-200 rounded-lg" />
+                </div>
+                <div className="h-5 w-16 bg-gray-200 rounded-full" />
+              </div>
+              <div className="space-y-1 pt-2">
+                <div className="h-3 w-20 bg-gray-200 rounded-lg" />
+                <div className="h-4 w-28 bg-gray-200 rounded-lg" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <div className="h-6 w-12 bg-gray-200 rounded-lg" />
+                <div className="h-6 w-16 bg-gray-200 rounded-lg" />
+              </div>
+              <div className="flex gap-2 pt-4 border-t border-gray-100">
+                <div className="h-8 flex-1 bg-gray-200 rounded-xl" />
+                <div className="h-8 w-10 bg-gray-200 rounded-xl" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : properties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm">
           <p className="text-sm font-semibold text-gray-500">
             Sistem mendeteksi Anda belum memiliki Properti. Anda wajib mendaftarkan properti utama Anda terlebih dahulu sebelum bisa menambahkan unit kamar.
