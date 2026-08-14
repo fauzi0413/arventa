@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import packageJson from "../../../package.json";
 import {
   IconHome,
   IconBuilding,
@@ -266,7 +267,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
   return (
     <aside className="hidden w-64 shrink-0 border-r bg-sidebar lg:block">
       <div className="flex h-full flex-col">
-        {/* Logo & Role Badge */}
+        {/* Logo Header */}
         <div className="flex h-16 items-center justify-between border-b px-6">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-extrabold text-sm">
@@ -274,17 +275,13 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
             </div>
             <div className="flex flex-col">
               <span className="text-base font-bold tracking-tight text-sidebar-foreground leading-none">
-                ARVENTA
+                ARVENTRA
               </span>
               <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mt-0.5">
                 Property Platform
               </span>
             </div>
           </Link>
-
-          <span className={cn("rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase", getBadgeColor(currentRole))}>
-            {currentRole}
-          </span>
         </div>
 
         {/* Navigation Items Grouped by Section Headers */}
@@ -385,7 +382,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
         {/* Footer */}
         <div className="border-t px-4 py-3">
           <p className="text-[11px] text-muted-foreground text-center font-medium">
-            © 2026 ARVENTA • Room PMS
+            © 2026 ARVENTA v{packageJson.version} • Room PMS
           </p>
         </div>
       </div>

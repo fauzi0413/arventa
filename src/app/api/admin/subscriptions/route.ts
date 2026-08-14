@@ -71,6 +71,19 @@ export async function GET() {
     const totalMRR = paidInvoices.reduce((acc: number, inv: any) => acc + Number(inv.amount), 0);
     const pendingInvoicesCount = invoicesList.filter((inv: any) => inv.status === "PENDING").length;
 
+    // Fetch raw plan statuses directly from DB table to bypass stale Prisma Client SELECT cache
+    let planStatuses: Record<string, string> = {};
+    try {
+      const rawStatusRows: any[] = await prisma.$queryRawUnsafe(`SELECT id, status FROM saas_plans`);
+      for (const row of rawStatusRows) {
+        if (row.id && row.status) {
+          planStatuses[row.id] = row.status;
+        }
+      }
+    } catch (e) {
+      console.warn("Could not query raw plan statuses:", e);
+    }
+
     const formattedPlans = plansList.map((plan: any) => ({
       id: plan.id,
       name: plan.name,
@@ -79,6 +92,7 @@ export async function GET() {
       priceMonthly: Number(plan.priceMonthly),
       priceYearly: Number(plan.priceYearly),
       features: plan.features,
+      status: planStatuses[plan.id] || plan.status || "ACTIVE",
       subscriberCount: plan._count.subscriptions,
       createdAt: plan.createdAt,
     }));
@@ -177,6 +191,7 @@ export async function POST(req: Request) {
           priceMonthly: parseFloat(priceMonthly),
           priceYearly: parseFloat(priceYearly || priceMonthly * 10),
           features: Array.isArray(features) ? features : [],
+          status: body.status || "ACTIVE",
         },
       });
 
@@ -186,7 +201,7 @@ export async function POST(req: Request) {
           action: "CREATE_SAAS_PLAN",
           entityName: "SaaSPlan",
           entityId: newPlan.id,
-          details: { name, priceMonthly, maxProperties, maxUnits },
+          details: { name, priceMonthly, maxProperties, maxUnits, status: newPlan.status },
           ipAddress: "127.0.0.1",
         },
       });
@@ -199,34 +214,123 @@ export async function POST(req: Request) {
 
     // 2. Update Existing SaaS Subscription Plan
     if (action === "UPDATE_PLAN") {
-      const { planId, name, maxProperties, maxUnits, priceMonthly, priceYearly, features } = body;
+      const { planId, name, maxProperties, maxUnits, priceMonthly, priceYearly, features, status } = body;
 
-      if (!planId) {
+      if (!planId && !name) {
         return ApiResponse.error({
-          message: "planId wajib diisi",
+          message: "planId atau nama paket wajib diisi",
           status: 400,
         });
       }
 
-      const updatedPlan = await prisma.saaSPlan.update({
-        where: { id: planId },
-        data: {
-          name: name !== undefined ? name : undefined,
-          maxProperties: maxProperties !== undefined ? parseInt(maxProperties, 10) : undefined,
-          maxUnits: maxUnits !== undefined ? parseInt(maxUnits, 10) : undefined,
-          priceMonthly: priceMonthly !== undefined ? parseFloat(priceMonthly) : undefined,
-          priceYearly: priceYearly !== undefined ? parseFloat(priceYearly) : undefined,
-          features: Array.isArray(features) ? features : undefined,
+      // Find existing plan by ID or by Name
+      const existingPlan = await prisma.saaSPlan.findFirst({
+        where: {
+          OR: [
+            ...(planId ? [{ id: planId }] : []),
+            ...(name ? [{ name }] : []),
+          ],
         },
       });
+
+      // Check if plan has active subscribers before deactivating
+      if (status === "INACTIVE" && existingPlan) {
+        const activeSubCount = await prisma.ownerSubscription.count({
+          where: { planId: existingPlan.id },
+        });
+        if (activeSubCount > 0) {
+          return ApiResponse.error({
+            message: `Paket "${existingPlan.name}" sudah memiliki ${activeSubCount} subscriber aktif dan tidak dapat dinonaktifkan.`,
+            status: 400,
+          });
+        }
+      }
+
+      const updateData: any = {
+        name: name !== undefined ? name : undefined,
+        maxProperties: maxProperties !== undefined ? parseInt(maxProperties, 10) : undefined,
+        maxUnits: maxUnits !== undefined ? parseInt(maxUnits, 10) : undefined,
+        priceMonthly: priceMonthly !== undefined ? parseFloat(priceMonthly) : undefined,
+        priceYearly: priceYearly !== undefined ? parseFloat(priceYearly) : undefined,
+        features: Array.isArray(features) ? features : undefined,
+        status: status !== undefined ? status : undefined,
+      };
+
+      let updatedPlan: any;
+      try {
+        if (existingPlan) {
+          updatedPlan = await prisma.saaSPlan.update({
+            where: { id: existingPlan.id },
+            data: updateData,
+          });
+        } else {
+          updatedPlan = await prisma.saaSPlan.create({
+            data: {
+              name: name || "Paket SaaS Baru",
+              maxProperties: parseInt(maxProperties || "1", 10),
+              maxUnits: parseInt(maxUnits || "10", 10),
+              priceMonthly: parseFloat(priceMonthly || "99000"),
+              priceYearly: parseFloat(priceYearly || "990000"),
+              features: Array.isArray(features) ? features : [],
+              status: status || "ACTIVE",
+            },
+          });
+        }
+      } catch (err: any) {
+        // Fallback for cached Prisma Client instance where status is unknown argument in runtime
+        delete updateData.status;
+        if (existingPlan) {
+          updatedPlan = await prisma.saaSPlan.update({
+            where: { id: existingPlan.id },
+            data: updateData,
+          });
+          if (status) {
+            try {
+              await prisma.$executeRawUnsafe(
+                `UPDATE saas_plans SET status = $1 WHERE id = $2`,
+                status,
+                existingPlan.id
+              );
+              updatedPlan.status = status;
+            } catch (e) {
+              console.warn("Failed raw status update:", e);
+            }
+          }
+        } else {
+          updatedPlan = await prisma.saaSPlan.create({
+            data: {
+              name: name || "Paket SaaS Baru",
+              maxProperties: parseInt(maxProperties || "1", 10),
+              maxUnits: parseInt(maxUnits || "10", 10),
+              priceMonthly: parseFloat(priceMonthly || "99000"),
+              priceYearly: parseFloat(priceYearly || "990000"),
+              features: Array.isArray(features) ? features : [],
+            },
+          });
+        }
+      }
+
+      // Ensure PostgreSQL status column is 100% updated directly
+      if (status && updatedPlan?.id) {
+        try {
+          await prisma.$executeRawUnsafe(
+            `UPDATE saas_plans SET status = $1 WHERE id = $2`,
+            status,
+            updatedPlan.id
+          );
+          updatedPlan.status = status;
+        } catch (e) {
+          console.warn("Direct SQL status update error:", e);
+        }
+      }
 
       // Write Audit Log
       await prisma.auditLog.create({
         data: {
           action: "UPDATE_SAAS_PLAN",
           entityName: "SaaSPlan",
-          entityId: planId,
-          details: { name: updatedPlan.name, priceMonthly: Number(updatedPlan.priceMonthly) },
+          entityId: updatedPlan.id,
+          details: { name: updatedPlan.name, priceMonthly: Number(updatedPlan.priceMonthly), status: updatedPlan.status || status },
           ipAddress: "127.0.0.1",
         },
       });

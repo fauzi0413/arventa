@@ -336,20 +336,20 @@ export function RolePermissionManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-purple-500/10 blur-3xl" />
+      {/* Header Banner (ARVENTRA Brand Theme) */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#242823] border border-[#383E36] p-6 sm:p-8 text-white shadow-xl">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-[#8FA28A]/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-purple-500/20 text-purple-200 border-purple-400/30 text-xs tracking-wide uppercase">
-                <IconShieldCheck className="mr-1 size-3.5" /> Access Control Engine
+              <Badge className="bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40 text-xs tracking-wider uppercase font-bold px-3 py-1 rounded-full">
+                <IconShieldCheck className="mr-1 size-3.5 text-[#C8A96B]" /> ACCESS CONTROL ENGINE
               </Badge>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
               Role & Permission Management
             </h1>
-            <p className="mt-1 text-sm text-purple-200/80">
+            <p className="mt-1.5 text-xs sm:text-sm text-gray-300">
               Kelola master roles, atur granular permission matrix (Read, Create, Update, Delete per Modul), dan user assignment.
             </p>
           </div>
@@ -358,15 +358,15 @@ export function RolePermissionManager() {
             <Button
               size="sm"
               onClick={fetchData}
-              variant="secondary"
-              className="gap-1.5 font-semibold text-xs"
+              variant="outline"
+              className="gap-1.5 font-bold text-xs rounded-xl border-[#383E36] bg-[#1E221E] text-gray-200 hover:bg-[#383E36]"
             >
               <IconRefresh className="size-4" /> Sync Matrix
             </Button>
             <Button
               size="sm"
               onClick={() => setShowNewRoleModal(true)}
-              className="gap-1.5 font-semibold text-xs bg-primary text-primary-foreground"
+              className="gap-1.5 font-bold text-xs bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white rounded-xl shadow-sm"
             >
               <IconPlus className="size-4" /> Buat Custom Role
             </Button>
@@ -400,32 +400,39 @@ export function RolePermissionManager() {
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
+      <div className="flex flex-wrap gap-2 border-b border-[#C7D3C0]/40 pb-3">
         {[
           { id: "matrix", label: "Permission Matrix Grid", icon: IconLock },
           { id: "roles", label: "Master Roles Builder", icon: IconShieldCheck },
           { id: "users", label: "User Role Assignment", icon: IconUserCheck },
-        ].map((tab) => (
-          <Button
-            key={tab.id}
-            size="sm"
-            variant={activeTab === tab.id ? "default" : "outline"}
-            onClick={() => setActiveTab(tab.id as any)}
-            className="text-xs font-semibold gap-1.5 h-9"
-          >
-            <tab.icon className="size-4" />
-            {tab.label}
-          </Button>
-        ))}
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              size="sm"
+              variant={isActive ? "default" : "outline"}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`text-xs font-bold gap-1.5 h-9 rounded-xl transition-all ${
+                isActive
+                  ? "bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white shadow-sm"
+                  : "border-[#C7D3C0]/60 hover:bg-[#C7D3C0]/20 text-gray-700 dark:text-gray-300 dark:border-[#383E36]"
+              }`}
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </Button>
+          );
+        })}
       </div>
 
       {/* TAB 1: PERMISSION MATRIX GRID */}
       {activeTab === "matrix" && (
-        <Card className="border-border/60 shadow-sm">
+        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
           <CardHeader className="pb-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div>
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <IconLock className="size-5 text-purple-600" />
+              <CardTitle className="text-base font-bold flex items-center gap-2 text-[#2F332E] dark:text-white">
+                <IconLock className="size-5 text-[#8FA28A]" />
                 Granular Permission Matrix Grid
               </CardTitle>
               <CardDescription>

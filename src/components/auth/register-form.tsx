@@ -16,10 +16,6 @@ import {
   IconCheck,
   IconLoader2,
   IconUserPlus,
-  IconShield,
-  IconBuildingStore,
-  IconSparkles,
-  IconUserCheck,
 } from "@tabler/icons-react";
 
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth.schema";
@@ -27,33 +23,6 @@ import { UserRole } from "@/types/roles";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-
-const rolesList = [
-  {
-    role: UserRole.OWNER,
-    title: "Property Owner",
-    desc: "Pemilik kos, kontrakan, atau apartemen",
-    icon: IconBuildingStore,
-  },
-  {
-    role: UserRole.PLATFORM_ADMIN,
-    title: "Platform Admin",
-    desc: "Pengelola platform & SaaS",
-    icon: IconShield,
-  },
-  {
-    role: UserRole.HOUSEKEEPING,
-    title: "Housekeeping",
-    desc: "Staf pembersih & operasional kamar",
-    icon: IconSparkles,
-  },
-  {
-    role: UserRole.USER,
-    title: "Tenant (Penyewa)",
-    desc: "Penghuni unit / kamar",
-    icon: IconUserCheck,
-  },
-];
 
 export function RegisterForm() {
   const router = useRouter();
@@ -67,8 +36,6 @@ export function RegisterForm() {
   const {
     register,
     handleSubmit,
-    setValue,
-    watch,
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
@@ -76,13 +43,11 @@ export function RegisterForm() {
       fullName: "",
       email: "",
       phoneNumber: "",
-      role: UserRole.OWNER,
+      role: UserRole.OWNER, // Automatically defaults to OWNER role
       password: "",
       confirmPassword: "",
     },
   });
-
-  const selectedRole = watch("role");
 
   const onSubmit = async (data: RegisterInput) => {
     setIsLoading(true);
@@ -93,7 +58,10 @@ export function RegisterForm() {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          role: UserRole.OWNER, // Always register as OWNER
+        }),
       });
 
       const result = await response.json();
@@ -106,7 +74,7 @@ export function RegisterForm() {
         return;
       }
 
-      setSuccessMessage("Akun berhasil dibuat! Mengalihkan Anda ke halaman login...");
+      setSuccessMessage("Akun Owner berhasil dibuat! Mengalihkan Anda ke halaman login...");
       setTimeout(() => {
         router.push("/login");
       }, 1500);
@@ -118,19 +86,19 @@ export function RegisterForm() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 text-[#2F332E]">
       {/* Alert Error */}
       {errorMessage && (
-        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3.5 text-sm text-destructive dark:bg-destructive/20">
-          <IconAlertCircle className="mt-0.5 size-5 shrink-0" />
+        <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-600 font-semibold">
+          <IconAlertCircle className="mt-0.5 size-4 shrink-0" />
           <div className="flex-1">{errorMessage}</div>
         </div>
       )}
 
       {/* Alert Success */}
       {successMessage && (
-        <div className="flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-sm text-emerald-600 dark:text-emerald-400">
-          <IconCheck className="mt-0.5 size-5 shrink-0" />
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-700 font-semibold">
+          <IconCheck className="mt-0.5 size-4 shrink-0" />
           <div className="flex-1">{successMessage}</div>
         </div>
       )}
@@ -138,99 +106,81 @@ export function RegisterForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Full Name */}
         <div className="space-y-1.5">
-          <Label htmlFor="fullName">Nama Lengkap</Label>
+          <Label htmlFor="fullName" className="text-xs font-extrabold text-[#2F332E]">
+            Nama Lengkap <span className="text-[#5B7555]">*</span>
+          </Label>
           <Input
             id="fullName"
             type="text"
             placeholder="Contoh: Hendra Pratama"
-            icon={<IconUser className="size-4 text-muted-foreground" />}
+            icon={<IconUser className="size-4 text-gray-400" />}
             aria-invalid={!!errors.fullName}
+            className="rounded-xl border-[#E1ECE0] bg-[#F9FAF8] focus:border-[#6B8065]"
             {...register("fullName")}
           />
           {errors.fullName && (
-            <p className="text-xs text-destructive">{errors.fullName.message}</p>
+            <p className="text-xs text-red-500 font-medium">{errors.fullName.message}</p>
           )}
         </div>
 
         {/* Email */}
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="text-xs font-extrabold text-[#2F332E]">
+            Email Address <span className="text-[#5B7555]">*</span>
+          </Label>
           <Input
             id="email"
             type="email"
             placeholder="nama@email.com"
             autoComplete="email"
-            icon={<IconMail className="size-4 text-muted-foreground" />}
+            icon={<IconMail className="size-4 text-gray-400" />}
             aria-invalid={!!errors.email}
+            className="rounded-xl border-[#E1ECE0] bg-[#F9FAF8] focus:border-[#6B8065]"
             {...register("email")}
           />
           {errors.email && (
-            <p className="text-xs text-destructive">{errors.email.message}</p>
+            <p className="text-xs text-red-500 font-medium">{errors.email.message}</p>
           )}
         </div>
 
         {/* Phone Number */}
         <div className="space-y-1.5">
-          <Label htmlFor="phoneNumber">Nomor HP / WhatsApp (Opsional)</Label>
+          <Label htmlFor="phoneNumber" className="text-xs font-extrabold text-[#2F332E]">
+            Nomor HP / WhatsApp (Opsional)
+          </Label>
           <Input
             id="phoneNumber"
             type="tel"
             placeholder="081234567890"
-            icon={<IconPhone className="size-4 text-muted-foreground" />}
+            icon={<IconPhone className="size-4 text-gray-400" />}
             aria-invalid={!!errors.phoneNumber}
+            className="rounded-xl border-[#E1ECE0] bg-[#F9FAF8] focus:border-[#6B8065]"
             {...register("phoneNumber")}
           />
           {errors.phoneNumber && (
-            <p className="text-xs text-destructive">{errors.phoneNumber.message}</p>
+            <p className="text-xs text-red-500 font-medium">{errors.phoneNumber.message}</p>
           )}
-        </div>
-
-        {/* Role Selection Grid */}
-        <div className="space-y-1.5">
-          <Label>Pilih Peran Pengguna</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {rolesList.map((item) => {
-              const Icon = item.icon;
-              const isSelected = selectedRole === item.role;
-              return (
-                <button
-                  key={item.role}
-                  type="button"
-                  onClick={() => setValue("role", item.role)}
-                  className={`flex flex-col gap-1 rounded-lg border p-2.5 text-left transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/10 ring-2 ring-primary/20"
-                      : "border-input hover:bg-accent hover:border-primary/40"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <Icon className={`size-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                    {isSelected && <IconCheck className="size-3.5 text-primary" />}
-                  </div>
-                  <p className="font-semibold text-xs text-foreground">{item.title}</p>
-                  <p className="text-[10px] text-muted-foreground line-clamp-1">{item.desc}</p>
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         {/* Password */}
         <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password" className="text-xs font-extrabold text-[#2F332E]">
+            Password <span className="text-[#5B7555]">*</span>
+          </Label>
           <div className="relative">
             <Input
               id="password"
               type={showPassword ? "text" : "password"}
               placeholder="Minimal 8 karakter (termasuk huruf kapital & angka)"
-              icon={<IconLock className="size-4 text-muted-foreground" />}
+              icon={<IconLock className="size-4 text-gray-400" />}
               aria-invalid={!!errors.password}
+              className="rounded-xl border-[#E1ECE0] bg-[#F9FAF8] focus:border-[#6B8065]"
               {...register("password")}
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               tabIndex={-1}
             >
               {showPassword ? (
@@ -241,26 +191,29 @@ export function RegisterForm() {
             </button>
           </div>
           {errors.password && (
-            <p className="text-xs text-destructive">{errors.password.message}</p>
+            <p className="text-xs text-red-500 font-medium">{errors.password.message}</p>
           )}
         </div>
 
         {/* Confirm Password */}
         <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Konfirmasi Password</Label>
+          <Label htmlFor="confirmPassword" className="text-xs font-extrabold text-[#2F332E]">
+            Konfirmasi Password <span className="text-[#5B7555]">*</span>
+          </Label>
           <div className="relative">
             <Input
               id="confirmPassword"
               type={showConfirmPassword ? "text" : "password"}
               placeholder="Ulangi password Anda"
-              icon={<IconLock className="size-4 text-muted-foreground" />}
+              icon={<IconLock className="size-4 text-gray-400" />}
               aria-invalid={!!errors.confirmPassword}
+              className="rounded-xl border-[#E1ECE0] bg-[#F9FAF8] focus:border-[#6B8065]"
               {...register("confirmPassword")}
             />
             <button
               type="button"
               onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
               tabIndex={-1}
             >
               {showConfirmPassword ? (
@@ -271,36 +224,36 @@ export function RegisterForm() {
             </button>
           </div>
           {errors.confirmPassword && (
-            <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>
+            <p className="text-xs text-red-500 font-medium">{errors.confirmPassword.message}</p>
           )}
         </div>
 
         {/* Submit Button */}
         <Button
           type="submit"
-          className="w-full h-11 text-base font-semibold shadow-md gap-2 mt-2"
+          className="w-full h-12 text-xs md:text-sm font-black rounded-2xl bg-[#6B8065] hover:bg-[#5A6E55] text-white shadow-md gap-2 mt-2"
           disabled={isLoading || !!successMessage}
         >
           {isLoading ? (
             <>
-              <IconLoader2 className="size-5 animate-spin" />
-              Mendaftarkan Akun...
+              <IconLoader2 className="size-4 animate-spin" />
+              Mendaftarkan Akun Owner...
             </>
           ) : (
             <>
-              <IconUserPlus className="size-5" />
-              Daftar Akun Baru
+              <IconUserPlus className="size-4" />
+              Daftar Akun Owner Baru
             </>
           )}
         </Button>
       </form>
 
       {/* Navigation Link to Login */}
-      <div className="text-center text-sm text-muted-foreground pt-2">
+      <div className="text-center text-xs text-gray-600 pt-3 border-t border-[#E1ECE0] font-semibold">
         Sudah memiliki akun?{" "}
         <Link
           href="/login"
-          className="font-semibold text-primary underline-offset-4 hover:underline"
+          className="font-black text-[#5B7555] underline hover:text-[#445840] transition-colors"
         >
           Masuk di sini
         </Link>

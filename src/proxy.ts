@@ -4,13 +4,17 @@ import { updateSession } from "@/lib/supabase/middleware";
 // ---------------------------------------------------------------------------
 // Next.js 16 Proxy — Auth Gate & Session Refresher
 // ---------------------------------------------------------------------------
-// In Next.js 16, middleware.ts has been renamed to proxy.ts.
-// The exported function must be named `proxy` (not `middleware`).
+// In Next.js 16, middleware.ts is named proxy.ts.
+// The exported function must be named `proxy`.
 // ---------------------------------------------------------------------------
 
-// Routes that require authentication
+// Routes that require authentication (Dashboard & Management features)
 const protectedPrefixes = [
+  "/dashboard",
+  "/admin",
   "/properties",
+  "/units",
+  "/unit",
   "/tenants",
   "/finance",
   "/operations",
@@ -19,26 +23,32 @@ const protectedPrefixes = [
   "/platform",
   "/owner",
   "/housekeeping",
+  "/hk",
+  "/tenant",
+  "/invoices",
+  "/expenses",
+  "/announcements",
+  "/settings",
   "/api-docs",
   "/api/docs",
 ];
 
-// Routes only for unauthenticated users
+// Auth routes (Login & Register)
 const authRoutes = ["/login", "/register"];
 
 export async function proxy(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  // 1. Allow maintenance page directly without redirect loops
+  // 1. Allow maintenance page & static assets without redirect loops
   if (pathname.startsWith("/maintenance")) {
     return supabaseResponse;
   }
 
-  // 2. Redirect unauthenticated users away from protected routes
-  const isProtected =
-    pathname === "/" ||
-    protectedPrefixes.some((prefix) => pathname.startsWith(prefix));
+  // 2. Redirect unauthenticated users away from protected dashboard routes
+  const isProtected = protectedPrefixes.some((prefix) =>
+    pathname.startsWith(prefix)
+  );
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();
@@ -46,10 +56,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // 3. Redirect authenticated users away from auth pages
+  // 3. Redirect authenticated users away from auth pages (/login, /register) to /dashboard
   if (user && authRoutes.some((route) => pathname.startsWith(route))) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 

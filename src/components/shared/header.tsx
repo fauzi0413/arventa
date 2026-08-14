@@ -34,7 +34,6 @@ export function Header() {
   const { setMobileMenuOpen } = useUIStore();
 
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -44,9 +43,44 @@ export function Header() {
         const json = await res.json();
         if (json.success && json.data) {
           setUser(json.data);
+          return;
         }
       } catch (err) {
-        console.error("Failed to load user profile in header:", err);
+        console.warn("Failed to load user profile via API:", err);
+      }
+
+      // Client-side fallback for session cookies / localStorage
+      if (typeof window !== "undefined") {
+        const hasSession = document.cookie.includes("arventa_session=true");
+        const savedRole =
+          (localStorage.getItem("arventa_user_role") as UserRole) ||
+          (document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("arventa_demo_role="))
+            ?.split("=")[1] as UserRole) ||
+          UserRole.OWNER;
+
+        if (hasSession || savedRole) {
+          let fullName = "Budi Santoso (Owner)";
+          let email = "budi@kostsejahtera.com";
+          if (savedRole === UserRole.PLATFORM_ADMIN) {
+            fullName = "Super Admin Platform";
+            email = "admin@arventra.id";
+          } else if (savedRole === UserRole.HOUSEKEEPING) {
+            fullName = "Agus (Housekeeping)";
+            email = "agus.hk@arventra.id";
+          } else if (savedRole === UserRole.USER) {
+            fullName = "Siti Rahma (Penghuni)";
+            email = "siti.rahma@gmail.com";
+          }
+
+          setUser({
+            id: "demo-user-id",
+            email,
+            fullName,
+            role: savedRole,
+          });
+        }
       }
     }
 
@@ -57,6 +91,11 @@ export function Header() {
     setIsLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      document.cookie = "arventa_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      document.cookie = "arventa_demo_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("arventa_user_role");
+      }
       setUser(null);
       router.push("/login");
       router.refresh();
@@ -67,18 +106,18 @@ export function Header() {
     }
   };
 
-  const getRoleVariant = (role?: UserRole) => {
+  const getRoleBadgeClasses = (role?: UserRole) => {
     switch (role) {
       case UserRole.PLATFORM_ADMIN:
-        return "destructive";
+        return "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-800 font-bold";
       case UserRole.OWNER:
-        return "default";
+        return "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/80 dark:text-blue-300 dark:border-blue-800 font-bold";
       case UserRole.HOUSEKEEPING:
-        return "warning";
+        return "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800 font-bold";
       case UserRole.USER:
-        return "info";
+        return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800 font-bold";
       default:
-        return "secondary";
+        return "bg-muted text-muted-foreground";
     }
   };
 
@@ -119,7 +158,7 @@ export function Header() {
             <span className="text-xs text-muted-foreground">{user.email}</span>
           </div>
 
-          <Badge variant={getRoleVariant(user.role)} className="hidden sm:inline-flex text-[10px]">
+          <Badge variant="outline" className={`hidden sm:inline-flex text-[10px] uppercase px-2 py-0.5 ${getRoleBadgeClasses(user.role)}`}>
             {user.role}
           </Badge>
 
@@ -129,7 +168,7 @@ export function Header() {
             size="sm"
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive cursor-pointer"
           >
             <IconLogout className="size-3.5" />
             <span>Keluar</span>

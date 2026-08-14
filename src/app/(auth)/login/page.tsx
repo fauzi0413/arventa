@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/login-form";
-import { IconLoader2 } from "@tabler/icons-react";
+import { Loader2 } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Masuk — ARVENTA Property Management",
@@ -10,26 +10,15 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">
-          Masuk ke Akun Anda
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Masukkan email dan password atau pilih preset role di bawah untuk langsung mencoba platform.
-        </p>
-      </div>
-
-      <Suspense
-        fallback={
-          <div className="flex h-32 items-center justify-center gap-2 text-sm text-muted-foreground">
-            <IconLoader2 className="size-5 animate-spin text-primary" />
-            <span>Memuat formulir masuk...</span>
-          </div>
-        }
-      >
-        <LoginForm />
-      </Suspense>
-    </div>
+    <Suspense
+      fallback={
+        <div className="flex h-48 items-center justify-center gap-2 text-xs text-gray-400">
+          <Loader2 className="h-5 w-5 animate-spin text-[#8FA28A]" />
+          <span>Memuat formulir masuk...</span>
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -213,25 +213,25 @@ export function PlatformSettingsManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-950 via-slate-900 to-indigo-950 p-6 sm:p-8 text-white shadow-xl">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-purple-500/10 blur-3xl" />
+      {/* Header Banner (ARVENTRA Brand Theme) */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#242823] border border-[#383E36] p-6 sm:p-8 text-white shadow-xl">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-[#8FA28A]/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-purple-500/20 text-purple-200 border-purple-400/30 text-xs tracking-wide uppercase">
-                <IconSettings className="mr-1 size-3.5" /> Platform Control Center
+              <Badge className="bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40 text-xs tracking-wider uppercase font-bold px-3 py-1 rounded-full">
+                <IconSettings className="mr-1 size-3.5 text-[#C8A96B]" /> PLATFORM CONTROL CENTER
               </Badge>
               {isMaintenanceMode && (
-                <Badge variant="destructive" className="animate-pulse text-xs">
+                <Badge variant="destructive" className="animate-pulse text-xs font-bold">
                   <IconPower className="mr-1 size-3" /> MAINTENANCE MODE ACTIVE
                 </Badge>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
               Platform Settings & Integrasi
             </h1>
-            <p className="mt-1 text-sm text-purple-200/80">
+            <p className="mt-1.5 text-xs sm:text-sm text-gray-300">
               Kelola konfigurasi sistem global, mode pemeliharaan (maintenance mode), gateway API, dan audit trail keamanan.
             </p>
           </div>
@@ -242,20 +242,20 @@ export function PlatformSettingsManager() {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="gap-1.5 font-semibold text-xs border-purple-400/40 bg-purple-500/20 text-purple-200 hover:bg-purple-500/30 hover:text-white"
+                className="gap-1.5 font-bold text-xs rounded-xl border-[#8FA28A]/40 bg-[#8FA28A]/20 text-[#8FA28A] hover:bg-[#8FA28A]/30"
               >
-                <IconBook className="size-4 text-purple-300" />
+                <IconBook className="size-4 text-[#C8A96B]" />
                 Documentation API (Swagger)
               </Button>
             </Link>
-            <Button size="sm" onClick={fetchData} variant="secondary" className="gap-1.5 font-semibold text-xs">
+            <Button size="sm" onClick={fetchData} variant="outline" className="gap-1.5 font-bold text-xs rounded-xl border-[#383E36] bg-[#1E221E] text-gray-200 hover:bg-[#383E36]">
               <IconRefresh className="size-4" /> Refresh
             </Button>
             <Button
               size="sm"
-              onClick={() => handleSaveSettings()}
+              onClick={handleSaveSettings}
               disabled={isSubmitting}
-              className="gap-1.5 font-semibold text-xs bg-primary text-primary-foreground"
+              className="gap-1.5 font-bold text-xs bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white rounded-xl shadow-sm"
             >
               {isSubmitting ? <IconLoader2 className="size-4 animate-spin" /> : <IconCheck className="size-4" />}
               Simpan Konfigurasi
@@ -291,23 +291,30 @@ export function PlatformSettingsManager() {
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
+      <div className="flex flex-wrap gap-2 border-b border-[#C7D3C0]/40 pb-3">
         {[
-          { id: "global", label: "Konfigurasi Global & Maintenance", icon: IconServer },
-          { id: "gateway", label: "Integrasi API Gateway", icon: IconKey },
+          { id: "global", label: "Konfigurasi Global & Maintenance", icon: IconSettings },
+          { id: "gateway", label: "Integrasi API Gateway", icon: IconShieldCheck },
           { id: "audit", label: "Security Audit Log", icon: IconShieldCheck },
-        ].map((tab) => (
-          <Button
-            key={tab.id}
-            size="sm"
-            variant={activeTab === tab.id ? "default" : "outline"}
-            onClick={() => setActiveTab(tab.id as any)}
-            className="text-xs font-semibold gap-1.5 h-9"
-          >
-            <tab.icon className="size-4" />
-            {tab.label}
-          </Button>
-        ))}
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              size="sm"
+              variant={isActive ? "default" : "outline"}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`text-xs font-bold gap-1.5 h-9 rounded-xl transition-all ${
+                isActive
+                  ? "bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white shadow-sm"
+                  : "border-[#C7D3C0]/60 hover:bg-[#C7D3C0]/20 text-gray-700 dark:text-gray-300 dark:border-[#383E36]"
+              }`}
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </Button>
+          );
+        })}
       </div>
 
       {/* TAB 1: KONFIGURASI GLOBAL & MAINTENANCE MODE */}

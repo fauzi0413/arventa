@@ -8,23 +8,14 @@ import {
   IconShieldCheck,
   IconUsers,
   IconActivity,
-  IconArrowUpRight,
   IconBuildingStore,
-  IconChecklist,
-  IconSparkles,
   IconLock,
   IconRoute,
   IconSettings,
-  IconCheck,
-  IconX,
   IconCpu,
-  IconDatabase,
-  IconClock,
   IconKey,
   IconMail,
-  IconAlertCircle,
   IconUserPlus,
-  IconEye,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -118,28 +109,28 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-purple-950 via-indigo-900 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-purple-500/10 blur-3xl" />
+      {/* Header Hero Banner (ARVENTRA Brand Dark Sage & Gold) */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#242823] border border-[#383E36] p-6 sm:p-8 text-white shadow-xl">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-[#8FA28A]/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-purple-500/20 text-purple-200 border-purple-400/30 text-xs tracking-wide uppercase">
-                <IconShieldCheck className="mr-1 size-3.5" /> Platform Admin Master Portal
+              <Badge className="bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40 text-xs tracking-wider uppercase font-bold px-3 py-1 rounded-full">
+                <IconShieldCheck className="mr-1 size-3.5 text-[#C8A96B]" /> PLATFORM ADMIN MASTER PORTAL
               </Badge>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
               Platform Executive Hub — {data.user.fullName}
             </h1>
-            <p className="mt-1 text-sm text-purple-200/80">
-              Kelola ekosistem SaaS ARVENTA, data owner, paket langganan, permission matrix, dan integrasi API.
+            <p className="mt-1.5 text-xs sm:text-sm text-gray-300">
+              Kelola ekosistem SaaS ARVENTRA, data owner, paket langganan, permission matrix, dan integrasi API.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Module Tabs Bar (No raw emojis in text labels) */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
+      {/* Module Tabs Bar (ARVENTRA Sage Theme) */}
+      <div className="flex flex-wrap gap-2 border-b border-[#C7D3C0]/40 pb-3">
         {[
           { id: "overview", label: "Executive Dashboard", icon: IconActivity },
           { id: "owners", label: "Owner Management", icon: IconBuildingStore },
@@ -147,138 +138,147 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
           { id: "roles", label: "Roles & Permissions", icon: IconLock },
           { id: "menus", label: "Dynamic Menus & Feature Flags", icon: IconRoute },
           { id: "settings", label: "Platform & API Settings", icon: IconSettings },
-        ].map((tab) => (
-          <Button
-            key={tab.id}
-            size="sm"
-            variant={activeTab === tab.id ? "default" : "outline"}
-            onClick={() => setActiveTab(tab.id as any)}
-            className="text-xs font-semibold gap-1.5 h-9"
-          >
-            <tab.icon className="size-4" />
-            {tab.label}
-          </Button>
-        ))}
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              size="sm"
+              variant={isActive ? "default" : "outline"}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`text-xs font-bold gap-1.5 h-9 rounded-xl transition-all ${
+                isActive
+                  ? "bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white shadow-sm"
+                  : "border-[#C7D3C0]/60 hover:bg-[#C7D3C0]/20 text-gray-700 dark:text-gray-300 dark:border-[#383E36]"
+              }`}
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </Button>
+          );
+        })}
       </div>
 
       {/* TAB 1: EXECUTIVE DASHBOARD */}
       {activeTab === "overview" && (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-border/60 shadow-sm">
+            <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Total Revenue SaaS
                   </span>
-                  <div className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-600 dark:text-emerald-400">
+                  <div className="rounded-xl bg-[#8FA28A]/15 p-2.5 text-[#8FA28A]">
                     <IconReceipt className="size-5" />
                   </div>
                 </div>
                 <div className="mt-3">
-                  <p className="text-2xl font-bold text-foreground">{formatIDR(data.totalRevenue)}</p>
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                  <p className="text-2xl font-black text-[#2F332E] dark:text-white">{formatIDR(data.totalRevenue)}</p>
+                  <p className="text-xs text-[#8FA28A] font-bold mt-1">
                     MRR / ARR Pembayaran Owner
                   </p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
+            <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Owner Aktif
                   </span>
-                  <div className="rounded-xl bg-blue-500/10 p-2.5 text-blue-600 dark:text-blue-400">
+                  <div className="rounded-xl bg-[#C8A96B]/15 p-2.5 text-[#C8A96B]">
                     <IconUsers className="size-5" />
                   </div>
                 </div>
                 <div className="mt-3">
-                  <p className="text-2xl font-bold text-foreground">{data.activeSubscriptionsCount}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Pelanggan Aktif Paket SaaS</p>
+                  <p className="text-2xl font-black text-[#2F332E] dark:text-white">{data.activeSubscriptionsCount}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pelanggan Aktif Paket SaaS</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
+            <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Total Properti
                   </span>
-                  <div className="rounded-xl bg-purple-500/10 p-2.5 text-purple-600 dark:text-purple-400">
+                  <div className="rounded-xl bg-[#8FA28A]/15 p-2.5 text-[#8FA28A]">
                     <IconBuilding className="size-5" />
                   </div>
                 </div>
                 <div className="mt-3">
-                  <p className="text-2xl font-bold text-foreground">{data.totalProperties}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Gedung Properti Platform</p>
+                  <p className="text-2xl font-black text-[#2F332E] dark:text-white">{data.totalProperties}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Gedung Properti Platform</p>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm">
+            <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Total Kamar Terdaftar
                   </span>
-                  <div className="rounded-xl bg-amber-500/10 p-2.5 text-amber-600 dark:text-amber-400">
+                  <div className="rounded-xl bg-[#C8A96B]/15 p-2.5 text-[#C8A96B]">
                     <IconBed className="size-5" />
                   </div>
                 </div>
                 <div className="mt-3">
-                  <p className="text-2xl font-bold text-foreground">{data.totalUnits}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Kamar & Unit di Seluruh Sistem</p>
+                  <p className="text-2xl font-black text-[#2F332E] dark:text-white">{data.totalUnits}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Kamar & Unit di Seluruh Sistem</p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <Card className="border-border/60 shadow-sm bg-gradient-to-r from-slate-900 to-slate-950 text-white">
+          {/* System Health Status Card */}
+          <Card className="rounded-2xl border border-[#383E36] bg-[#1E221E] text-white shadow-md">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <IconCpu className="size-5 text-emerald-400" />
+                <IconCpu className="size-5 text-[#8FA28A]" />
                 System Health & Telemetry Status
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-4 text-xs">
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase">API Response Latency</span>
-                <p className="text-lg font-bold text-emerald-400">{data.systemHealth?.apiLatencyMs || 42} ms</p>
+              <div className="rounded-xl border border-[#383E36] bg-[#242823] p-3 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">API Response Latency</span>
+                <p className="text-lg font-black text-[#8FA28A]">{data.systemHealth?.apiLatencyMs || 42} ms</p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase">Database Pool</span>
-                <p className="text-xs font-bold text-slate-200 truncate">{data.systemHealth?.dbConnectionPool}</p>
+              <div className="rounded-xl border border-[#383E36] bg-[#242823] p-3 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Database Pool</span>
+                <p className="text-xs font-bold text-gray-200 truncate">{data.systemHealth?.dbConnectionPool}</p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase">Cron Jobs</span>
-                <p className="text-xs font-bold text-slate-200 truncate">{data.systemHealth?.cronJobStatus}</p>
+              <div className="rounded-xl border border-[#383E36] bg-[#242823] p-3 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Cron Jobs</span>
+                <p className="text-xs font-bold text-gray-200 truncate">{data.systemHealth?.cronJobStatus}</p>
               </div>
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-1">
-                <span className="text-[10px] font-semibold text-slate-400 uppercase">System Uptime</span>
-                <p className="text-lg font-bold text-blue-400">{data.systemHealth?.uptimePercentage || "99.9%"}</p>
+              <div className="rounded-xl border border-[#383E36] bg-[#242823] p-3 space-y-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">System Uptime</span>
+                <p className="text-lg font-black text-[#C8A96B]">{data.systemHealth?.uptimePercentage || "99.9%"}</p>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-border/60 shadow-sm">
+          {/* Audit Log Card */}
+          <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <IconActivity className="size-5 text-purple-600" />
+                <IconActivity className="size-5 text-[#8FA28A]" />
                 Recent Registrations & Security Audit Log
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-xs">
               {data.recentLogs.map((log) => (
-                <div key={log.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                <div key={log.id} className="flex items-center justify-between border-b border-[#C7D3C0]/30 dark:border-[#383E36] pb-2 last:border-0 last:pb-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-foreground">{log.userName}</span>
-                    <Badge variant="outline" className="text-[9px] uppercase">{log.action}</Badge>
-                    <span className="text-muted-foreground">{log.entityName}</span>
+                    <span className="font-bold text-[#2F332E] dark:text-white">{log.userName}</span>
+                    <Badge variant="outline" className="text-[9px] uppercase border-[#8FA28A] text-[#8FA28A]">{log.action}</Badge>
+                    <span className="text-gray-500 dark:text-gray-400">{log.entityName}</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-[10px] text-gray-400">
                     {new Date(log.createdAt).toLocaleTimeString("id-ID")}
                   </span>
                 </div>
@@ -290,32 +290,32 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
       {/* TAB 2: OWNER MANAGEMENT */}
       {activeTab === "owners" && (
-        <Card className="border-border/60 shadow-sm">
+        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <IconBuildingStore className="size-5 text-blue-600" />
+                <IconBuildingStore className="size-5 text-[#8FA28A]" />
                 Daftar Owner Properti Terdaftar
               </CardTitle>
               <CardDescription>Kelola status akun, onboarding owner baru, dan suspend/unsuspend.</CardDescription>
             </div>
-            <Button size="sm" className="font-semibold text-xs gap-1.5" onClick={() => alert("Form Onboarding Owner Baru dibuka")}>
+            <Button size="sm" className="font-bold text-xs gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white" onClick={() => alert("Form Onboarding Owner Baru dibuka")}>
               <IconUserPlus className="size-4" /> Onboard Owner Baru
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="divide-y rounded-xl border">
+            <div className="divide-y divide-[#C7D3C0]/30 dark:divide-[#383E36] rounded-xl border border-[#C7D3C0]/40 dark:border-[#383E36]">
               {ownersState.map((o) => (
                 <div key={o.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 text-xs">
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-foreground">{o.fullName}</span>
-                      <Badge variant={o.isActive ? "default" : "destructive"} className="text-[10px]">
+                      <span className="font-bold text-sm text-[#2F332E] dark:text-white">{o.fullName}</span>
+                      <Badge variant={o.isActive ? "default" : "destructive"} className={o.isActive ? "bg-[#8FA28A] text-white text-[10px]" : "text-[10px]"}>
                         {o.isActive ? "Aktif" : "Suspended"}
                       </Badge>
                     </div>
-                    <p className="text-muted-foreground">{o.email} • 📱 {o.phoneNumber || "081222222222"}</p>
-                    <span className="text-[11px] font-medium text-primary">Dimiliki: {o.propertyCount} Properti</span>
+                    <p className="text-gray-500 dark:text-gray-400">{o.email} • 📱 {o.phoneNumber || "081222222222"}</p>
+                    <span className="text-[11px] font-bold text-[#8FA28A]">Dimiliki: {o.propertyCount} Properti</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -323,7 +323,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                       size="sm"
                       variant={o.isActive ? "destructive" : "outline"}
                       onClick={() => toggleOwnerStatus(o.id)}
-                      className="text-xs h-8"
+                      className="text-xs h-8 rounded-xl"
                     >
                       {o.isActive ? "Suspend Akun" : "Unsuspend Akun"}
                     </Button>
@@ -338,29 +338,29 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
       {/* TAB 3: SUBSCRIPTIONS & BILLING */}
       {activeTab === "subscriptions" && (
         <div className="space-y-6">
-          <Card className="border-border/60 shadow-sm">
+          <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <IconReceipt className="size-5 text-indigo-600" />
+                <IconReceipt className="size-5 text-[#8FA28A]" />
                 Paket Langganan SaaS (Tier Settings)
               </CardTitle>
               <CardDescription>Atur batas limit kamar & fitur untuk tier Basic, Business, dan Pro.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-3">
               {data.saasPlans.map((plan) => (
-                <div key={plan.id} className="rounded-xl border bg-card p-5 space-y-3 shadow-sm">
+                <div key={plan.id} className="rounded-2xl border border-[#C7D3C0]/50 dark:border-[#383E36] bg-white dark:bg-[#1E221E] p-5 space-y-3 shadow-xs">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-base text-foreground">{plan.name}</span>
-                    <Badge variant="secondary" className="text-xs">{plan.subscriberCount} Owner</Badge>
+                    <span className="font-bold text-base text-[#2F332E] dark:text-white">{plan.name}</span>
+                    <Badge variant="secondary" className="text-xs bg-[#8FA28A]/15 text-[#8FA28A] font-bold">{plan.subscriberCount} Owner</Badge>
                   </div>
-                  <p className="text-2xl font-extrabold text-primary">
-                    {formatIDR(plan.priceMonthly)} <span className="text-xs font-normal text-muted-foreground">/bln</span>
+                  <p className="text-2xl font-black text-[#8FA28A]">
+                    {formatIDR(plan.priceMonthly)} <span className="text-xs font-normal text-gray-400">/bln</span>
                   </p>
-                  <div className="space-y-1 text-xs border-t pt-2">
+                  <div className="space-y-1 text-xs border-t border-[#C7D3C0]/30 dark:border-[#383E36] pt-2 text-gray-600 dark:text-gray-300">
                     <p>✓ Maks Properti: <strong>{plan.maxProperties} Gedung</strong></p>
                     <p>✓ Maks Unit: <strong>{plan.maxUnits} Kamar</strong></p>
                     {plan.features.map((f) => (
-                      <p key={f} className="text-muted-foreground">✓ {f}</p>
+                      <p key={f} className="text-gray-500 dark:text-gray-400">✓ {f}</p>
                     ))}
                   </div>
                 </div>
@@ -372,10 +372,10 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
       {/* TAB 4: ROLES & PERMISSION MATRIX */}
       {activeTab === "roles" && (
-        <Card className="border-border/60 shadow-sm">
+        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <IconLock className="size-5 text-purple-600" />
+              <IconLock className="size-5 text-[#8FA28A]" />
               Role & Granular Permission Matrix
             </CardTitle>
             <CardDescription>Pemetaan hak akses sistem (Read, Create, Edit, Delete) per role.</CardDescription>
@@ -383,17 +383,17 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-4">
               {data.masterRoles.map((r) => (
-                <div key={r.id} className="rounded-lg border p-3 text-xs space-y-1">
-                  <span className="font-bold text-foreground text-sm">{r.name}</span>
-                  <p className="text-muted-foreground">Code: {r.code}</p>
-                  <Badge variant="outline" className="text-[10px]">{r.userCount} Pengguna</Badge>
+                <div key={r.id} className="rounded-xl border border-[#C7D3C0]/40 dark:border-[#383E36] p-3 text-xs space-y-1">
+                  <span className="font-bold text-[#2F332E] dark:text-white text-sm">{r.name}</span>
+                  <p className="text-gray-500 dark:text-gray-400">Code: {r.code}</p>
+                  <Badge variant="outline" className="text-[10px] border-[#8FA28A] text-[#8FA28A]">{r.userCount} Pengguna</Badge>
                 </div>
               ))}
             </div>
 
-            <div className="rounded-xl border overflow-x-auto">
+            <div className="rounded-xl border border-[#C7D3C0]/40 dark:border-[#383E36] overflow-x-auto">
               <table className="w-full text-xs text-left">
-                <thead className="bg-muted text-muted-foreground font-semibold">
+                <thead className="bg-[#F7F4ED] dark:bg-[#1E221E] text-gray-700 dark:text-gray-300 font-bold">
                   <tr>
                     <th className="p-3">Modul</th>
                     <th className="p-3 text-center">Platform Admin</th>
@@ -402,7 +402,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                     <th className="p-3 text-center">Tenant</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody className="divide-y divide-[#C7D3C0]/30 dark:divide-[#383E36]">
                   {[
                     { module: "Manajemen Properti & Kamar", admin: "Full", owner: "Full", hk: "Read/Status", tenant: "Read" },
                     { module: "Keuangan & OpEx", admin: "Full", owner: "Full", hk: "OpEx Input", tenant: "Invoice Pay" },
@@ -410,11 +410,11 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                     { module: "Kontrak & Check-In", admin: "Full", owner: "Full", hk: "Fast Checkin", tenant: "PDF Read" },
                   ].map((row) => (
                     <tr key={row.module}>
-                      <td className="p-3 font-bold">{row.module}</td>
-                      <td className="p-3 text-center"><Badge variant="default">{row.admin}</Badge></td>
-                      <td className="p-3 text-center"><Badge variant="secondary">{row.owner}</Badge></td>
-                      <td className="p-3 text-center"><Badge variant="outline">{row.hk}</Badge></td>
-                      <td className="p-3 text-center"><Badge variant="outline">{row.tenant}</Badge></td>
+                      <td className="p-3 font-bold text-[#2F332E] dark:text-white">{row.module}</td>
+                      <td className="p-3 text-center"><Badge className="bg-[#8FA28A] text-white">{row.admin}</Badge></td>
+                      <td className="p-3 text-center"><Badge className="bg-[#C8A96B] text-white">{row.owner}</Badge></td>
+                      <td className="p-3 text-center"><Badge variant="outline" className="border-[#8FA28A] text-[#8FA28A]">{row.hk}</Badge></td>
+                      <td className="p-3 text-center"><Badge variant="outline" className="border-[#C7D3C0] text-gray-500">{row.tenant}</Badge></td>
                     </tr>
                   ))}
                 </tbody>
@@ -426,25 +426,25 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
       {/* TAB 5: DYNAMIC MENUS & FEATURE FLAGS */}
       {activeTab === "menus" && (
-        <Card className="border-border/60 shadow-sm">
+        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <IconRoute className="size-5 text-amber-500" />
+              <IconRoute className="size-5 text-[#C8A96B]" />
               Dynamic Feature Flags & Menu Access Toggles
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {flagsState.map((flag) => (
-              <div key={flag.id} className="flex items-center justify-between border p-3 rounded-lg text-xs">
+              <div key={flag.id} className="flex items-center justify-between border border-[#C7D3C0]/40 dark:border-[#383E36] p-3.5 rounded-xl text-xs">
                 <div>
-                  <p className="font-bold text-foreground">{flag.name}</p>
-                  <p className="text-[11px] text-muted-foreground">Key: {flag.key}</p>
+                  <p className="font-bold text-[#2F332E] dark:text-white">{flag.name}</p>
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400">Key: {flag.key}</p>
                 </div>
                 <Button
                   size="sm"
                   variant={flag.isEnabled ? "default" : "outline"}
                   onClick={() => toggleFlag(flag.id)}
-                  className="text-xs h-8"
+                  className={flag.isEnabled ? "bg-[#8FA28A] text-white hover:bg-[#8FA28A]/90 text-xs h-8 rounded-xl font-bold" : "text-xs h-8 rounded-xl font-bold border-[#C7D3C0]"}
                 >
                   {flag.isEnabled ? "ON (Aktif)" : "OFF (Non-aktif)"}
                 </Button>
@@ -456,25 +456,25 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
       {/* TAB 6: PLATFORM & API SETTINGS */}
       {activeTab === "settings" && (
-        <Card className="border-border/60 shadow-sm">
+        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <IconSettings className="size-5 text-blue-500" />
+              <IconSettings className="size-5 text-[#8FA28A]" />
               Konfigurasi Platform & API Gateway Integration
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-xs">
-            <div className="rounded-lg border p-3 space-y-1">
-              <span className="font-bold text-foreground flex items-center gap-1.5">
-                <IconKey className="size-4 text-amber-500" /> Gemini AI API Key Gateway
+            <div className="rounded-xl border border-[#C7D3C0]/40 dark:border-[#383E36] p-4 space-y-1 bg-[#F7F4ED]/50 dark:bg-[#1E221E]">
+              <span className="font-bold text-[#2F332E] dark:text-white flex items-center gap-1.5 text-sm">
+                <IconKey className="size-4 text-[#C8A96B]" /> Gemini AI API Key Gateway
               </span>
-              <p className="text-muted-foreground">Status: Connected (Generative AI Financial Analytics Enabled)</p>
+              <p className="text-gray-600 dark:text-gray-400">Status: Connected (Generative AI Financial Analytics Enabled)</p>
             </div>
-            <div className="rounded-lg border p-3 space-y-1">
-              <span className="font-bold text-foreground flex items-center gap-1.5">
-                <IconMail className="size-4 text-emerald-500" /> Resend Email Gateway
+            <div className="rounded-xl border border-[#C7D3C0]/40 dark:border-[#383E36] p-4 space-y-1 bg-[#F7F4ED]/50 dark:bg-[#1E221E]">
+              <span className="font-bold text-[#2F332E] dark:text-white flex items-center gap-1.5 text-sm">
+                <IconMail className="size-4 text-[#8FA28A]" /> Resend Email Gateway
               </span>
-              <p className="text-muted-foreground">Status: Connected (Automated Email Invoicing Active)</p>
+              <p className="text-gray-600 dark:text-gray-400">Status: Connected (Automated Email Invoicing Active)</p>
             </div>
           </CardContent>
         </Card>

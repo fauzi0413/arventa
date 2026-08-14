@@ -405,20 +405,20 @@ export function DynamicMenuManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-950 via-orange-950 to-slate-900 p-6 sm:p-8 text-white shadow-xl">
-        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-amber-500/10 blur-3xl" />
+      {/* Header Banner (ARVENTRA Brand Theme) */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#242823] border border-[#383E36] p-6 sm:p-8 text-white shadow-xl">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-[#8FA28A]/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Badge className="bg-amber-500/20 text-amber-200 border-amber-400/30 text-xs tracking-wide uppercase">
-                <IconRoute className="mr-1 size-3.5" /> Dynamic Navigation & Feature Controller
+              <Badge className="bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40 text-xs tracking-wider uppercase font-bold px-3 py-1 rounded-full">
+                <IconRoute className="mr-1 size-3.5 text-[#C8A96B]" /> DYNAMIC NAVIGATION & FEATURE CONTROLLER
               </Badge>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
               Dynamic Menu & Feature Flags Control
             </h1>
-            <p className="mt-1 text-sm text-amber-200/80">
+            <p className="mt-1.5 text-xs sm:text-sm text-gray-300">
               Kelola hirarki master menu per role, grup section (grup menu), urutan tampilan (order), dan aktifkan/nonaktifkan fitur sistem secara dinamis.
             </p>
           </div>
@@ -427,20 +427,46 @@ export function DynamicMenuManager() {
             <Button
               size="sm"
               onClick={fetchData}
-              variant="secondary"
-              className="gap-1.5 font-semibold text-xs"
+              variant="outline"
+              className="gap-1.5 font-bold text-xs rounded-xl border-[#383E36] bg-[#1E221E] text-gray-200 hover:bg-[#383E36]"
             >
               <IconRefresh className="size-4" /> Refresh Data
             </Button>
             <Button
               size="sm"
               onClick={handleOpenCreateMenuModal}
-              className="gap-1.5 font-semibold text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+              className="gap-1.5 font-bold text-xs bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white rounded-xl shadow-sm"
             >
               <IconPlus className="size-4" /> Tambah Menu Baru
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="flex flex-wrap gap-2 border-b border-[#C7D3C0]/40 pb-3">
+        {[
+          { id: "menus", label: "Master Menu per Role (Dengan Grup Header)", icon: IconRoute },
+          { id: "flags", label: "Feature Flags Toggles", icon: IconSparkles },
+        ].map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <Button
+              key={tab.id}
+              size="sm"
+              variant={isActive ? "default" : "outline"}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`text-xs font-bold gap-1.5 h-9 rounded-xl transition-all ${
+                isActive
+                  ? "bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white shadow-sm"
+                  : "border-[#C7D3C0]/60 hover:bg-[#C7D3C0]/20 text-gray-700 dark:text-gray-300 dark:border-[#383E36]"
+              }`}
+            >
+              <tab.icon className="size-4" />
+              {tab.label}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Success Notification */}
@@ -455,25 +481,6 @@ export function DynamicMenuManager() {
           </button>
         </div>
       )}
-
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b pb-3">
-        {[
-          { id: "menus", label: "Master Menu per Role (Dengan Grup Header)", icon: IconRoute },
-          { id: "flags", label: "Feature Flags Toggles", icon: IconSparkles },
-        ].map((tab) => (
-          <Button
-            key={tab.id}
-            size="sm"
-            variant={activeTab === tab.id ? "default" : "outline"}
-            onClick={() => setActiveTab(tab.id as any)}
-            className="text-xs font-semibold gap-1.5 h-9"
-          >
-            <tab.icon className="size-4" />
-            {tab.label}
-          </Button>
-        ))}
-      </div>
 
       {/* TAB 1: MASTER MENU PER ROLE (GROUPED BY SECTION HEADER) */}
       {activeTab === "menus" && (

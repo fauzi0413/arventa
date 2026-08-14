@@ -143,6 +143,7 @@ model SaaSPlan {
   priceMonthly  Decimal  @map("price_monthly") @db.Decimal(12, 2)
   priceYearly   Decimal  @map("price_yearly") @db.Decimal(12, 2)
   features      String[] @default([])
+  status        String   @default("ACTIVE")
 
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")

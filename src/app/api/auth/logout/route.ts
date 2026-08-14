@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { ApiResponse } from "@/lib/api-response";
 
 // ---------------------------------------------------------------------------
-// POST /api/auth/logout — Clear user auth session
+// POST /api/auth/logout — Clear user auth session & demo cookies
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    await supabase.auth.signOut();
+    try {
+      const supabase = await createClient();
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.warn("Supabase auth signOut warning:", err);
+    }
 
-    return ApiResponse.success({
+    const response = NextResponse.json({
+      success: true,
       message: "Berhasil keluar dari sistem",
     });
+
+    response.cookies.set("arventa_session", "", { path: "/", maxAge: 0 });
+    response.cookies.set("arventa_demo_role", "", { path: "/", maxAge: 0 });
+
+    return response;
   } catch (error: any) {
     console.error("Error in /api/auth/logout:", error);
-    return ApiResponse.error({
-      message: "Gagal memproses logout",
-      error: error?.message || error,
-      status: 500,
-    });
+    return NextResponse.json(
+      { success: false, message: "Gagal memproses logout" },
+      { status: 500 }
+    );
   }
 }
