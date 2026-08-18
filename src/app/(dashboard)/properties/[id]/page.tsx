@@ -1,30 +1,39 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package } from 'lucide-react';
+import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package, Plus, Sparkles, ArrowRight, Check } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import PropertyFormModal from '../_components/PropertyFormModal';
 import InventoryManager from '../_components/InventoryManager';
-import { Unit } from '../../units/_types';
+import { Unit, UnitStatus } from '../../units/_types';
+import { useSafeBack } from '@/app/_hooks/useSafeBack';
+
+const UnitFormModal = lazy(() => import('../../units/_components/UnitFormModal'));
 
 export default function PropertyDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params?.id as string;
+  const handleSafeBack = useSafeBack('/properties');
 
   const [property, setProperty] = useState<Property | null>(null);
   const [categories, setCategories] = useState<PropertyCategory[]>([]);
   const [statuses, setStatuses] = useState<PropertyStatus[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Units state
   const [units, setUnits] = useState<Unit[]>([]);
+  const [isUnitFormOpen, setIsUnitFormOpen] = useState(false);
+  const [unitFormDefaultMode, setUnitFormDefaultMode] = useState<'single' | 'batch'>('single');
+  const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
 
   // Tabs state
   const [activeTab, setActiveTab] = useState<'units' | 'inventory'>('units');
 
-  useEffect(() => {
+  const loadData = () => {
     const storedProps = localStorage.getItem('arventa_properties');
     const storedCats = localStorage.getItem('arventa_categories');
     const storedStats = localStorage.getItem('arventa_statuses');
@@ -43,18 +52,103 @@ export default function PropertyDetailPage() {
     const found = currentProps.find((p) => p.id === id);
     const propUnits = currentUnits.filter((u) => u.propertyId === id);
 
+    setCategories(currentCats);
+    setStatuses(currentStats);
+    if (found) {
+      setProperty(found);
+    }
+    setUnits(propUnits);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     const timer = setTimeout(() => {
-      setCategories(currentCats);
-      setStatuses(currentStats);
-      if (found) {
-        setProperty(found);
-      }
-      setUnits(propUnits);
-      setLoading(false);
+      loadData();
     }, 0);
 
     return () => clearTimeout(timer);
   }, [id]);
+
+  const saveAllUnits = (allUnits: Unit[]) => {
+    localStorage.setItem('arventa_units', JSON.stringify(allUnits));
+    setUnits(allUnits.filter((u) => u.propertyId === id));
+  };
+
+  const handleAddOrEditUnit = (data: Omit<Unit, 'id' | 'createdAt'>) => {
+    const storedUnits = localStorage.getItem('arventa_units');
+    const allUnits: Unit[] = storedUnits ? JSON.parse(storedUnits) : [];
+
+    if (editingUnit) {
+      const updated = allUnits.map((u) => (u.id === editingUnit.id ? { ...u, ...data } : u));
+      saveAllUnits(updated);
+      setEditingUnit(null);
+    } else {
+      const newUnit: Unit = {
+        ...data,
+        id: `unit-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+      };
+      saveAllUnits([...allUnits, newUnit]);
+    }
+  };
+
+  const handleAddBatchUnits = (batchData: Omit<Unit, 'id' | 'createdAt'>[]) => {
+    const storedUnits = localStorage.getItem('arventa_units');
+    const allUnits: Unit[] = storedUnits ? JSON.parse(storedUnits) : [];
+
+    const now = Date.now();
+    const newUnits: Unit[] = batchData.map((data, idx) => ({
+      ...data,
+      id: `unit-${now}-${idx}`,
+      createdAt: new Date().toISOString(),
+    }));
+
+    saveAllUnits([...allUnits, ...newUnits]);
+  };
+
+  const handleDeleteUnit = (unitId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (window.confirm('Apakah Anda yakin ingin menghapus unit ini?')) {
+      const storedUnits = localStorage.getItem('arventa_units');
+      if (storedUnits) {
+        const allUnits: Unit[] = JSON.parse(storedUnits);
+        const updated = allUnits.filter((u) => u.id !== unitId);
+        saveAllUnits(updated);
+      }
+    }
+  };
+
+  const handleQuickStatusChange = (unitId: string, newStatus: UnitStatus, e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const storedUnits = localStorage.getItem('arventa_units');
+    if (storedUnits) {
+      const allUnits: Unit[] = JSON.parse(storedUnits);
+      const updated = allUnits.map((u) => (u.id === unitId ? { ...u, status: newStatus } : u));
+      saveAllUnits(updated);
+    }
+  };
+
+  const openSingleUnitModal = () => {
+    setEditingUnit(null);
+    setUnitFormDefaultMode('single');
+    setIsUnitFormOpen(true);
+  };
+
+  const openBatchUnitModal = () => {
+    setEditingUnit(null);
+    setUnitFormDefaultMode('batch');
+    setIsUnitFormOpen(true);
+  };
+
+  const triggerEditUnit = (unit: Unit, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setEditingUnit(unit);
+    setUnitFormDefaultMode('single');
+    setIsUnitFormOpen(true);
+  };
 
   if (loading) {
     return (
@@ -75,13 +169,14 @@ export default function PropertyDetailPage() {
         <p className="text-sm text-gray-500 mt-1 max-w-sm">
           Properti yang Anda cari tidak terdaftar atau telah dihapus oleh pengguna.
         </p>
-        <Link
-          href="/properties"
-          className="mt-4 flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
+        <button
+          type="button"
+          onClick={handleSafeBack}
+          className="mt-4 min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali ke Daftar Properti
-        </Link>
+        </button>
       </div>
     );
   }
@@ -136,30 +231,39 @@ export default function PropertyDetailPage() {
     }
   };
 
+  const formatRupiah = (val: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
+
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[90vh] p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-[#F7F4ED] min-h-[90vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
       {/* Navigation Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[#C7D3C0]/30 pb-4">
-        <Link
-          href="/properties"
-          className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#8FA28A] transition-colors"
+        <button
+          type="button"
+          onClick={handleSafeBack}
+          className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#8FA28A] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Kembali ke Listing
-        </Link>
+          Kembali ke Listing Properti
+        </button>
 
         {/* Quick Actions */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsFormOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-[#C7D3C0] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-[#C7D3C0]/20 transition-all shadow-sm"
+            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-[#C7D3C0] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-[#C7D3C0]/20 transition-all shadow-sm"
           >
             <Edit3 className="h-4 w-4 text-[#8FA28A]" />
             Ubah Properti
           </button>
           <button
             onClick={handleDeleteProperty}
-            className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition-all shadow-sm"
+            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition-all shadow-sm"
           >
             <Trash2 className="h-4 w-4 text-red-500" />
             Hapus Properti
@@ -178,6 +282,7 @@ export default function PropertyDetailPage() {
               <img
                 src={displayImage}
                 alt={property.name}
+                loading="lazy"
                 className="h-full w-full object-cover"
                 onError={(e) => {
                   e.currentTarget.src = getFallbackImage(category?.name);
@@ -236,7 +341,7 @@ export default function PropertyDetailPage() {
               }`}
             >
               <Home className="h-4 w-4" />
-              Kamar / Unit
+              Kamar / Unit ({units.length})
             </button>
             <button
               onClick={() => setActiveTab('inventory')}
@@ -254,58 +359,150 @@ export default function PropertyDetailPage() {
           {/* Switchable Sections */}
           {activeTab === 'units' ? (
             <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-bold text-gray-800 flex items-center gap-1.5">
-                  <Home className="h-5 w-5 text-[#8FA28A]" />
-                  Daftar Kamar / Unit
-                </h3>
-                <span className="text-xs font-semibold text-gray-500">
-                  Total {units.length} Kamar
-                </span>
+              {/* Unit Section Header with Creation Actions */}
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-3">
+                <div>
+                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-1.5">
+                    <Home className="h-5 w-5 text-[#8FA28A]" />
+                    Daftar Kamar / Unit
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Total {units.length} Unit terdaftar di properti ini</p>
+                </div>
+
+                {/* Add Unit Buttons (Single & Batch Modes) */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openSingleUnitModal}
+                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 transition-all shadow-sm"
+                  >
+                    <Plus className="h-4 w-4 text-[#8FA28A]" />
+                    + Tambah 1 Unit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openBatchUnitModal}
+                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-3.5 py-2 text-xs font-black transition-all shadow-sm"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    ⚡ Tambah Beberapa (Batch)
+                  </button>
+                </div>
               </div>
 
               {units.length === 0 ? (
-                <div className="text-center py-8 space-y-2">
+                <div className="text-center py-10 space-y-3 border-2 border-dashed border-gray-200 rounded-2xl p-6">
+                  <Home className="h-10 w-10 text-gray-300 mx-auto" />
                   <p className="text-xs text-gray-400">Belum ada unit yang terdaftar di properti ini.</p>
-                  <Link
-                    href="/units"
-                    className="inline-block text-xs font-bold text-[#8FA28A] hover:underline"
-                  >
-                    Tambah Unit Baru →
-                  </Link>
+                  <div className="flex items-center justify-center gap-3">
+                    <button
+                      onClick={openSingleUnitModal}
+                      className="text-xs font-bold text-[#8FA28A] hover:underline"
+                    >
+                      + Tambah 1 Unit
+                    </button>
+                    <span className="text-gray-300">•</span>
+                    <button
+                      onClick={openBatchUnitModal}
+                      className="text-xs font-black text-[#8FA28A] hover:underline flex items-center gap-1"
+                    >
+                      <Sparkles className="h-3 w-3" /> Tambah Beberapa Unit Sekaligus
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {units.map((unit) => {
                     const isRoomOccupied = unit.status === 'Occupied';
                     return (
-                      <Link
+                      <div
                         key={unit.id}
-                        href={`/properties/${id}/units/${unit.id}`}
-                        className={`flex items-center justify-between rounded-xl border p-3.5 transition-all hover:shadow-sm hover:border-[#8FA28A]/50 ${
+                        className={`group flex flex-col justify-between rounded-xl border p-4 transition-all hover:shadow-md ${
                           isRoomOccupied
-                            ? 'border-[#8FA28A]/30 bg-[#8FA28A]/5'
-                            : 'border-gray-200 bg-white'
+                            ? 'border-blue-200 bg-blue-50/20'
+                            : 'border-gray-200 bg-white hover:border-[#8FA28A]/50'
                         }`}
                       >
-                        <div className="space-y-0.5">
-                          <p className="text-sm font-bold text-gray-800">{unit.name}</p>
-                          <p className="text-[11px] text-gray-400">{unit.capacity.dimensions} • Max {unit.capacity.maxPersons} Orang</p>
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <Link
+                                href={`/properties/${id}/units/${unit.id}`}
+                                className="text-sm font-black text-gray-800 hover:text-[#8FA28A] transition-colors"
+                              >
+                                {unit.name}
+                              </Link>
+                              <p className="text-[11px] font-semibold text-gray-400 mt-0.5">
+                                {unit.capacity.dimensions} • Max {unit.capacity.maxPersons} Orang
+                              </p>
+                            </div>
+
+                            {/* Inline Quick Status Selector */}
+                            <select
+                              value={unit.status}
+                              onChange={(e) => handleQuickStatusChange(unit.id, e.target.value as UnitStatus, e)}
+                              className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border focus:outline-none cursor-pointer ${
+                                unit.status === 'Available'
+                                  ? 'bg-[#8FA28A] text-white border-[#8FA28A]'
+                                  : unit.status === 'Occupied'
+                                  ? 'bg-blue-600 text-white border-blue-600'
+                                  : unit.status === 'Need Cleaning'
+                                  ? 'bg-[#C8A96B] text-white border-[#C8A96B]'
+                                  : unit.status === 'Reserved'
+                                  ? 'bg-purple-600 text-white border-purple-600'
+                                  : 'bg-red-600 text-white border-red-600'
+                              }`}
+                            >
+                              <option value="Available" className="bg-white text-gray-800">Tersedia</option>
+                              <option value="Occupied" className="bg-white text-gray-800">Terisi</option>
+                              <option value="Need Cleaning" className="bg-white text-gray-800">Need Cleaning</option>
+                              <option value="Maintenance" className="bg-white text-gray-800">Perbaikan</option>
+                              <option value="Reserved" className="bg-white text-gray-800">Reserved</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100/80">
+                            <span className="font-black text-[#8FA28A]">
+                              {formatRupiah(unit.pricing.monthly)}
+                              <span className="text-[10px] font-semibold text-gray-400">/bln</span>
+                            </span>
+                            {unit.tenantName && (
+                              <span className="text-[11px] font-bold text-blue-600 truncate max-w-[120px]">
+                                Penyewa: {unit.tenantName}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-                            unit.status === 'Available' ? 'bg-[#8FA28A] text-white' :
-                            unit.status === 'Occupied' ? 'bg-blue-600 text-white' :
-                            unit.status === 'Need Cleaning' ? 'bg-[#C8A96B] text-white' :
-                            'bg-red-600 text-white'
-                          }`}
-                        >
-                          {unit.status === 'Available' ? 'Tersedia' :
-                           unit.status === 'Occupied' ? 'Terisi' :
-                           unit.status === 'Need Cleaning' ? 'Cleaning' :
-                           'Perbaikan'}
-                        </span>
-                      </Link>
+
+                        {/* Inline Actions (Edit, Delete, Detail) */}
+                        <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-100">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => triggerEditUnit(unit, e)}
+                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                              title="Edit Unit"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteUnit(unit.id, e)}
+                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                              title="Hapus Unit"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          <Link
+                            href={`/properties/${id}/units/${unit.id}`}
+                            className="min-h-[36px] px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-[#8FA28A] hover:text-white font-bold text-xs text-gray-700 transition-colors flex items-center gap-1"
+                          >
+                            Detail <ArrowRight className="h-3 w-3" />
+                          </Link>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -398,7 +595,7 @@ export default function PropertyDetailPage() {
         </div>
       </div>
 
-      {/* Form Modal for Editing */}
+      {/* Form Modal for Editing Property */}
       <PropertyFormModal
         key={property.id}
         isOpen={isFormOpen}
@@ -408,6 +605,25 @@ export default function PropertyDetailPage() {
         statuses={statuses}
         initialData={property}
       />
+
+      {/* Dynamic Unit Form Modal (Single & Batch Creation / Editing) */}
+      <Suspense fallback={null}>
+        {isUnitFormOpen && (
+          <UnitFormModal
+            isOpen={isUnitFormOpen}
+            onClose={() => {
+              setIsUnitFormOpen(false);
+              setEditingUnit(null);
+            }}
+            onSubmit={handleAddOrEditUnit}
+            onSubmitBatch={handleAddBatchUnits}
+            initialData={editingUnit}
+            initialPropertyId={property.id}
+            properties={[property]}
+            defaultMode={unitFormDefaultMode}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

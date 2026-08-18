@@ -38,7 +38,7 @@ export async function GET() {
           title: m.title,
           path: m.path,
           icon: m.icon,
-          group: m.group || "UTAMA",
+          group: (m as any).group || "UTAMA",
           order: m.order,
           parentId: m.parentId,
           roles: m.roleMenus.map((rm) => rm.role),

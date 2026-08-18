@@ -31,7 +31,6 @@ import {
   IconBell,
   IconKey,
   IconPlus,
-  IconUpload,
   IconChevronDown,
   IconChevronRight,
 } from "@tabler/icons-react";
@@ -71,7 +70,6 @@ const ICON_MAP: Record<string, any> = {
   IconKey,
   IconChartBar,
   IconBell,
-  IconUpload,
   IconTrendingUp,
   IconTools,
   IconQrcode,
@@ -114,6 +112,19 @@ const userNavItems: NavItem[] = [
   { id: "usr-4", href: "/portal/community", label: "Komunitas Properti", icon: IconMessages, group: "KOMUNITAS" },
 ];
 
+function getTemplateItemsForRole(r: UserRole): NavItem[] {
+  switch (r) {
+    case UserRole.PLATFORM_ADMIN:
+      return adminNavItems;
+    case UserRole.HOUSEKEEPING:
+      return housekeepingNavItems;
+    case UserRole.USER:
+      return userNavItems;
+    default:
+      return ownerNavItems;
+  }
+}
+
 export function Sidebar({ role: initialRole }: SidebarProps) {
   const pathname = usePathname();
   const [currentRole, setCurrentRole] = useState<UserRole>(initialRole || UserRole.OWNER);
@@ -138,6 +149,16 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
         );
 
         if (rawItems.length > 0) {
+          const templateList = getTemplateItemsForRole(roleToFetch);
+
+          // Helper to resolve group name from template list or item data
+          const resolveGroup = (path: string, itemGroup?: string) => {
+            const matched = templateList.find((t) => t.href === path);
+            if (matched?.group) return matched.group;
+            if (itemGroup && itemGroup !== "UTAMA") return itemGroup;
+            return "UTAMA";
+          };
+
           // Separate roots and children
           const rootItems = rawItems
             .filter((m: any) => !m.parentId)
@@ -147,6 +168,8 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
 
           // Build tree hierarchy
           const tree: NavItem[] = rootItems.map((root: any) => {
+            const rootGroup = resolveGroup(root.path, root.group);
+
             const childrenForRoot = childItems
               .filter((child: any) => child.parentId === root.id)
               .sort((a: any, b: any) => a.order - b.order)
@@ -155,7 +178,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                 href: child.path,
                 label: child.title,
                 icon: ICON_MAP[child.icon] || IconRoute,
-                group: child.group || root.group || "UTAMA",
+                group: resolveGroup(child.path, child.group || rootGroup),
                 parentId: root.id,
               }));
 
@@ -164,7 +187,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
               href: root.path,
               label: root.title,
               icon: ICON_MAP[root.icon] || IconRoute,
-              group: root.group || "UTAMA",
+              group: rootGroup,
               parentId: null,
               children: childrenForRoot.length > 0 ? childrenForRoot : undefined,
             };
@@ -212,14 +235,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
     };
   }, [currentRole, fetchDynamicMenus]);
 
-  let fallbackItems = ownerNavItems;
-  if (currentRole === UserRole.PLATFORM_ADMIN) {
-    fallbackItems = adminNavItems;
-  } else if (currentRole === UserRole.HOUSEKEEPING) {
-    fallbackItems = housekeepingNavItems;
-  } else if (currentRole === UserRole.USER) {
-    fallbackItems = userNavItems;
-  }
+  const fallbackItems = getTemplateItemsForRole(currentRole);
 
   const items = dynamicNavItems && dynamicNavItems.length > 0 ? dynamicNavItems : fallbackItems;
 
@@ -252,139 +268,173 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
   const getBadgeColor = (r: UserRole) => {
     switch (r) {
       case UserRole.PLATFORM_ADMIN:
-        return "bg-purple-500/20 text-purple-600 dark:text-purple-300 border-purple-500/30";
+        return "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-800";
       case UserRole.OWNER:
-        return "bg-blue-500/20 text-blue-600 dark:text-blue-300 border-blue-500/30";
+        return "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-950/80 dark:text-blue-300 dark:border-blue-800";
       case UserRole.HOUSEKEEPING:
-        return "bg-amber-500/20 text-amber-600 dark:text-amber-300 border-amber-500/30";
+        return "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800";
       case UserRole.USER:
-        return "bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border-emerald-500/30";
+        return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800";
       default:
-        return "bg-muted text-muted-foreground";
+        return "bg-muted text-muted-foreground border-border";
     }
   };
 
   return (
-    <aside className="hidden w-64 shrink-0 border-r bg-sidebar lg:block">
-      <div className="flex h-full flex-col">
-        {/* Logo Header */}
-        <div className="flex h-16 items-center justify-between border-b px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-extrabold text-sm">
-              A
+    <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border min-h-screen flex flex-col justify-between p-4 shrink-0 shadow-sm font-sans hidden lg:flex overflow-x-hidden transition-colors">
+      {/* Upper Brand & Navigation */}
+      <div className="space-y-6">
+        {/* App Brand Header */}
+        <div className="border-b border-sidebar-border pb-4 px-1 space-y-3">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-[#8FA28A] to-[#C8A96B] p-0.5 shadow-md group-hover:scale-105 transition-transform duration-200 shrink-0">
+              <div className="h-full w-full bg-sidebar rounded-[10px] flex items-center justify-center">
+                <IconBuildingStore className="h-5 w-5 text-[#C8A96B]" />
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-base font-bold tracking-tight text-sidebar-foreground leading-none">
-                ARVENTRA
+            <div className="min-w-0 flex-1">
+              <span className="text-base font-black tracking-wide text-sidebar-foreground block leading-none truncate">
+                ARVENTA
               </span>
-              <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mt-0.5">
-                Property Platform
+              <span className="text-[10px] text-muted-foreground font-medium tracking-wider uppercase block mt-0.5 truncate">
+                Property Management
               </span>
             </div>
           </Link>
+
+          <div className="flex items-center justify-between bg-sidebar-accent/50 px-2.5 py-1.5 rounded-lg border border-sidebar-border">
+            <span className="text-[10px] font-semibold text-muted-foreground">Akses Role:</span>
+            <span
+              className={cn(
+                "px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md border shrink-0",
+                getBadgeColor(currentRole)
+              )}
+            >
+              {currentRole.replace("_", " ")}
+            </span>
+          </div>
         </div>
 
-        {/* Navigation Items Grouped by Section Headers */}
-        <nav className="flex-1 space-y-4 px-3 py-4 overflow-y-auto">
-          {groupOrder.map((groupTitle) => {
-            const groupNavItems = groupedItems[groupTitle];
+        {/* Grouped Sidebar Navigation */}
+        <nav className="space-y-5">
+          {groupOrder.map((groupName) => {
+            const groupNavs = groupedItems[groupName];
             return (
-              <div key={groupTitle} className="space-y-1">
-                <p className="px-3 text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/70">
-                  {groupTitle}
-                </p>
-                {groupNavItems.map((item) => {
-                  const hasChildren = item.children && item.children.length > 0;
-                  const isParentActive =
-                    item.href === "/"
-                      ? pathname === "/"
-                      : pathname.startsWith(item.href);
+              <div key={groupName} className="space-y-1.5">
+                <h4 className="px-3 text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/70">
+                  {groupName}
+                </h4>
 
-                  const IconComp = item.icon;
-                  const isOpen = Boolean(openSubmenus[item.id]);
+                <div className="space-y-1">
+                  {groupNavs.map((item) => {
+                    const IconComponent = item.icon || IconRoute;
+                    const hasChildren = item.children && item.children.length > 0;
+                    const isParentActive =
+                      pathname === item.href ||
+                      (item.href !== "/" && pathname.startsWith(item.href));
+                    const isOpen = Boolean(openSubmenus[item.id]);
 
-                  if (hasChildren) {
+                    if (hasChildren) {
+                      return (
+                        <div key={item.id} className="space-y-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleSubmenu(item.id)}
+                            className={cn(
+                              "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group text-left",
+                              isParentActive
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold border border-sidebar-border"
+                                : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <IconComponent
+                                className={cn(
+                                  "h-4 w-4 shrink-0 transition-colors",
+                                  isParentActive
+                                    ? "text-primary"
+                                    : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
+                                )}
+                              />
+                              <span>{item.label}</span>
+                            </div>
+                            {isOpen ? (
+                              <IconChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                            ) : (
+                              <IconChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </button>
+
+                          {/* Submenu Dropdown */}
+                          {isOpen && (
+                            <div className="pl-6 space-y-1 border-l border-sidebar-border ml-4">
+                              {item.children?.map((child) => {
+                                const ChildIcon = child.icon || IconRoute;
+                                const isChildActive =
+                                  pathname === child.href ||
+                                  (child.href !== "/" && pathname.startsWith(child.href));
+
+                                return (
+                                  <Link
+                                    key={child.id}
+                                    href={child.href}
+                                    className={cn(
+                                      "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 text-left",
+                                      isChildActive
+                                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                                    )}
+                                  >
+                                    <ChildIcon className="h-3.5 w-3.5 shrink-0" />
+                                    <span>{child.label}</span>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
                     return (
-                      <div key={item.id} className="space-y-1">
-                        <button
-                          type="button"
-                          onClick={() => toggleSubmenu(item.id)}
-                          className={cn(
-                            "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-xs font-semibold transition-all text-left",
-                            isParentActive
-                              ? "bg-primary/10 text-primary font-bold"
-                              : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                          )}
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1 text-left">
-                            <IconComp className="size-4 shrink-0" />
-                            <span className="text-left leading-snug">{item.label}</span>
-                          </div>
-                          {isOpen ? (
-                            <IconChevronDown className="size-3.5 shrink-0 text-muted-foreground ml-1.5" />
-                          ) : (
-                            <IconChevronRight className="size-3.5 shrink-0 text-muted-foreground ml-1.5" />
-                          )}
-                        </button>
-
-                        {isOpen && item.children && (
-                          <div className="ml-4 pl-2.5 border-l space-y-1 my-1">
-                            {item.children.map((child) => {
-                              const isChildActive =
-                                child.href === "/"
-                                  ? pathname === "/"
-                                  : pathname.startsWith(child.href);
-                              const ChildIconComp = child.icon;
-
-                              return (
-                                <Link
-                                  key={child.id}
-                                  href={child.href}
-                                  className={cn(
-                                    "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all text-left",
-                                    isChildActive
-                                      ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                                  )}
-                                >
-                                  <ChildIconComp className="size-3.5 shrink-0" />
-                                  <span className="text-left leading-snug">{child.label}</span>
-                                </Link>
-                              );
-                            })}
-                          </div>
+                      <Link
+                        key={item.id}
+                        href={item.href}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group",
+                          isParentActive
+                            ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                         )}
-                      </div>
+                      >
+                        <IconComponent
+                          className={cn(
+                            "h-4 w-4 shrink-0 transition-colors",
+                            isParentActive
+                              ? "text-primary-foreground"
+                              : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
+                          )}
+                        />
+                        <span>{item.label}</span>
+                      </Link>
                     );
-                  }
-
-                  return (
-                    <Link
-                      key={item.id}
-                      href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 rounded-xl px-3 py-2.5 text-xs font-semibold transition-all",
-                        isParentActive
-                          ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                          : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                      )}
-                    >
-                      <IconComp className="size-4 shrink-0" />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
+                  })}
+                </div>
               </div>
             );
           })}
         </nav>
+      </div>
 
-        {/* Footer */}
-        <div className="border-t px-4 py-3">
-          <p className="text-[11px] text-muted-foreground text-center font-medium">
-            © 2026 ARVENTA v{packageJson.version} • Room PMS
-          </p>
+      {/* Footer Info & Version */}
+      <div className="border-t border-sidebar-border pt-4 px-2 space-y-2">
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+          <span>Versi App</span>
+          <span className="font-mono font-bold text-sidebar-foreground">v{packageJson.version}</span>
         </div>
+        <p className="text-[9px] text-muted-foreground text-center font-medium">
+          © 2026 Arventa SaaS Property. All rights reserved.
+        </p>
       </div>
     </aside>
   );

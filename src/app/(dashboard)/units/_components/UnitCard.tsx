@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Edit3, Trash2, ArrowRight, Maximize2, Users, Receipt, UserCheck } from 'lucide-react';
+import { Edit3, Trash2, ArrowRight, Maximize2, Users, Receipt, UserCheck, Check } from 'lucide-react';
 import { Unit, UnitStatus } from '../_types';
 
 interface UnitCardProps {
@@ -10,6 +10,9 @@ interface UnitCardProps {
   propertyName: string;
   onEdit: (unit: Unit) => void;
   onDelete: (id: string) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
+  selectable?: boolean;
 }
 
 export default function UnitCard({
@@ -17,8 +20,11 @@ export default function UnitCard({
   propertyName,
   onEdit,
   onDelete,
+  isSelected = false,
+  onToggleSelect,
+  selectable = true,
 }: UnitCardProps) {
-  // Format prices beautifully to Indonesian Rupiah
+  // Format prices to Indonesian Rupiah
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -37,6 +43,8 @@ export default function UnitCard({
         return { bg: 'bg-[#C8A96B]/10 text-[#C8A96B] border-[#C8A96B]/30', label: 'Perlu Dibersihkan' };
       case 'Maintenance':
         return { bg: 'bg-red-50 text-red-600 border-red-200', label: 'Perbaikan' };
+      case 'Reserved':
+        return { bg: 'bg-purple-50 text-purple-600 border-purple-200', label: 'Reserved' };
       default:
         return { bg: 'bg-gray-50 text-gray-500 border-gray-200', label: 'Tidak Diketahui' };
     }
@@ -45,19 +53,43 @@ export default function UnitCard({
   const statusStyle = getStatusStyle(unit.status);
 
   return (
-    <div className="group rounded-2xl border border-[#C7D3C0]/40 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#8FA28A]/50 flex flex-col justify-between h-full">
+    <div
+      className={`group rounded-2xl border bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md relative flex flex-col justify-between h-full ${
+        isSelected ? 'border-[#8FA28A] ring-2 ring-[#8FA28A]/30 bg-[#8FA28A]/5' : 'border-[#C7D3C0]/40 hover:border-[#8FA28A]/50'
+      }`}
+    >
       <div className="space-y-4">
-        {/* Card Header (Unit Name & Status Badge) */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h4 className="text-base font-bold text-gray-800 line-clamp-1 group-hover:text-[#8FA28A] transition-colors">
-              {unit.name}
-            </h4>
-            <p className="text-[11px] font-semibold text-gray-400 mt-0.5 line-clamp-1">{propertyName}</p>
+        {/* Checkbox Overlay / Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            {selectable && (
+              <button
+                type="button"
+                onClick={() => onToggleSelect && onToggleSelect(unit.id)}
+                className={`min-w-[44px] min-h-[44px] -ml-2 -mt-2 flex items-center justify-center rounded-xl transition-colors ${
+                  isSelected ? 'text-[#8FA28A]' : 'text-gray-300 hover:text-gray-400'
+                }`}
+
+                title={isSelected ? 'Batal Pilih Unit' : 'Pilih Unit'}
+              >
+                <div
+                  className={`h-5 w-5 rounded-md border flex items-center justify-center transition-all ${
+                    isSelected ? 'bg-[#8FA28A] border-[#8FA28A] text-white shadow-sm' : 'border-gray-300 bg-white'
+                  }`}
+                >
+                  {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                </div>
+              </button>
+            )}
+            <div>
+              <h4 className="text-base font-bold text-gray-800 line-clamp-1 group-hover:text-[#8FA28A] transition-colors">
+                {unit.name}
+              </h4>
+              <p className="text-[11px] font-semibold text-gray-400 mt-0.5 line-clamp-1">{propertyName}</p>
+            </div>
           </div>
-          <span
-            className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${statusStyle.bg}`}
-          >
+
+          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider shrink-0 ${statusStyle.bg}`}>
             {statusStyle.label}
           </span>
         </div>
@@ -113,17 +145,17 @@ export default function UnitCard({
 
       {/* Action Footer */}
       <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit(unit)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
             title="Edit Unit"
           >
             <Edit3 className="h-4 w-4" />
           </button>
           <button
             onClick={() => onDelete(unit.id)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
             title="Hapus Unit"
           >
             <Trash2 className="h-4 w-4" />
@@ -132,7 +164,7 @@ export default function UnitCard({
 
         <Link
           href={`/units/${unit.id}`}
-          className="flex items-center gap-1 rounded-xl bg-[#8FA28A]/10 text-[#8FA28A] hover:bg-[#8FA28A] hover:text-white px-3.5 py-1.5 text-xs font-bold transition-all shadow-sm hover:shadow"
+          className="flex items-center gap-1 rounded-xl bg-[#8FA28A]/10 text-[#8FA28A] hover:bg-[#8FA28A] hover:text-white px-3.5 py-2 text-xs font-bold transition-all shadow-sm hover:shadow min-h-[44px]"
         >
           Detail
           <ArrowRight className="h-3.5 w-3.5" />

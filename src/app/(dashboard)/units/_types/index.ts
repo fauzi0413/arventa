@@ -1,4 +1,4 @@
-export type UnitStatus = 'Available' | 'Occupied' | 'Need Cleaning' | 'Maintenance';
+export type UnitStatus = 'Available' | 'Occupied' | 'Need Cleaning' | 'Maintenance' | 'Reserved';
 
 export interface UnitPricing {
   monthly: number;
@@ -6,6 +6,7 @@ export interface UnitPricing {
   yearly?: number;
   deposit: number;
   utilities?: string;
+  billingScheme?: 'monthly' | 'daily' | 'yearly' | 'custom';
 }
 
 export interface UnitCapacity {
@@ -22,8 +23,20 @@ export interface Unit {
   capacity: UnitCapacity;
   pricing: UnitPricing;
   description: string;
+  imageUrl?: string;
   tenantName?: string;
   tenantPhone?: string;
   checkInDate?: string;
   createdAt: string;
+}
+
+export type BulkActionType = 'status' | 'facilities' | 'pricing' | 'delete';
+
+export interface BulkActionPayload {
+  actionType: BulkActionType;
+  newStatus?: UnitStatus;
+  facilityOperation?: 'add' | 'remove';
+  facilitiesToApply?: string[];
+  priceAdjustmentType?: 'set' | 'flat_increase' | 'flat_decrease' | 'percent_increase' | 'percent_decrease';
+  priceValue?: number;
 }

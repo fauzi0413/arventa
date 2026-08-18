@@ -6,6 +6,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, MapPin, Layers, User, Phone, Calendar, Info, Package, ShieldAlert, Award, Compass, DollarSign } from 'lucide-react';
 import { Unit } from '@/app/(dashboard)/units/_types';
 import { Property, InventoryItem, InventoryCondition } from '@/app/(dashboard)/properties/_types';
+import { useSafeBack } from '@/app/_hooks/useSafeBack';
 
 const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   switch (cond) {
@@ -121,6 +122,8 @@ export default function PropertyUnitDetailPage() {
     }).format(val);
   };
 
+  const handleSafeBack = useSafeBack(`/properties/${propertyId}`);
+
   if (loading) {
     return (
       <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
@@ -140,13 +143,14 @@ export default function PropertyUnitDetailPage() {
         <p className="text-sm text-gray-500 mt-1 max-w-sm">
           Unit atau properti tidak terdaftar dalam database atau telah dihapus.
         </p>
-        <Link
-          href={`/properties/${propertyId}`}
-          className="mt-4 flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
+        <button
+          type="button"
+          onClick={handleSafeBack}
+          className="mt-4 min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali ke Detail Properti
-        </Link>
+        </button>
       </div>
     );
   }
@@ -155,13 +159,14 @@ export default function PropertyUnitDetailPage() {
     <div className="space-y-6 bg-[#F7F4ED] min-h-[90vh] p-6 rounded-2xl border border-[#C7D3C0]/40">
       {/* Top Header Controls */}
       <div className="flex items-center justify-between border-b border-[#C7D3C0]/30 pb-4">
-        <Link
-          href={`/properties/${propertyId}`}
-          className="flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#8FA28A] transition-colors"
+        <button
+          type="button"
+          onClick={handleSafeBack}
+          className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#8FA28A] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali ke {property.name}
-        </Link>
+        </button>
 
         <span className="text-xs font-bold text-gray-400">Pratinjau Unit Kamar</span>
       </div>
