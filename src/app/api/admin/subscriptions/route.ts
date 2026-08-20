@@ -464,6 +464,58 @@ export async function POST(req: Request) {
       });
     }
 
+    // 5. Create Manual SaaS Invoice
+    if (action === "CREATE_INVOICE") {
+      const { subscriptionId, amount, dueDate } = body;
+      if (!subscriptionId || !amount) {
+        return ApiResponse.error({
+          message: "subscriptionId dan nominal (amount) wajib diisi",
+          status: 400,
+        });
+      }
+
+      const subscription = await prisma.ownerSubscription.findUnique({
+        where: { id: subscriptionId },
+        include: { owner: true, plan: true },
+      });
+
+      if (!subscription) {
+        return ApiResponse.error({
+          message: "Langganan owner tidak ditemukan",
+          status: 404,
+        });
+      }
+
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`;
+      const due = dueDate ? new Date(dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      const newInvoice = await prisma.saaSInvoice.create({
+        data: {
+          subscriptionId,
+          invoiceNumber,
+          amount: parseFloat(amount),
+          status: "PENDING",
+          dueDate: due,
+        },
+      });
+
+      // Write Audit Log
+      await prisma.auditLog.create({
+        data: {
+          action: "CREATE_MANUAL_SAAS_INVOICE",
+          entityName: "SaaSInvoice",
+          entityId: newInvoice.id,
+          details: { invoiceNumber, ownerEmail: subscription.owner.email, amount: parseFloat(amount) },
+          ipAddress: "127.0.0.1",
+        },
+      });
+
+      return ApiResponse.success({
+        message: `Tagihan invoice ${invoiceNumber} berhasil dibuat untuk ${subscription.owner.fullName}`,
+        data: newInvoice,
+      });
+    }
+
     return ApiResponse.error({
       message: "Aksi tidak valid",
       status: 400,

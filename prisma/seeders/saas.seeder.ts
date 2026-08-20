@@ -87,5 +87,29 @@ export async function seedSaaS(owner: User) {
     console.log(`ℹ️ Existing SaaS Invoice found: ${saasInvoice.invoiceNumber}`);
   }
 
+  // 4. SaaS Payment Methods (Rekening Pembayaran SaaS)
+  const defaultPaymentMethods = [
+    {
+      bankName: "Bank Central Asia (BCA)",
+      accountNumber: "8421130965",
+      accountHolder: "Fauzi Aditya Pratama",
+      badgeColor: "bg-blue-600",
+      isEnabled: true,
+      notes: "Transfer via ATM, M-BCA, atau KlikBCA. Sertakan kode ref invoice pada berita transfer.",
+    },
+  ];
+
+  for (const pm of defaultPaymentMethods) {
+    const existing = await prisma.saaSPaymentMethod.findFirst({
+      where: { accountNumber: pm.accountNumber },
+    });
+    if (!existing) {
+      await prisma.saaSPaymentMethod.create({ data: pm });
+      console.log(`✅ Created SaaS Payment Method: ${pm.bankName} (${pm.accountNumber})`);
+    } else {
+      console.log(`ℹ️ Existing SaaS Payment Method found: ${pm.bankName}`);
+    }
+  }
+
   return { planBasic, planPro, subscription, saasInvoice };
 }

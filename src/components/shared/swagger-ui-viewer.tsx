@@ -5,7 +5,14 @@ import "swagger-ui-react/swagger-ui.css";
 import { openApiSpec } from "@/lib/swagger/openapi-spec";
 
 // Dynamic import for SwaggerUI to prevent SSR window issues
-const SwaggerUI = dynamic(() => import("swagger-ui-react"), { ssr: false });
+const SwaggerUI = dynamic<any>(() => import("swagger-ui-react"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center p-12 text-xs font-semibold text-slate-400">
+      Memuat Swagger UI Viewer...
+    </div>
+  ),
+});
 
 export function SwaggerUiViewer() {
   return (

@@ -52,7 +52,7 @@ const DEFAULT_UNITS = (propId1: string, propId2: string): Unit[] => [
   },
 ];
 
-export default function UnitsPage() {
+function UnitsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const handleSafeBack = useSafeBack('/properties');
@@ -687,5 +687,19 @@ export default function UnitsPage() {
         )}
       </Suspense>
     </div>
+  );
+}
+
+export default function UnitsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs font-semibold text-gray-500">
+          Memuat manajemen unit kamar...
+        </div>
+      }
+    >
+      <UnitsPageContent />
+    </Suspense>
   );
 }

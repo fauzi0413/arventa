@@ -159,8 +159,8 @@ export async function POST(req: Request) {
         });
       }
 
-      let orderVal = order ? parseInt(order, 10) : 0;
-      if (!orderVal || isNaN(orderVal)) {
+      let orderVal = order !== undefined && order !== null && order !== "" ? parseInt(String(order), 10) : 0;
+      if (isNaN(orderVal)) {
         const lastItem = await prisma.menuItem.findFirst({
           orderBy: { order: "desc" },
         });
@@ -223,6 +223,8 @@ export async function POST(req: Request) {
         });
       }
 
+      const parsedOrder = order !== undefined && order !== null && order !== "" ? parseInt(String(order), 10) : 0;
+
       const updatedMenu = await prisma.menuItem.update({
         where: { id: menuItemId },
         data: {
@@ -230,7 +232,7 @@ export async function POST(req: Request) {
           path,
           icon: icon || "IconRoute",
           group: group || "UTAMA",
-          order: order ? parseInt(order, 10) : 10,
+          order: isNaN(parsedOrder) ? 0 : parsedOrder,
           parentId: parentId && parentId !== menuItemId ? parentId : null,
         },
       });

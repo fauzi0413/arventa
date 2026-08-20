@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     }
 
     // Execute queries in parallel
-    const [ownersList, totalCount, totalActive, totalSuspended] = await Promise.all([
+    const [ownersList, totalCount, totalActive, totalSuspended, plans] = await Promise.all([
       prisma.user.findMany({
         where: whereCondition,
         skip,
@@ -59,6 +59,10 @@ export async function GET(req: Request) {
       prisma.user.count({ where: whereCondition }),
       prisma.user.count({ where: { role: "OWNER", isActive: true } }),
       prisma.user.count({ where: { role: "OWNER", isActive: false } }),
+      prisma.saaSPlan.findMany({
+        select: { id: true, name: true, priceMonthly: true, maxProperties: true, maxUnits: true },
+        orderBy: { priceMonthly: "asc" },
+      }),
     ]);
 
     const formattedOwners = ownersList.map((owner) => {
@@ -71,6 +75,7 @@ export async function GET(req: Request) {
         isActive: owner.isActive,
         propertyCount: owner._count.ownedProperties,
         currentPlan: activeSub ? activeSub.plan.name : "Free / Trial",
+        planId: activeSub ? activeSub.plan.id : null,
         subscriptionStatus: activeSub ? activeSub.status : "TRIAL",
         subscriptionEndDate: activeSub ? activeSub.endDate : null,
         createdAt: owner.createdAt,
@@ -81,6 +86,7 @@ export async function GET(req: Request) {
       message: "Berhasil mengambil data owner properti",
       data: {
         owners: formattedOwners,
+        plans,
         pagination: {
           total: totalCount,
           page,
@@ -194,12 +200,48 @@ export async function POST(req: Request) {
 
     // 2. Suspend / Unsuspend Owner Account
     if (action === "TOGGLE_SUSPEND") {
-      const { ownerId } = body;
+      const { ownerId, adminPassword } = body;
       if (!ownerId) {
         return ApiResponse.error({
           message: "ownerId wajib diisi",
           status: 400,
         });
+      }
+
+      if (!adminPassword || String(adminPassword).trim() === "") {
+        return ApiResponse.error({
+          message: "Password konfirmasi Platform Admin wajib diisi",
+          status: 400,
+        });
+      }
+
+      // 1. Fetch active Platform Admin email from Database
+      const adminUser = await prisma.user.findFirst({
+        where: { role: "PLATFORM_ADMIN", isActive: true },
+      });
+
+      const adminEmail = adminUser?.email || "admin@arventa.id";
+
+      // 2. Verify password against Database Auth (Supabase Auth)
+      if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+        const supabase = createSupabaseClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
+
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: adminEmail,
+          password: adminPassword,
+        });
+
+        if (authError) {
+          console.warn(`⚠️ Admin password verification failed for ${adminEmail}:`, authError.message);
+          return ApiResponse.error({
+            message: "Password konfirmasi salah. Silakan masukkan password akun Platform Admin Anda dengan benar.",
+            status: 400,
+          });
+        }
       }
 
       const owner = await prisma.user.findUnique({
@@ -225,13 +267,18 @@ export async function POST(req: Request) {
           action: updatedOwner.isActive ? "UNSUSPEND_OWNER_ACCOUNT" : "SUSPEND_OWNER_ACCOUNT",
           entityName: "User",
           entityId: ownerId,
-          details: { ownerEmail: owner.email, isActive: updatedOwner.isActive },
+          details: {
+            ownerEmail: owner.email,
+            isActive: updatedOwner.isActive,
+            verifiedAdminEmail: adminEmail,
+            verifiedWithPassword: true,
+          },
           ipAddress: "127.0.0.1",
         },
       });
 
       return ApiResponse.success({
-        message: `Status akun owner ${owner.fullName} diubah menjadi ${updatedOwner.isActive ? "AKTIF" : "DITANGGUHKAN (SUSPENDED)"}`,
+        message: `Status akun owner ${owner.fullName} berhasil diubah menjadi ${updatedOwner.isActive ? "AKTIF" : "DITANGGUHKAN (SUSPENDED)"}`,
         data: updatedOwner,
       });
     }

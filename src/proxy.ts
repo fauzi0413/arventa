@@ -50,7 +50,11 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith(prefix)
   );
 
-  if (!user && isProtected) {
+  const hasDemoSession =
+    request.cookies.get("arventa_session")?.value === "true" ||
+    Boolean(request.cookies.get("arventa_demo_role")?.value);
+
+  if (!user && !hasDemoSession && isProtected) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

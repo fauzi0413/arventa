@@ -16,22 +16,62 @@ import {
   IconToggleLeft,
   IconToggleRight,
   IconHome,
+  IconHome2,
   IconBuildingStore,
   IconBuilding,
+  IconBuildingCommunity,
+  IconBuildingSkyscraper,
   IconBed,
+  IconDoor,
+  IconBath,
+  IconWifi,
+  IconBulb,
+  IconDroplet,
+  IconFlame,
+  IconShirt,
+  IconCar,
+  IconBike,
+  IconShieldLock,
   IconUsers,
   IconUserCheck,
+  IconUser,
+  IconUserPlus,
+  IconUsersGroup,
+  IconId,
+  IconFingerprint,
+  IconUserShield,
+  IconUserCog,
+  IconAddressBook,
   IconCash,
   IconReceipt,
+  IconReceiptTax,
+  IconWallet,
+  IconCreditCard,
+  IconBuildingBank,
+  IconPercentage,
+  IconCoins,
+  IconCurrencyDollar,
   IconFileText,
   IconClipboardCheck,
   IconArmchair,
   IconMessages,
+  IconMessageDots,
+  IconBrandWhatsapp,
+  IconMail,
+  IconBroadcast,
+  IconHeadset,
+  IconHelpCircle,
   IconLock,
   IconSettings,
   IconShieldCheck,
+  IconShield,
   IconKey,
   IconChartBar,
+  IconChartPie,
+  IconChartLine,
+  IconReportAnalytics,
+  IconCalculator,
+  IconFileSpreadsheet,
   IconBell,
   IconUpload,
   IconTrendingUp,
@@ -39,6 +79,16 @@ import {
   IconQrcode,
   IconSearch,
   IconFolder,
+  IconCornerDownRight,
+  IconDatabase,
+  IconServer,
+  IconCloud,
+  IconAdjustments,
+  IconAdjustmentsHorizontal,
+  IconHistory,
+  IconGlobe,
+  IconApi,
+  IconCode,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,32 +119,99 @@ interface RoleItem {
   code: string;
 }
 
-// Available Icon Options for Visual Selector
+// Comprehensive Icon Options Gallery for Visual Selector (75+ Icons)
 const ICON_OPTIONS = [
+  // --- DASHBOARD & UTAMA ---
   { code: "IconHome", name: "Dashboard / Home", icon: IconHome },
-  { code: "IconBuildingStore", name: "Owner / Management", icon: IconBuildingStore },
-  { code: "IconBuilding", name: "Properti & Unit", icon: IconBuilding },
-  { code: "IconBed", name: "Kamar / Unit", icon: IconBed },
-  { code: "IconUsers", name: "Penyewa & Kontrak", icon: IconUsers },
-  { code: "IconUserCheck", name: "Check-In / Lapangan", icon: IconUserCheck },
-  { code: "IconCash", name: "Keuangan & Billing", icon: IconCash },
-  { code: "IconReceipt", name: "Tagihan & Invoice", icon: IconReceipt },
-  { code: "IconFileText", name: "Dokumen & Kontrak", icon: IconFileText },
-  { code: "IconClipboardCheck", name: "Status Kamar Grid", icon: IconClipboardCheck },
-  { code: "IconSparkles", name: "AI & Operasional", icon: IconSparkles },
+  { code: "IconHome2", name: "Dashboard Alternatif / Real Estate", icon: IconHome2 },
+  { code: "IconBuildingStore", name: "Owner / SaaS Management", icon: IconBuildingStore },
+  { code: "IconBuilding", name: "Properti & Klaster", icon: IconBuilding },
+  { code: "IconBuildingCommunity", name: "Kawasan & Kompleks Properti", icon: IconBuildingCommunity },
+  { code: "IconBuildingSkyscraper", name: "Apartemen / Gedung Tinggi", icon: IconBuildingSkyscraper },
+  
+  // --- OPERASIONAL & UNIT ---
+  { code: "IconBed", name: "Kamar / Unit Kost", icon: IconBed },
+  { code: "IconDoor", name: "Pintu / Akses Kamar", icon: IconDoor },
+  { code: "IconBath", name: "Fasilitas Kamar Mandi", icon: IconBath },
   { code: "IconArmchair", name: "Inventaris / Perabotan", icon: IconArmchair },
-  { code: "IconMessages", name: "Forum / Komunitas", icon: IconMessages },
-  { code: "IconLock", name: "Role & Permission", icon: IconLock },
-  { code: "IconRoute", name: "Dynamic Nav / Menu", icon: IconRoute },
+  { code: "IconTools", name: "Pemeliharaan & Repair", icon: IconTools },
+  { code: "IconTrash", name: "Kebersihan & Sampah", icon: IconTrash },
+  { code: "IconShirt", name: "Layanan Laundry", icon: IconShirt },
+  { code: "IconCar", name: "Area Parkir Mobil", icon: IconCar },
+  { code: "IconBike", name: "Area Parkir Motor / Sepeda", icon: IconBike },
+
+  // --- UTILITAS & KEBUTUHAN ---
+  { code: "IconBulb", name: "Utilitas Listrik / Token PLN", icon: IconBulb },
+  { code: "IconDroplet", name: "Utilitas Air / PAM", icon: IconDroplet },
+  { code: "IconFlame", name: "Utilitas Gas / Kompor", icon: IconFlame },
+  { code: "IconWifi", name: "Internet & Wi-Fi", icon: IconWifi },
+
+  // --- PENYEWA & CHECK-IN ---
+  { code: "IconUsers", name: "Penyewa & Kontrak", icon: IconUsers },
+  { code: "IconUser", name: "Profil Penghuni Single", icon: IconUser },
+  { code: "IconUserPlus", name: "Pendaftaran Penghuni Baru", icon: IconUserPlus },
+  { code: "IconUsersGroup", name: "Grup Penghuni Properti", icon: IconUsersGroup },
+  { code: "IconUserCheck", name: "Check-In / Verifikasi Lapangan", icon: IconUserCheck },
+  { code: "IconId", name: "KTP / Identitas NIK", icon: IconId },
+  { code: "IconFingerprint", name: "Absensi / Access Control", icon: IconFingerprint },
+  { code: "IconUserShield", name: "Staf Terpercaya / Supervisor", icon: IconUserShield },
+  { code: "IconUserCog", name: "Pengaturan Akun User", icon: IconUserCog },
+  { code: "IconAddressBook", name: "Buku Kontak Penghuni", icon: IconAddressBook },
+
+  // --- KEUANGAN, BILLING & SAAS ---
+  { code: "IconCash", name: "Keuangan & Penagihan", icon: IconCash },
+  { code: "IconReceipt", name: "Tagihan & Invoice", icon: IconReceipt },
+  { code: "IconReceiptTax", name: "Faktur Pajak / PPN", icon: IconReceiptTax },
+  { code: "IconWallet", name: "Dompet Digital & Kas", icon: IconWallet },
+  { code: "IconCreditCard", name: "Kartu Kredit / Debit", icon: IconCreditCard },
+  { code: "IconBuildingBank", name: "Transfer Bank Direct", icon: IconBuildingBank },
+  { code: "IconPercentage", name: "Diskon & Promo", icon: IconPercentage },
+  { code: "IconCoins", name: "Point & Koin Reward", icon: IconCoins },
+  { code: "IconCurrencyDollar", name: "Multi-Currency & Valas", icon: IconCurrencyDollar },
+  { code: "IconUpload", name: "Upload Struk / Bukti Transfer", icon: IconUpload },
+
+  // --- ANALITYCS, LAPORAN & DOKUMEN ---
+  { code: "IconChartBar", name: "Laporan & Analytics Bar", icon: IconChartBar },
+  { code: "IconChartPie", name: "Analisa Distribusi Pie", icon: IconChartPie },
+  { code: "IconChartLine", name: "Grafik Tren & Pertumbuhan", icon: IconChartLine },
+  { code: "IconTrendingUp", name: "Net Profit & Growth", icon: IconTrendingUp },
+  { code: "IconReportAnalytics", name: "Executive Report & Analysis", icon: IconReportAnalytics },
+  { code: "IconCalculator", name: "Kalkulator Simulasi / Estimasi", icon: IconCalculator },
+  { code: "IconFileSpreadsheet", name: "Ekspor Excel / CSV", icon: IconFileSpreadsheet },
+  { code: "IconFileText", name: "Dokumen & Legalitas Kontrak", icon: IconFileText },
+  { code: "IconClipboardCheck", name: "Status Kamar Grid / Checklist", icon: IconClipboardCheck },
+  { code: "IconHistory", name: "Riwayat Transaksi & Audit Log", icon: IconHistory },
+
+  // --- AI, KOMUNIKASI & BROADCAST ---
+  { code: "IconSparkles", name: "AI & Operasional Pintar", icon: IconSparkles },
+  { code: "IconMessages", name: "Forum / Komunitas Diskusi", icon: IconMessages },
+  { code: "IconMessageDots", name: "Pesan Langsung / Chat Direct", icon: IconMessageDots },
+  { code: "IconBrandWhatsapp", name: "Notifikasi WhatsApp Auto", icon: IconBrandWhatsapp },
+  { code: "IconMail", name: "Email Broadcast / Blast", icon: IconMail },
+  { code: "IconBroadcast", name: "Pengumuman / Broadcaster", icon: IconBroadcast },
+  { code: "IconBell", name: "Notifikasi Peringatan", icon: IconBell },
+  { code: "IconHeadset", name: "Helpdesk & Support Center", icon: IconHeadset },
+  { code: "IconHelpCircle", name: "Bantuan & FAQ System", icon: IconHelpCircle },
+  { code: "IconQrcode", name: "QR Login / Share Kode", icon: IconQrcode },
+
+  // --- KEAMANAN & SISTEM ---
+  { code: "IconLock", name: "Role & Permission Lock", icon: IconLock },
+  { code: "IconKey", name: "Credentials / Kunci Password", icon: IconKey },
+  { code: "IconShieldCheck", name: "Security & Admin Guard", icon: IconShieldCheck },
+  { code: "IconShield", name: "Perlindungan Data", icon: IconShield },
+  { code: "IconShieldLock", name: "Peringatan Keamanan Satpam", icon: IconShieldLock },
+  { code: "IconRoute", name: "Dynamic Nav / Router", icon: IconRoute },
   { code: "IconSettings", name: "Platform Settings", icon: IconSettings },
-  { code: "IconShieldCheck", name: "Security & Admin", icon: IconShieldCheck },
-  { code: "IconKey", name: "Credentials / Pass", icon: IconKey },
-  { code: "IconChartBar", name: "Laporan & Analytics", icon: IconChartBar },
-  { code: "IconBell", name: "Pengumuman", icon: IconBell },
-  { code: "IconUpload", name: "Upload / Struk", icon: IconUpload },
-  { code: "IconTrendingUp", name: "Net Profit / Growth", icon: IconTrendingUp },
-  { code: "IconTools", name: "Maintenance", icon: IconTools },
-  { code: "IconQrcode", name: "QR Login / Share", icon: IconQrcode },
+  { code: "IconAdjustments", name: "Konfigurasi Parameter", icon: IconAdjustments },
+  { code: "IconAdjustmentsHorizontal", name: "Kustomisasi Filter", icon: IconAdjustmentsHorizontal },
+
+  // --- CLOUD & INTEGRASI ---
+  { code: "IconDatabase", name: "Database Storage & Backup", icon: IconDatabase },
+  { code: "IconServer", name: "Server Status & Monitoring", icon: IconServer },
+  { code: "IconCloud", name: "Cloud Sync & Storage", icon: IconCloud },
+  { code: "IconGlobe", name: "Integrasi Web & Subdomain", icon: IconGlobe },
+  { code: "IconApi", name: "API Gateway & Webhook", icon: IconApi },
+  { code: "IconCode", name: "Custom Code & Scripting", icon: IconCode },
 ];
 
 const GROUP_PRESETS = [
@@ -118,6 +235,12 @@ export function DynamicMenuManager() {
   const [activeTab, setActiveTab] = useState<"menus" | "flags">("menus");
   const [roleFilter, setRoleFilter] = useState<string>("PLATFORM_ADMIN");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [modalErrorMsg, setModalErrorMsg] = useState<string | null>(null);
+
+  // Delete Confirmation Modal State
+  const [deleteConfirmItem, setDeleteConfirmItem] = useState<{ id: string; title: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Menu Form Modal State (Supports Create & Edit)
   const [showMenuModal, setShowMenuModal] = useState(false);
@@ -175,6 +298,8 @@ export function DynamicMenuManager() {
   };
 
   const handleOpenCreateMenuModal = () => {
+    setModalErrorMsg(null);
+    setErrorMsg(null);
     setEditMenuItemId(null);
     setNewTitle("");
     setNewPath("");
@@ -189,6 +314,8 @@ export function DynamicMenuManager() {
   };
 
   const handleOpenEditMenuModal = (item: MenuItem) => {
+    setModalErrorMsg(null);
+    setErrorMsg(null);
     setEditMenuItemId(item.id);
     setNewTitle(item.title);
     setNewPath(item.path);
@@ -201,6 +328,7 @@ export function DynamicMenuManager() {
   };
 
   const handleToggleFlag = async (flagId: string) => {
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/menus-flags", {
         method: "POST",
@@ -213,17 +341,25 @@ export function DynamicMenuManager() {
           prev.map((f) => (f.id === flagId ? { ...f, isEnabled: json.data.isEnabled } : f))
         );
         setSuccessMsg(json.message);
+      } else {
+        setErrorMsg(json.message || "Gagal mengubah status feature flag");
       }
     } catch (err) {
       console.error(err);
+      setErrorMsg("Terjadi kesalahan sistem saat mengubah feature flag.");
     }
   };
 
   const handleCreateFlag = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFlagKey || !newFlagName) return alert("Key dan Nama flag wajib diisi");
+    if (!newFlagKey || !newFlagName) {
+      setModalErrorMsg("Key dan Nama flag wajib diisi");
+      return;
+    }
 
     setIsSubmitting(true);
+    setModalErrorMsg(null);
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/menus-flags", {
         method: "POST",
@@ -242,12 +378,16 @@ export function DynamicMenuManager() {
         setNewFlagKey("");
         setNewFlagName("");
         setNewFlagDesc("");
+        setModalErrorMsg(null);
         fetchData();
       } else {
-        alert(json.message);
+        setModalErrorMsg(json.message || "Gagal membuat feature flag.");
+        setErrorMsg(json.message || "Gagal membuat feature flag.");
       }
     } catch (err) {
       console.error(err);
+      setModalErrorMsg("Terjadi kesalahan sistem saat membuat feature flag.");
+      setErrorMsg("Terjadi kesalahan sistem saat membuat feature flag.");
     } finally {
       setIsSubmitting(false);
     }
@@ -255,9 +395,14 @@ export function DynamicMenuManager() {
 
   const handleSaveMenu = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle || !newPath) return alert("Judul dan Path menu wajib diisi");
+    if (!newTitle || !newPath) {
+      setModalErrorMsg("Judul dan Path menu wajib diisi");
+      return;
+    }
 
     setIsSubmitting(true);
+    setModalErrorMsg(null);
+    setErrorMsg(null);
     try {
       const isEdit = Boolean(editMenuItemId);
       const res = await fetch("/api/admin/menus-flags", {
@@ -282,21 +427,26 @@ export function DynamicMenuManager() {
         setEditMenuItemId(null);
         setNewTitle("");
         setNewPath("");
+        setModalErrorMsg(null);
         fetchData();
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("menu-updated"));
         }
       } else {
-        alert(json.message);
+        setModalErrorMsg(json.message || "Gagal menyimpan menu.");
+        setErrorMsg(json.message || "Gagal menyimpan menu.");
       }
     } catch (err) {
       console.error(err);
+      setModalErrorMsg("Terjadi kesalahan sistem saat menyimpan menu.");
+      setErrorMsg("Terjadi kesalahan sistem saat menyimpan menu.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleSwapOrder = async (item1Id: string, item2Id: string) => {
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/menus-flags", {
         method: "POST",
@@ -322,40 +472,76 @@ export function DynamicMenuManager() {
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("menu-updated"));
         }
+      } else {
+        setErrorMsg(json.message || "Gagal mengubah urutan menu.");
       }
     } catch (err) {
       console.error("Failed to swap menu order:", err);
+      setErrorMsg("Terjadi kesalahan sistem saat mengubah urutan menu.");
     }
   };
 
-  const handleDeleteMenu = async (menuItemId: string, title: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus menu "${title}"?`)) return;
+  const handleConfirmDeleteMenu = async () => {
+    if (!deleteConfirmItem) return;
 
+    setIsDeleting(true);
+    setModalErrorMsg(null);
+    setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/menus-flags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "DELETE_MENU",
-          menuItemId,
+          menuItemId: deleteConfirmItem.id,
         }),
       });
       const json = await res.json();
       if (json.success) {
-        setSuccessMsg(`Menu "${title}" berhasil dihapus`);
+        setSuccessMsg(`Menu "${deleteConfirmItem.title}" berhasil dihapus`);
+        setDeleteConfirmItem(null);
+        setModalErrorMsg(null);
         fetchData();
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("menu-updated"));
         }
+      } else {
+        setModalErrorMsg(json.message || "Gagal menghapus menu");
+        setErrorMsg(json.message || "Gagal menghapus menu");
       }
     } catch (err) {
       console.error(err);
+      setModalErrorMsg("Terjadi kesalahan sistem saat menghapus menu.");
+      setErrorMsg("Terjadi kesalahan sistem saat menghapus menu.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  const filteredMenuItems = menuItems
-    .filter((m) => m.roles.some((r) => r.code === roleFilter))
-    .sort((a, b) => a.order - b.order);
+  // Helper to ensure submenus are placed directly underneath their parent menu
+  const sortHierarchically = (items: MenuItem[]) => {
+    const sorted = [...items].sort((a, b) => a.order - b.order);
+    const result: MenuItem[] = [];
+
+    const roots = sorted.filter((m) => !m.parentId);
+    roots.forEach((root) => {
+      result.push(root);
+      const kids = sorted.filter((c) => c.parentId === root.id);
+      result.push(...kids);
+    });
+
+    sorted.forEach((item) => {
+      if (!result.some((r) => r.id === item.id)) {
+        result.push(item);
+      }
+    });
+
+    return result;
+  };
+
+  const filteredMenuItems = sortHierarchically(
+    menuItems.filter((m) => m.roles.some((r) => r.code === roleFilter))
+  );
 
   // Group menu items by group section title
   const groupedMenuItems = filteredMenuItems.reduce((acc, item) => {
@@ -364,6 +550,10 @@ export function DynamicMenuManager() {
     acc[groupName].push(item);
     return acc;
   }, {} as Record<string, MenuItem[]>);
+
+  Object.keys(groupedMenuItems).forEach((groupKey) => {
+    groupedMenuItems[groupKey] = sortHierarchically(groupedMenuItems[groupKey]);
+  });
 
   const getRoleBadgeLabel = (code: string) => {
     const found = roles.find((r) => r.code === code);
@@ -482,6 +672,19 @@ export function DynamicMenuManager() {
         </div>
       )}
 
+      {/* Error Notification */}
+      {errorMsg && (
+        <div className="flex items-center justify-between rounded-lg border border-red-500/30 bg-red-500/10 p-3.5 text-xs font-semibold text-red-600 dark:text-red-400">
+          <div className="flex items-center gap-2">
+            <IconX className="size-4 shrink-0 text-red-500" />
+            <span>{errorMsg}</span>
+          </div>
+          <button onClick={() => setErrorMsg(null)} className="text-xs hover:underline">
+            Tutup
+          </button>
+        </div>
+      )}
+
       {/* TAB 1: MASTER MENU PER ROLE (GROUPED BY SECTION HEADER) */}
       {activeTab === "menus" && (
         <Card className="border-border/60 shadow-sm">
@@ -546,22 +749,43 @@ export function DynamicMenuManager() {
                     const canMoveDown = itemGlobalIdx < filteredMenuItems.length - 1;
 
                     const parentMenu = item.parentId ? menuItems.find((m) => m.id === item.parentId) : null;
+                    const isSubmenu = Boolean(parentMenu);
 
                     return (
-                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 gap-3 text-xs hover:bg-muted/30 transition-colors">
+                      <div
+                        key={item.id}
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-all ${
+                          isSubmenu
+                            ? "ml-4 sm:ml-8 my-1.5 p-3 rounded-r-xl border-l-4 border-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.07] hover:bg-amber-500/[0.09] shadow-xs"
+                            : "p-3.5 bg-card/90 hover:bg-muted/30"
+                        }`}
+                      >
                         <div className="flex items-center gap-3">
-                          <div className="flex size-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-xs shrink-0">
-                            #{itemGlobalIdx + 1}
-                          </div>
+                          {isSubmenu ? (
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <IconCornerDownRight className="size-4 text-amber-500 shrink-0" />
+                              <div className="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-[11px] border border-amber-500/20">
+                                #{itemGlobalIdx + 1}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex size-8 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 font-black text-xs shrink-0 shadow-2xs">
+                              #{itemGlobalIdx + 1}
+                            </div>
+                          )}
+
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-bold text-sm text-foreground">{item.title}</p>
-                              <Badge variant="outline" className="text-[9px] font-mono border-amber-500/30 text-amber-600 dark:text-amber-400">
-                                {item.group || "UTAMA"}
-                              </Badge>
-                              {parentMenu && (
-                                <Badge variant="secondary" className="text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-300 border-amber-500/20">
-                                  ↳ Submenu dari: {parentMenu.title}
+                              <p className={isSubmenu ? "font-bold text-xs text-foreground/90" : "font-extrabold text-sm text-foreground"}>
+                                {item.title}
+                              </p>
+                              {isSubmenu ? (
+                                <Badge className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-bold px-2 py-0.5 shadow-2xs">
+                                  ↳ Submenu dari: {parentMenu?.title}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] font-mono border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 font-semibold">
+                                  {item.group || "UTAMA"} (Main Menu)
                                 </Badge>
                               )}
                             </div>
@@ -623,7 +847,7 @@ export function DynamicMenuManager() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => handleDeleteMenu(item.id, item.title)}
+                            onClick={() => setDeleteConfirmItem({ id: item.id, title: item.title })}
                             className="text-destructive hover:bg-destructive/10 h-8 px-2"
                             title="Hapus Menu"
                           >
@@ -697,6 +921,19 @@ export function DynamicMenuManager() {
               {editMenuItemId ? <IconPencil className="size-5 text-amber-500" /> : <IconPlus className="size-5 text-amber-500" />}
               {editMenuItemId ? "Edit Master Menu" : `Buat Menu Baru (${getRoleBadgeLabel(roleFilter)})`}
             </h3>
+
+            {/* Alert Error Notification inside Modal */}
+            {modalErrorMsg && (
+              <div className="flex items-start justify-between rounded-xl border border-red-500/40 bg-red-500/10 p-3.5 text-xs font-semibold text-red-600 dark:text-red-400 animate-in fade-in duration-150">
+                <div className="flex items-start gap-2">
+                  <IconX className="size-4 shrink-0 text-red-500 mt-0.5" />
+                  <span className="leading-tight">{modalErrorMsg}</span>
+                </div>
+                <button type="button" onClick={() => setModalErrorMsg(null)} className="text-[11px] hover:underline shrink-0 ml-2">
+                  Tutup
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handleSaveMenu} className="space-y-3 text-xs">
               <div>
@@ -920,6 +1157,19 @@ export function DynamicMenuManager() {
               <IconPlus className="size-5 text-amber-500" /> Buat Feature Flag Baru
             </h3>
 
+            {/* Alert Error Notification inside Flag Modal */}
+            {modalErrorMsg && (
+              <div className="flex items-start justify-between rounded-xl border border-red-500/40 bg-red-500/10 p-3.5 text-xs font-semibold text-red-600 dark:text-red-400 animate-in fade-in duration-150">
+                <div className="flex items-start gap-2">
+                  <IconX className="size-4 shrink-0 text-red-500 mt-0.5" />
+                  <span className="leading-tight">{modalErrorMsg}</span>
+                </div>
+                <button type="button" onClick={() => setModalErrorMsg(null)} className="text-[11px] hover:underline shrink-0 ml-2">
+                  Tutup
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleCreateFlag} className="space-y-3 text-xs">
               <div>
                 <label className="font-bold block mb-1">Key Flag (Unik)</label>
@@ -956,7 +1206,7 @@ export function DynamicMenuManager() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowFlagModal(false)}>
+                <Button type="button" variant="outline" size="sm" onClick={() => { setShowFlagModal(false); setModalErrorMsg(null); }}>
                   Batal
                 </Button>
                 <Button type="submit" size="sm" disabled={isSubmitting} className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">
@@ -965,6 +1215,68 @@ export function DynamicMenuManager() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION DIALOG MODAL */}
+      {deleteConfirmItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl bg-card border shadow-2xl p-6 space-y-4 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-red-500/10 text-red-500 border border-red-500/20">
+              <IconTrash className="size-7" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-base font-extrabold text-foreground">Hapus Master Menu?</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Apakah Anda yakin ingin menghapus menu <span className="font-bold text-foreground font-mono bg-muted px-1.5 py-0.5 rounded">"{deleteConfirmItem.title}"</span>? Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+
+            {/* Alert Error Notification inside Delete Modal */}
+            {modalErrorMsg && (
+              <div className="flex items-start justify-between rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs font-semibold text-red-600 dark:text-red-400 animate-in fade-in duration-150 text-left">
+                <div className="flex items-start gap-2">
+                  <IconX className="size-4 shrink-0 text-red-500 mt-0.5" />
+                  <span className="leading-tight">{modalErrorMsg}</span>
+                </div>
+                <button type="button" onClick={() => setModalErrorMsg(null)} className="text-[11px] hover:underline shrink-0 ml-2">
+                  Tutup
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isDeleting}
+                onClick={() => {
+                  setDeleteConfirmItem(null);
+                  setErrorMsg(null);
+                }}
+                className="flex-1 text-xs font-bold h-10 rounded-xl"
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDeleteMenu}
+                className="flex-1 text-xs font-bold h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white gap-1.5 shadow-sm"
+              >
+                {isDeleting ? (
+                  <>
+                    <IconLoader2 className="size-4 animate-spin" /> Menghapus...
+                  </>
+                ) : (
+                  <>
+                    <IconTrash className="size-4" /> Hapus Menu
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

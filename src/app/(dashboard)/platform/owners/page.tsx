@@ -1,12 +1,10 @@
-import { DeveloperModePlaceholder } from "@/components/shared/developer-mode";
+import { OwnerManagementManager } from "@/components/admin/owner-management-manager";
+
+export const metadata = {
+  title: "Owner Management | ARVENTA SaaS Platform",
+  description: "Kelola daftar owner properti terdaftar, onboarding owner baru, dan penangguhan akun owner.",
+};
 
 export default function PlatformOwnersPage() {
-  return (
-    <DeveloperModePlaceholder
-      title="Owner Management"
-      path="/platform/owners"
-      description="Kelola daftar owner properti terdaftar, onboarding owner baru, dan suspend/unsuspend akun owner."
-      features={["Owner Directory", "Manual Onboarding Flow", "Account Suspend Guard"]}
-    />
-  );
+  return <OwnerManagementManager />;
 }
