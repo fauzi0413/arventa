@@ -140,6 +140,7 @@ export class PropertyService {
         city: data.city,
         description: data.description,
         coverImage: data.coverImage,
+        hasCleaningService: data.hasCleaningService ?? true,
       },
       include: {
         owner: {
@@ -167,7 +168,29 @@ export class PropertyService {
         ...(data.city && { city: data.city }),
         ...(data.description !== undefined && { description: data.description }),
         ...(data.coverImage !== undefined && { coverImage: data.coverImage }),
+        ...(data.hasCleaningService !== undefined && { hasCleaningService: data.hasCleaningService }),
       },
+    });
+  }
+
+  /**
+   * Toggle cleaning service for a property
+   */
+  static async toggleCleaningService(id: string, enabled?: boolean) {
+    const current = await prisma.property.findUnique({
+      where: { id },
+      select: { hasCleaningService: true },
+    });
+
+    if (!current) {
+      throw new Error(`Property dengan ID '${id}' tidak ditemukan`);
+    }
+
+    const nextValue = enabled !== undefined ? enabled : !current.hasCleaningService;
+
+    return prisma.property.update({
+      where: { id },
+      data: { hasCleaningService: nextValue },
     });
   }
 

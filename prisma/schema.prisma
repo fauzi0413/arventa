@@ -291,19 +291,20 @@ model FeatureFlag {
 
 // --- 4. PROPERTY & UNIT INVENTORY ---
 model Property {
-  id          String       @id @default(uuid())
-  ownerId     String       @map("owner_id")
-  owner       User         @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
+  id                 String       @id @default(uuid())
+  ownerId            String       @map("owner_id")
+  owner              User         @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
 
-  name        String
-  type        PropertyType
-  address     String
-  city        String
-  description String?      @db.Text
-  coverImage  String?      @map("cover_image")
+  name               String
+  type               PropertyType
+  address            String
+  city               String
+  description        String?      @db.Text
+  coverImage         String?      @map("cover_image")
+  hasCleaningService Boolean      @default(true) @map("has_cleaning_service")
 
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
   // Relasi
   units                   Unit[]
@@ -316,26 +317,32 @@ model Property {
 }
 
 model Unit {
-  id            String           @id @default(uuid())
-  propertyId    String           @map("property_id")
-  property      Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  id                    String           @id @default(uuid())
+  propertyId            String           @map("property_id")
+  property              Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  unitUserId    String?          @unique @map("unit_user_id")
-  unitUser      User?            @relation("UnitUserAccount", fields: [unitUserId], references: [id], onDelete: SetNull)
+  unitUserId            String?          @unique @map("unit_user_id")
+  unitUser              User?            @relation("UnitUserAccount", fields: [unitUserId], references: [id], onDelete: SetNull)
 
-  unitNumber    String           @map("unit_number")
-  floor         Int              @default(1)
-  status        UnitStatus       @default(AVAILABLE)
+  unitNumber            String           @map("unit_number")
+  floor                 Int              @default(1)
+  status                UnitStatus       @default(AVAILABLE)
 
-  allowedPeriod RentalPeriodType @default(MONTHLY) @map("allowed_period")
-  basePrice     Decimal          @map("base_price") @db.Decimal(12, 2)
-  transitPrice  Decimal?         @map("transit_price") @db.Decimal(12, 2)
+  allowedPeriod         RentalPeriodType @default(MONTHLY) @map("allowed_period")
+  basePrice             Decimal          @map("base_price") @db.Decimal(12, 2)
+  transitPrice          Decimal?         @map("transit_price") @db.Decimal(12, 2)
+  deposit               Decimal          @default(0) @db.Decimal(12, 2)
 
-  capacity      Int              @default(1)
-  facilities    String[]         @default([])
+  capacity              Int              @default(1)
+  dimensions            String?          @default("3x4 m")
+  facilities            String[]         @default([])
+  description           String?          @db.Text
+  imageUrl              String?          @map("image_url")
+  roomPassword          String?          @map("room_password")
+  roomPasswordLastReset DateTime?        @map("room_password_last_reset")
 
-  createdAt     DateTime         @default(now()) @map("created_at")
-  updatedAt     DateTime         @updatedAt @map("updated_at")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
 
   inventories    UnitInventory[]
   leases         Lease[]

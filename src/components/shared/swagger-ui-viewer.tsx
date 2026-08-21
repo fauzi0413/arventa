@@ -1,10 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
+// @ts-ignore
 import "swagger-ui-react/swagger-ui.css";
 import { openApiSpec } from "@/lib/swagger/openapi-spec";
 
 // Dynamic import for SwaggerUI to prevent SSR window issues
+// @ts-ignore
 const SwaggerUI = dynamic<any>(() => import("swagger-ui-react"), {
   ssr: false,
   loading: () => (

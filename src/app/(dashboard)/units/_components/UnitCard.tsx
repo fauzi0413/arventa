@@ -54,8 +54,10 @@ export default function UnitCard({
 
   return (
     <div
-      className={`group rounded-2xl border bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-md relative flex flex-col justify-between h-full ${
-        isSelected ? 'border-[#8FA28A] ring-2 ring-[#8FA28A]/30 bg-[#8FA28A]/5' : 'border-[#C7D3C0]/40 hover:border-[#8FA28A]/50'
+      className={`group rounded-2xl border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-5 shadow-sm transition-all duration-300 hover:shadow-md relative flex flex-col justify-between h-full ${
+        isSelected
+          ? 'border-[#8FA28A] ring-2 ring-[#8FA28A]/30 bg-[#8FA28A]/5 dark:bg-[#8FA28A]/10'
+          : 'border-border dark:border-border hover:border-[#8FA28A]/50'
       }`}
     >
       <div className="space-y-4">
@@ -67,14 +69,13 @@ export default function UnitCard({
                 type="button"
                 onClick={() => onToggleSelect && onToggleSelect(unit.id)}
                 className={`min-w-[44px] min-h-[44px] -ml-2 -mt-2 flex items-center justify-center rounded-xl transition-colors ${
-                  isSelected ? 'text-[#8FA28A]' : 'text-gray-300 hover:text-gray-400'
+                  isSelected ? 'text-[#8FA28A]' : 'text-muted-foreground hover:text-foreground'
                 }`}
-
                 title={isSelected ? 'Batal Pilih Unit' : 'Pilih Unit'}
               >
                 <div
                   className={`h-5 w-5 rounded-md border flex items-center justify-center transition-all ${
-                    isSelected ? 'bg-[#8FA28A] border-[#8FA28A] text-white shadow-sm' : 'border-gray-300 bg-white'
+                    isSelected ? 'bg-[#8FA28A] border-[#8FA28A] text-white shadow-sm' : 'border-border dark:border-border bg-background dark:bg-background'
                   }`}
                 >
                   {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
@@ -82,10 +83,10 @@ export default function UnitCard({
               </button>
             )}
             <div>
-              <h4 className="text-base font-bold text-gray-800 line-clamp-1 group-hover:text-[#8FA28A] transition-colors">
+              <h4 className="text-base font-bold text-foreground dark:text-foreground line-clamp-1 group-hover:text-[#8FA28A] transition-colors">
                 {unit.name}
               </h4>
-              <p className="text-[11px] font-semibold text-gray-400 mt-0.5 line-clamp-1">{propertyName}</p>
+              <p className="text-[11px] font-semibold text-muted-foreground dark:text-muted-foreground mt-0.5 line-clamp-1">{propertyName}</p>
             </div>
           </div>
 
@@ -95,22 +96,29 @@ export default function UnitCard({
         </div>
 
         {/* Pricing Detail Indicator */}
-        <div className="flex items-center gap-1 bg-[#F7F4ED] rounded-xl p-2.5 border border-[#C7D3C0]/25">
-          <Receipt className="h-4 w-4 text-[#8FA28A]" />
-          <span className="text-sm font-black text-gray-700">
-            {formatRupiah(unit.pricing.monthly)}
-            <span className="text-[10px] font-bold text-gray-400">/bln</span>
-          </span>
+        <div className="flex items-center justify-between gap-1 bg-muted/50 dark:bg-muted/40 rounded-xl p-2.5 border border-border dark:border-border">
+          <div className="flex items-center gap-1.5">
+            <Receipt className="h-4 w-4 text-[#8FA28A]" />
+            <span className="text-sm font-black text-foreground dark:text-foreground">
+              {formatRupiah(unit.pricing.monthly)}
+              <span className="text-[10px] font-bold text-muted-foreground">/bln</span>
+            </span>
+          </div>
+          {unit.roomEmail && (
+            <span className="text-[10px] font-bold text-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-md">
+              1 Kamar 1 Akun
+            </span>
+          )}
         </div>
 
         {/* Capacity & Dimensions */}
         <div className="grid grid-cols-2 gap-2 text-xs">
-          <div className="flex items-center gap-1.5 text-gray-500">
-            <Users className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+          <div className="flex items-center gap-1.5 text-muted-foreground dark:text-muted-foreground">
+            <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span>Max {unit.capacity.maxPersons} Orang</span>
           </div>
-          <div className="flex items-center gap-1.5 text-gray-500">
-            <Maximize2 className="h-3.5 w-3.5 text-gray-400 shrink-0" />
+          <div className="flex items-center gap-1.5 text-muted-foreground dark:text-muted-foreground">
+            <Maximize2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <span>{unit.capacity.dimensions}</span>
           </div>
         </div>
@@ -121,13 +129,13 @@ export default function UnitCard({
             {unit.facilities.slice(0, 3).map((fac) => (
               <span
                 key={fac}
-                className="rounded-lg bg-[#C7D3C0]/20 px-2 py-0.5 text-[10px] font-semibold text-[#6A7866] border border-[#C7D3C0]/35"
+                className="rounded-lg bg-muted dark:bg-muted/60 px-2 py-0.5 text-[10px] font-semibold text-foreground dark:text-foreground border border-border dark:border-border"
               >
                 {fac}
               </span>
             ))}
             {unit.facilities.length > 3 && (
-              <span className="rounded-lg bg-gray-50 px-2 py-0.5 text-[10px] font-semibold text-gray-400">
+              <span className="rounded-lg bg-muted/40 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                 +{unit.facilities.length - 3} Lainnya
               </span>
             )}
@@ -136,7 +144,7 @@ export default function UnitCard({
 
         {/* Tenant Active tag */}
         {unit.status === 'Occupied' && unit.tenantName && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-blue-50/60 p-2 text-xs border border-blue-100 text-blue-700">
+          <div className="flex items-center gap-1.5 rounded-lg bg-blue-500/10 p-2 text-xs border border-blue-500/30 text-blue-600 dark:text-blue-400">
             <UserCheck className="h-3.5 w-3.5 shrink-0" />
             <span className="font-semibold truncate">Penyewa: {unit.tenantName}</span>
           </div>
@@ -144,18 +152,18 @@ export default function UnitCard({
       </div>
 
       {/* Action Footer */}
-      <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+      <div className="mt-5 pt-3 border-t border-border dark:border-border flex items-center justify-between">
         <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit(unit)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             title="Edit Unit"
           >
             <Edit3 className="h-4 w-4" />
           </button>
           <button
             onClick={() => onDelete(unit.id)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
             title="Hapus Unit"
           >
             <Trash2 className="h-4 w-4" />

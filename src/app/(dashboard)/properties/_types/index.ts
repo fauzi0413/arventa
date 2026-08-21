@@ -20,6 +20,7 @@ export interface Property {
   occupiedUnits: number;
   description: string;
   imageUrl?: string;
+  hasCleaningService?: boolean;
   createdAt: string;
 }
 
