@@ -61,6 +61,15 @@ export class PropertyService {
               phoneNumber: true,
             },
           },
+          units: {
+            select: {
+              id: true,
+              unitNumber: true,
+            },
+            orderBy: {
+              unitNumber: "asc",
+            },
+          },
           _count: {
             select: {
               units: true,
