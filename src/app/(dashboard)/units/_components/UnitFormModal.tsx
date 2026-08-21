@@ -100,8 +100,27 @@ export default function UnitFormModal({
         dimensions: dimensions.trim(),
       };
 
+      const generateRoomCredentials = (unitName: string) => {
+        const cleanName = unitName.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const email = `${cleanName || 'kamar'}@arventa.id`;
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let rand = '';
+        for (let i = 0; i < 6; i++) {
+          rand += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return {
+          roomEmail: email,
+          roomPassword: `Arv!${rand}`,
+          roomPasswordLastReset: new Date().toISOString(),
+        };
+      };
+
       if (creationMode === 'single' || initialData) {
         if (!name.trim()) return;
+
+        const roomCreds = initialData?.roomEmail && initialData?.roomPassword 
+          ? { roomEmail: initialData.roomEmail, roomPassword: initialData.roomPassword, roomPasswordLastReset: initialData.roomPasswordLastReset }
+          : generateRoomCredentials(name.trim());
 
         const unitData: Omit<Unit, 'id' | 'createdAt'> = {
           propertyId,
@@ -114,21 +133,26 @@ export default function UnitFormModal({
           tenantName: status === 'Occupied' ? tenantName.trim() || undefined : undefined,
           tenantPhone: status === 'Occupied' ? tenantPhone.trim() || undefined : undefined,
           checkInDate: status === 'Occupied' ? checkInDate || undefined : undefined,
+          ...roomCreds,
         };
 
         await onSubmit(unitData);
       } else {
         // BATCH MODE
         const batchNames = getBatchPreviewNames();
-        const batchUnitsData: Omit<Unit, 'id' | 'createdAt'>[] = batchNames.map((unitName) => ({
-          propertyId,
-          name: unitName,
-          status,
-          facilities,
-          capacity,
-          pricing,
-          description: description.trim(),
-        }));
+        const batchUnitsData: Omit<Unit, 'id' | 'createdAt'>[] = batchNames.map((unitName) => {
+          const roomCreds = generateRoomCredentials(unitName);
+          return {
+            propertyId,
+            name: unitName,
+            status,
+            facilities,
+            capacity,
+            pricing,
+            description: description.trim(),
+            ...roomCreds,
+          };
+        });
 
         if (onSubmitBatch) {
           await onSubmitBatch(batchUnitsData);
@@ -149,28 +173,28 @@ export default function UnitFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm transition-opacity">
-      <div className="relative w-full max-w-2xl bg-[#F7F4ED] border border-[#C7D3C0] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
+      <div className="relative w-full max-w-2xl bg-card dark:bg-card border border-border dark:border-border text-card-foreground dark:text-card-foreground rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#C7D3C0]/60 pb-3 mb-4">
+        <div className="flex items-center justify-between border-b border-border dark:border-border pb-3 mb-4">
           <div>
-            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+            <h3 className="text-lg font-bold text-foreground dark:text-foreground flex items-center gap-2">
               <Layers className="h-5 w-5 text-[#8FA28A]" />
               {initialData
                 ? 'Ubah Informasi Unit'
                 : creationMode === 'batch'
                 ? 'Tambah Beberapa Unit Sekaligus (Batch)'
-                : 'Tambah Unit Baru'}
+                : 'Tambah Unit Kamar'}
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
               {creationMode === 'batch'
-                ? 'Buat beberapa unit sekaligus dengan spesifikasi dan harga yang sama.'
-                : 'Isi spesifikasi lengkap untuk unit properti Anda.'}
+                ? 'Buat beberapa unit sekaligus. Akun kamar (1 Kamar 1 Akun) otomatis di-generate.'
+                : 'Isi spesifikasi unit. Akun login kamar otomatis dibuat secara otomatis per unit.'}
             </p>
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-500 hover:bg-[#C7D3C0]/40 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -178,18 +202,18 @@ export default function UnitFormModal({
 
         {/* Mode Selector Tabs (only for creation) */}
         {!initialData && (
-          <div className="grid grid-cols-2 gap-2 p-1.5 bg-gray-200/70 rounded-xl mb-4 text-xs font-bold">
+          <div className="grid grid-cols-2 gap-2 p-1.5 bg-muted/80 dark:bg-muted/60 rounded-xl mb-4 text-xs font-bold border border-border dark:border-border">
             <button
               type="button"
               onClick={() => setCreationMode('single')}
               className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 ${
                 creationMode === 'single'
-                  ? 'bg-white text-gray-800 shadow-sm font-black'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-card text-card-foreground dark:bg-card dark:text-card-foreground shadow-sm font-black border border-border dark:border-border'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Plus className="h-4 w-4 text-[#8FA28A]" />
-              Tambah 1 Unit (Satu per Satu)
+              Tambah 1 Unit (Satuan)
             </button>
             <button
               type="button"
@@ -197,7 +221,7 @@ export default function UnitFormModal({
               className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 ${
                 creationMode === 'batch'
                   ? 'bg-[#8FA28A] text-white shadow-sm font-black'
-                  : 'text-gray-600 hover:text-gray-900'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Sparkles className="h-4 w-4" />

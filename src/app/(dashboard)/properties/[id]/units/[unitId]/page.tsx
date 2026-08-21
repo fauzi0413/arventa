@@ -3,21 +3,41 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, Layers, User, Phone, Calendar, Info, Package, ShieldAlert, Award, Compass, DollarSign } from 'lucide-react';
+import {
+  ArrowLeft,
+  MapPin,
+  Layers,
+  User,
+  Phone,
+  Calendar,
+  Info,
+  Package,
+  ShieldAlert,
+  Award,
+  Compass,
+  DollarSign,
+  KeyRound,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+} from 'lucide-react';
 import { Unit } from '@/app/(dashboard)/units/_types';
 import { Property, InventoryItem, InventoryCondition } from '@/app/(dashboard)/properties/_types';
 import { useSafeBack } from '@/app/_hooks/useSafeBack';
+import AssignTenantModal from '@/app/(dashboard)/units/_components/AssignTenantModal';
 
 const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   switch (cond) {
     case 'Baik':
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800';
     case 'Perlu Perbaikan':
-      return 'bg-amber-50 text-amber-700 border-amber-200';
+      return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800';
     case 'Rusak Berat':
-      return 'bg-red-50 text-red-700 border-red-200';
+      return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800';
     case 'Hilang':
-      return 'bg-gray-50 text-gray-700 border-gray-200';
+      return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800';
     default:
       return 'bg-gray-50 text-gray-700 border-gray-200';
   }
@@ -63,7 +83,7 @@ const DEFAULT_INVENTORIES = (propertyId: string, unitId: string, unitName: strin
     condition: 'Perlu Perbaikan',
     imageUrl: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&q=80&w=600',
     lastUpdated: new Date().toISOString(),
-  }
+  },
 ];
 
 export default function PropertyUnitDetailPage() {
@@ -76,6 +96,11 @@ export default function PropertyUnitDetailPage() {
   const [unit, setUnit] = useState<Unit | null>(null);
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // 1 Kamar 1 Akun states
+  const [showPassword, setShowPassword] = useState(false);
+  const [userRole, setUserRole] = useState<'OWNER' | 'HOUSEKEEPING'>('OWNER');
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const storedProps = localStorage.getItem('arventa_properties');
@@ -93,10 +118,18 @@ export default function PropertyUnitDetailPage() {
     const foundProp = loadedProps.find((p) => p.id === propertyId);
     const foundUnit = loadedUnits.find((u) => u.id === unitId);
 
-    // Filter inventories specifically for this unit
+    if (foundUnit && (!foundUnit.roomEmail || !foundUnit.roomPassword)) {
+      const cleanName = foundUnit.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      foundUnit.roomEmail = `${cleanName || 'kamar'}@arventa.id`;
+      foundUnit.roomPassword = `Arv!${Math.random().toString(36).substring(2, 8)}`;
+      foundUnit.roomPasswordLastReset = new Date().toISOString();
+
+      const updated = loadedUnits.map((u) => (u.id === foundUnit.id ? foundUnit : u));
+      localStorage.setItem('arventa_units', JSON.stringify(updated));
+    }
+
     let unitInventory = loadedInventory.filter((item) => item.unitId === unitId);
 
-    // If no inventory exists for this unit yet, seed default ones and save to localStorage
     if (unitInventory.length === 0 && foundProp && foundUnit) {
       const defaults = DEFAULT_INVENTORIES(propertyId, unitId, foundUnit.name);
       const updatedMasterInventory = [...loadedInventory, ...defaults];
@@ -114,6 +147,83 @@ export default function PropertyUnitDetailPage() {
     return () => clearTimeout(timer);
   }, [propertyId, unitId]);
 
+  const [isAssignTenantOpen, setIsAssignTenantOpen] = useState(false);
+
+  const handleSaveTenant = async (data: { tenantName: string; tenantPhone: string; checkInDate: string }) => {
+    if (!unit) return;
+    const storedUnits = localStorage.getItem('arventa_units');
+    if (storedUnits) {
+      const allUnits: Unit[] = JSON.parse(storedUnits);
+      const updated = allUnits.map((u) =>
+        u.id === unit.id
+          ? {
+              ...u,
+              tenantName: data.tenantName,
+              tenantPhone: data.tenantPhone,
+              checkInDate: data.checkInDate,
+              status: 'Occupied' as any,
+            }
+          : u
+      );
+      localStorage.setItem('arventa_units', JSON.stringify(updated));
+      setUnit({
+        ...unit,
+        tenantName: data.tenantName,
+        tenantPhone: data.tenantPhone,
+        checkInDate: data.checkInDate,
+        status: 'Occupied' as any,
+      });
+    }
+
+    // Backend Prisma Lease creation & DB sync
+    try {
+      await fetch(`/api/units/${unit.id}/lease`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+    } catch (e) {
+      console.error('Failed to sync lease with database:', e);
+    }
+  };
+
+  const handleCheckoutTenant = async () => {
+    if (!unit || !property) return;
+    const nextStatus = (property.hasCleaningService ?? true) ? 'Need Cleaning' : 'Available';
+    const storedUnits = localStorage.getItem('arventa_units');
+    if (storedUnits) {
+      const allUnits: Unit[] = JSON.parse(storedUnits);
+      const updated = allUnits.map((u) =>
+        u.id === unit.id
+          ? {
+              ...u,
+              tenantName: undefined,
+              tenantPhone: undefined,
+              checkInDate: undefined,
+              status: nextStatus as any,
+              roomPassword: `Arv!${Math.random().toString(36).substring(2, 8)}`,
+              roomPasswordLastReset: new Date().toISOString(),
+            }
+          : u
+      );
+      localStorage.setItem('arventa_units', JSON.stringify(updated));
+      setUnit({
+        ...unit,
+        tenantName: undefined,
+        tenantPhone: undefined,
+        checkInDate: undefined,
+        status: nextStatus as any,
+      });
+    }
+
+    // Backend Prisma Lease checkout & DB sync
+    try {
+      await fetch(`/api/units/${unit.id}/lease`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to checkout lease in database:', e);
+    }
+  };
+
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -122,14 +232,80 @@ export default function PropertyUnitDetailPage() {
     }).format(val);
   };
 
+  const handleResetRoomPassword = async () => {
+    if (!unit) return;
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let rand = '';
+    for (let i = 0; i < 6; i++) {
+      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const newPass = `Arv!${rand}`;
+    const nowIso = new Date().toISOString();
+
+    const storedUnits = localStorage.getItem('arventa_units');
+    if (storedUnits) {
+      const allUnits: Unit[] = JSON.parse(storedUnits);
+      const updated = allUnits.map((u) =>
+        u.id === unit.id
+          ? {
+              ...u,
+              roomPassword: newPass,
+              roomPasswordLastReset: nowIso,
+            }
+          : u
+      );
+      localStorage.setItem('arventa_units', JSON.stringify(updated));
+      setUnit({ ...unit, roomPassword: newPass, roomPasswordLastReset: nowIso });
+      setResetMessage(`Password akun unit berhasil di-reset: ${newPass}`);
+      setTimeout(() => setResetMessage(null), 5000);
+    }
+
+    // Backend Prisma DB sync
+    try {
+      await fetch(`/api/units/${unit.id}/reset-password`, { method: 'POST' });
+    } catch (e) {
+      console.error('Failed to reset password in database:', e);
+    }
+  };
+
+  const handleToggleHousekeepingService = async () => {
+    if (!property) return;
+    const nextState = !(property.hasCleaningService ?? true);
+    const storedProps = localStorage.getItem('arventa_properties');
+    if (storedProps) {
+      const allProps: Property[] = JSON.parse(storedProps);
+      const updated = allProps.map((p) =>
+        p.id === property.id ? { ...p, hasCleaningService: nextState } : p
+      );
+      localStorage.setItem('arventa_properties', JSON.stringify(updated));
+      setProperty({ ...property, hasCleaningService: nextState });
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('arventa_task_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
+
+    // Backend Prisma DB sync
+    try {
+      await fetch(`/api/properties/${property.id}/cleaning-service`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: nextState }),
+      });
+    } catch (e) {
+      console.error('Failed to toggle cleaning service in database:', e);
+    }
+  };
+
   const handleSafeBack = useSafeBack(`/properties/${propertyId}`);
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
+      <div className="flex h-[80vh] items-center justify-center bg-background text-foreground">
         <div className="text-center space-y-2">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
-          <p className="text-sm font-semibold text-gray-500">Memuat spesifikasi unit...</p>
+          <p className="text-sm font-semibold text-muted-foreground">Memuat spesifikasi unit...</p>
         </div>
       </div>
     );
@@ -137,10 +313,10 @@ export default function PropertyUnitDetailPage() {
 
   if (!unit || !property) {
     return (
-      <div className="flex h-[70vh] flex-col items-center justify-center rounded-2xl border border-[#C7D3C0]/40 bg-[#F7F4ED] p-8 text-center">
+      <div className="flex h-[70vh] flex-col items-center justify-center rounded-2xl border border-border dark:border-border bg-card dark:bg-card p-8 text-center text-card-foreground dark:text-card-foreground">
         <ShieldAlert className="h-12 w-12 text-[#C8A96B] mb-3" />
-        <h2 className="text-lg font-bold text-gray-800">Unit Tidak Ditemukan</h2>
-        <p className="text-sm text-gray-500 mt-1 max-w-sm">
+        <h2 className="text-lg font-bold text-foreground dark:text-foreground">Unit Tidak Ditemukan</h2>
+        <p className="text-sm text-muted-foreground dark:text-muted-foreground mt-1 max-w-sm">
           Unit atau properti tidak terdaftar dalam database atau telah dihapus.
         </p>
         <button
@@ -155,20 +331,24 @@ export default function PropertyUnitDetailPage() {
     );
   }
 
+  const hasCleaningService = property.hasCleaningService ?? true;
+
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[90vh] p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-background text-foreground dark:bg-background dark:text-foreground min-h-[90vh] p-6 rounded-2xl border border-border dark:border-border">
       {/* Top Header Controls */}
-      <div className="flex items-center justify-between border-b border-[#C7D3C0]/30 pb-4">
+      <div className="flex items-center justify-between border-b border-border dark:border-border pb-4">
         <button
           type="button"
           onClick={handleSafeBack}
-          className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#8FA28A] transition-colors"
+          className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali ke {property.name}
         </button>
 
-        <span className="text-xs font-bold text-gray-400">Pratinjau Unit Kamar</span>
+        <div className="flex items-center gap-2">
+          {/* Header Actions */}
+        </div>
       </div>
 
       {/* Main Grid: Details & Side Column */}
@@ -176,65 +356,151 @@ export default function PropertyUnitDetailPage() {
         {/* Left Columns: Specifications & Inventory */}
         <div className="lg:col-span-2 space-y-6">
           {/* Unit Spec Title Card */}
-          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-gray-100 pb-4">
+          <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border dark:border-border pb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-black text-gray-800">{unit.name}</h2>
-                  <span className={`rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-wider ${
-                    unit.status === 'Available' ? 'bg-[#8FA28A] text-white' :
-                    unit.status === 'Occupied' ? 'bg-blue-600 text-white' :
-                    unit.status === 'Need Cleaning' ? 'bg-[#C8A96B] text-white' :
-                    'bg-red-600 text-white'
-                  }`}>
-                    {unit.status === 'Available' ? 'Tersedia' :
-                     unit.status === 'Occupied' ? 'Terisi' :
-                     unit.status === 'Need Cleaning' ? 'Perlu Bersih-Bersih' :
-                     'Maintenance'}
+                  <h2 className="text-2xl font-black text-foreground dark:text-foreground">{unit.name}</h2>
+                  <span
+                    className={`rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-wider ${
+                      unit.status === 'Available'
+                        ? 'bg-[#8FA28A] text-white'
+                        : unit.status === 'Occupied'
+                        ? 'bg-blue-600 text-white'
+                        : unit.status === 'Need Cleaning'
+                        ? 'bg-[#C8A96B] text-white'
+                        : 'bg-red-600 text-white'
+                    }`}
+                  >
+                    {unit.status === 'Available'
+                      ? 'Tersedia'
+                      : unit.status === 'Occupied'
+                      ? 'Terisi'
+                      : unit.status === 'Need Cleaning'
+                      ? 'Perlu Bersih-Bersih'
+                      : 'Maintenance'}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-1.5">
-                  <MapPin className="h-3.5 w-3.5 text-gray-400" />
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
+                  <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{property.name} • Lantai {unit.capacity?.dimensions ? 'Dasar/Atas' : '1'}</span>
                 </div>
               </div>
 
               <div className="text-right">
-                <span className="block text-xs font-bold text-gray-400 uppercase">Tarif Sewa</span>
-                <p className="text-xl font-black text-[#8FA28A]">{formatRupiah(unit.pricing.monthly)}<span className="text-xs font-normal text-gray-400">/bln</span></p>
+                <span className="block text-xs font-bold text-muted-foreground uppercase">Tarif Sewa</span>
+                <p className="text-xl font-black text-[#8FA28A]">
+                  {formatRupiah(unit.pricing.monthly)}
+                  <span className="text-xs font-normal text-muted-foreground">/bln</span>
+                </p>
               </div>
             </div>
 
-            {/* Quick Metrics (Dimensions & Max Person) */}
+            {/* Quick Metrics */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-[#F7F4ED] rounded-xl p-4 border border-[#C7D3C0]/20 space-y-1">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+              <div className="bg-muted/50 dark:bg-muted/30 rounded-xl p-4 border border-border dark:border-border space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                   <Compass className="h-3.5 w-3.5 text-[#8FA28A]" /> Dimensi Kamar
                 </span>
-                <p className="text-base font-black text-gray-800">{unit.capacity.dimensions}</p>
+                <p className="text-base font-black text-foreground dark:text-foreground">
+                  {unit.capacity.dimensions}
+                </p>
               </div>
-              <div className="bg-[#F7F4ED] rounded-xl p-4 border border-[#C7D3C0]/20 space-y-1">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1">
+              <div className="bg-muted/50 dark:bg-muted/30 rounded-xl p-4 border border-border dark:border-border space-y-1">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
                   <User className="h-3.5 w-3.5 text-[#8FA28A]" /> Kapasitas Maksimal
                 </span>
-                <p className="text-base font-black text-gray-800">{unit.capacity.maxPersons} Orang</p>
+                <p className="text-base font-black text-foreground dark:text-foreground">
+                  {unit.capacity.maxPersons} Orang
+                </p>
+              </div>
+            </div>
+
+            {/* 1 KAMAR 1 AKUN (ROOM CREDENTIALS & PASSWORD RESET) */}
+            <div className="rounded-xl border border-[#8FA28A]/40 bg-[#8FA28A]/5 dark:bg-[#8FA28A]/10 p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#8FA28A]/20 pb-3">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-5 w-5 text-[#8FA28A]" />
+                  <div>
+                    <h3 className="text-sm font-black text-foreground dark:text-foreground flex items-center gap-1.5">
+                      Sistem 1 Kamar 1 Akun (Akses Unit)
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Kredensial login khusus untuk {unit.name}. Dapat di-reset oleh Owner & Housekeeping.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleResetRoomPassword}
+                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Generate / Reset Password
+                </button>
+              </div>
+
+              {resetMessage && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 rounded-xl text-xs font-bold">
+                  ✓ {resetMessage}
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="bg-card dark:bg-card p-3.5 rounded-xl border border-border dark:border-border space-y-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                    Email Login Kamar
+                  </span>
+                  <span className="font-mono font-bold text-foreground dark:text-foreground select-all">
+                    {unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`}
+                  </span>
+                </div>
+
+                <div className="bg-card dark:bg-card p-3.5 rounded-xl border border-border dark:border-border space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                      Password Login
+                    </span>
+                    {userRole === 'OWNER' && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="text-muted-foreground hover:text-foreground text-[10px] font-bold flex items-center gap-1"
+                      >
+                        {showPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                        {showPassword ? 'Sembunyikan' : 'Lihat'}
+                      </button>
+                    )}
+                  </div>
+
+                  {userRole === 'OWNER' ? (
+                    <span className="font-mono font-bold text-[#8FA28A] select-all">
+                      {showPassword ? unit.roomPassword || 'Arv!908123' : '••••••••••••'}
+                    </span>
+                  ) : (
+                    <span className="font-mono text-muted-foreground italic">
+                      [Disembunyikan untuk Housekeeping - Gunakan Reset Password bila perlu]
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Facilities Section */}
             <div className="space-y-3">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Award className="h-4 w-4 text-[#8FA28A]" />
                 Fasilitas Unit Kamar
               </h3>
               {unit.facilities.length === 0 ? (
-                <p className="text-xs text-gray-400">Tidak ada fasilitas terdaftar.</p>
+                <p className="text-xs text-muted-foreground">Tidak ada fasilitas terdaftar.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {unit.facilities.map((fac) => (
                     <span
                       key={fac}
-                      className="rounded-xl bg-[#C7D3C0]/20 border border-[#C7D3C0]/40 px-3.5 py-1.5 text-xs font-bold text-[#6A7866]"
+                      className="rounded-xl bg-muted dark:bg-muted/60 border border-border dark:border-border px-3.5 py-1.5 text-xs font-bold text-foreground"
                     >
                       {fac}
                     </span>
@@ -245,9 +511,11 @@ export default function PropertyUnitDetailPage() {
 
             {/* Notes/Description */}
             {unit.description && (
-              <div className="space-y-2 border-t border-gray-100 pt-4">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Catatan Tambahan</span>
-                <p className="text-sm text-gray-600 leading-relaxed bg-gray-50/50 p-4 rounded-xl border border-gray-100">
+              <div className="space-y-2 border-t border-border dark:border-border pt-4">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
+                  Catatan Tambahan
+                </span>
+                <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border dark:border-border">
                   {unit.description}
                 </p>
               </div>
@@ -255,48 +523,54 @@ export default function PropertyUnitDetailPage() {
           </div>
 
           {/* Unit Inventory List */}
-          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+          <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-4">
+            <h3 className="text-base font-bold text-foreground dark:text-foreground flex items-center gap-2">
               <Package className="h-5 w-5 text-[#8FA28A]" />
               Daftar Inventaris & Foto Kondisi Barang
             </h3>
-            <p className="text-xs text-gray-500">
-              Berikut kondisi aset/furnitur di dalam unit sebelum masa sewa dimulai untuk transparansi penyewa.
-            </p>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {inventories.map((item) => (
-                <div key={item.id} className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm hover:shadow transition-shadow flex flex-col">
-                  {/* Photo Condition */}
-                  <div className="relative h-44 w-full bg-gray-100">
+                <div
+                  key={item.id}
+                  className="overflow-hidden rounded-xl border border-border dark:border-border bg-card dark:bg-card shadow-sm hover:shadow transition-shadow flex flex-col"
+                >
+                  <div className="relative h-44 w-full bg-muted">
                     <img
-                      src={item.imageUrl || 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=600'}
+                      src={
+                        item.imageUrl ||
+                        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=600'
+                      }
                       alt={item.name}
                       className="h-full w-full object-cover"
                     />
                     <div className="absolute top-3 right-3">
-                      <span className={`rounded-xl border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider shadow-sm ${
-                        CONDITION_BADGE_STYLE(item.condition)
-                      }`}>
+                      <span
+                        className={`rounded-xl border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider shadow-sm ${CONDITION_BADGE_STYLE(
+                          item.condition
+                        )}`}
+                      >
                         {item.condition}
                       </span>
                     </div>
                   </div>
 
-                  {/* Item Specs */}
                   <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
                     <div>
-                      <h4 className="text-sm font-black text-gray-800 line-clamp-1">{item.name}</h4>
-                      <p className="text-[11px] text-gray-400 mt-1">
-                        Terakhir diverifikasi: {new Date(item.lastUpdated).toLocaleDateString('id-ID', {
+                      <h4 className="text-sm font-black text-foreground dark:text-foreground line-clamp-1">
+                        {item.name}
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Terakhir diverifikasi:{' '}
+                        {new Date(item.lastUpdated).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'short',
-                          year: 'numeric'
+                          year: 'numeric',
                         })}
                       </p>
                     </div>
 
-                    <div className="text-[11px] text-[#8FA28A] font-semibold mt-3 pt-2 border-t border-gray-50">
+                    <div className="text-[11px] text-[#8FA28A] font-semibold mt-3 pt-2 border-t border-border dark:border-border">
                       ✓ Aset Milik Properti {property.name}
                     </div>
                   </div>
@@ -306,81 +580,81 @@ export default function PropertyUnitDetailPage() {
           </div>
         </div>
 
-        {/* Right Side Column: Pricing details & Active Tenant */}
+        {/* Right Side Column: Pricing details, Active Tenant & Housekeeping Service */}
         <div className="space-y-6">
           {/* Financials & Deposits */}
-          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-6">
-            <h3 className="text-base font-bold text-gray-800 border-b border-gray-100 pb-3 flex items-center gap-1.5">
+          <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-6">
+            <h3 className="text-base font-bold text-foreground dark:text-foreground border-b border-border dark:border-border pb-3 flex items-center gap-1.5">
               <DollarSign className="h-5 w-5 text-[#8FA28A]" />
               Tarif & Deposit Sewa
             </h3>
 
             <div className="space-y-4 text-xs font-semibold">
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500">Sewa Bulanan (Base)</span>
-                <span className="text-sm font-black text-gray-800">{formatRupiah(unit.pricing.monthly)}</span>
+              <div className="flex items-center justify-between border-b border-border dark:border-border pb-2">
+                <span className="text-muted-foreground">Sewa Bulanan (Base)</span>
+                <span className="text-sm font-black text-foreground">{formatRupiah(unit.pricing.monthly)}</span>
               </div>
 
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500">Sewa Harian (Transit)</span>
-                <span className="text-sm font-black text-gray-800">
+              <div className="flex items-center justify-between border-b border-border dark:border-border pb-2">
+                <span className="text-muted-foreground">Sewa Harian (Transit)</span>
+                <span className="text-sm font-black text-foreground">
                   {unit.pricing.daily ? formatRupiah(unit.pricing.daily) : 'Tidak Tersedia'}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500">Uang Jaminan / Deposit</span>
+              <div className="flex items-center justify-between border-b border-border dark:border-border pb-2">
+                <span className="text-muted-foreground">Uang Jaminan / Deposit</span>
                 <span className="text-sm font-black text-[#C8A96B]">{formatRupiah(unit.pricing.deposit)}</span>
               </div>
-
-              {unit.pricing.utilities && (
-                <div className="bg-[#F7F4ED] p-3 rounded-xl border border-[#C7D3C0]/20 space-y-1 mt-2">
-                  <span className="text-[10px] font-bold text-[#8FA28A] uppercase tracking-wider block">Aturan Utilitas</span>
-                  <p className="text-[11px] text-gray-600 font-medium leading-relaxed">{unit.pricing.utilities}</p>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* Active Tenant Box */}
-          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-1.5">
-              <User className="h-5 w-5 text-[#8FA28A]" />
-              Informasi Penyewa Kamar
-            </h3>
-
+          {/* TENANT WIDGET (Matching SS 2 & SS 3 + Assign Tenant Action) */}
+          <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-4">
             {unit.status === 'Occupied' && unit.tenantName ? (
+              /* MATCHING SS 2: PENYEWA AKTIF */
               <div className="space-y-4">
-                <div className="flex items-center gap-3 bg-blue-50/50 p-4 rounded-xl border border-blue-100/60">
-                  <div className="h-9 w-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
-                    {unit.tenantName.substring(0, 2).toUpperCase()}
+                <div className="flex items-start justify-between">
+                  <div className="space-y-1">
+                    <span className="text-[11px] font-black text-muted-foreground uppercase tracking-wider block">
+                      PENYEWA AKTIF
+                    </span>
+                    <h4 className="text-lg font-black text-foreground dark:text-foreground">
+                      {unit.tenantName}
+                    </h4>
+                    <p className="text-xs text-muted-foreground font-medium">
+                      {property.name} • {unit.name}
+                    </p>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-black text-gray-800">{unit.tenantName}</h4>
-                    <p className="text-[11px] text-blue-600 font-bold uppercase tracking-wider">Aktif Menghuni</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAssignTenantOpen(true)}
+                    className="px-3 py-1.5 rounded-xl border border-border bg-muted/30 hover:bg-muted text-xs font-bold text-foreground flex items-center gap-1 transition-colors min-h-[36px]"
+                  >
+                    Edit Penyewa
+                  </button>
                 </div>
 
-                <div className="space-y-2.5 text-xs">
+                <div className="space-y-2.5 text-xs pt-2 border-t border-border dark:border-border">
                   {unit.tenantPhone && (
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <Phone className="h-3.5 w-3.5 text-gray-400" /> WhatsApp
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground" /> WhatsApp
                       </span>
-                      <strong className="text-gray-800">{unit.tenantPhone}</strong>
+                      <strong className="text-foreground">{unit.tenantPhone}</strong>
                     </div>
                   )}
 
                   {unit.checkInDate && (
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-500 flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5 text-gray-400" /> Tanggal Masuk
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" /> Tanggal Masuk
                       </span>
-                      <strong className="text-gray-800">
+                      <strong className="text-foreground">
                         {new Date(unit.checkInDate).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'long',
-                          year: 'numeric'
+                          year: 'numeric',
                         })}
                       </strong>
                     </div>
@@ -388,13 +662,73 @@ export default function PropertyUnitDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-[#C7D3C0] bg-gray-50 p-6 text-center text-xs text-gray-400">
-                Unit saat ini dalam keadaan kosong dan siap untuk dipasarkan.
+              /* MATCHING SS 3: INFORMASI PENYEWA KAMAR (EMPTY STATE) + ATUR PENYEWA */
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-foreground dark:text-foreground flex items-center gap-2">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  Informasi Penyewa Kamar
+                </h3>
+                <div className="rounded-xl border border-dashed border-border dark:border-border bg-muted/20 p-6 text-center space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Unit saat ini dalam keadaan kosong dan siap untuk dipasarkan.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setIsAssignTenantOpen(true)}
+                    className="min-h-[44px] px-4 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-black text-xs inline-flex items-center gap-1.5 transition-all shadow-sm"
+                  >
+                    + Atur / Tambah Penyewa Kamar
+                  </button>
+                </div>
               </div>
             )}
           </div>
+
+          {/* Owner Housekeeping Service Toggle - Moved below tenant info */}
+          <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-xs font-black text-foreground dark:text-foreground uppercase tracking-wider">
+                  Layanan Kebersihan Kamar
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  ON/OFF Layanan Kebersihan oleh Owner
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleToggleHousekeepingService}
+                className={`min-h-[36px] px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors ${
+                  hasCleaningService
+                    ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 dark:text-emerald-400'
+                    : 'bg-muted text-muted-foreground border border-border'
+                }`}
+              >
+                {hasCleaningService ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                {hasCleaningService ? 'ON' : 'OFF'}
+              </button>
+            </div>
+            <div className="text-[11px] text-muted-foreground border-t border-border dark:border-border pt-2">
+              Status di Info Kamar Tenant:{' '}
+              <strong className={hasCleaningService ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}>
+                {hasCleaningService ? '✓ Layanan Kebersihan Aktif' : '✗ Layanan Kebersihan Nonaktif'}
+              </strong>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Assign Tenant Modal */}
+      {unit && isAssignTenantOpen && (
+        <AssignTenantModal
+          isOpen={isAssignTenantOpen}
+          onClose={() => setIsAssignTenantOpen(false)}
+          unit={unit}
+          onSaveTenant={handleSaveTenant}
+          onCheckoutTenant={handleCheckoutTenant}
+        />
+      )}
     </div>
   );
 }

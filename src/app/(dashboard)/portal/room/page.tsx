@@ -226,14 +226,16 @@ export default function PortalRoomPage() {
             <AlertTriangle className="h-4 w-4" />
             <span>Lapor Kerusakan</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setIsHousekeepingModalOpen(true)}
-            className="min-h-[44px] flex items-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>Panggil Housekeeping</span>
-          </button>
+          {details.property.hasCleaningService !== false && (
+            <button
+              type="button"
+              onClick={() => setIsHousekeepingModalOpen(true)}
+              className="min-h-[44px] flex items-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>Panggil Housekeeping</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -263,6 +265,7 @@ export default function PortalRoomPage() {
         <TenantHousekeepingCard
           requests={housekeepingRequests}
           onOpenModal={() => setIsHousekeepingModalOpen(true)}
+          hasCleaningService={details.property.hasCleaningService !== false}
         />
 
         {/* Room Specifications Card */}

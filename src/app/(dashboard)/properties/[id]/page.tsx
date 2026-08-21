@@ -11,6 +11,7 @@ import { Unit, UnitStatus } from '../../units/_types';
 import { useSafeBack } from '@/app/_hooks/useSafeBack';
 
 const UnitFormModal = lazy(() => import('../../units/_components/UnitFormModal'));
+const BulkActionModal = lazy(() => import('../../units/_components/BulkActionModal'));
 
 export default function PropertyDetailPage() {
   const router = useRouter();
@@ -29,6 +30,10 @@ export default function PropertyDetailPage() {
   const [isUnitFormOpen, setIsUnitFormOpen] = useState(false);
   const [unitFormDefaultMode, setUnitFormDefaultMode] = useState<'single' | 'batch'>('single');
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
+
+  // Bulk edit state
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
   // Tabs state
   const [activeTab, setActiveTab] = useState<'units' | 'inventory'>('units');
@@ -74,7 +79,7 @@ export default function PropertyDetailPage() {
     setUnits(allUnits.filter((u) => u.propertyId === id));
   };
 
-  const handleAddOrEditUnit = (data: Omit<Unit, 'id' | 'createdAt'>) => {
+  const handleAddOrEditUnit = async (data: Omit<Unit, 'id' | 'createdAt'>) => {
     const storedUnits = localStorage.getItem('arventa_units');
     const allUnits: Unit[] = storedUnits ? JSON.parse(storedUnits) : [];
 
@@ -89,10 +94,35 @@ export default function PropertyDetailPage() {
         createdAt: new Date().toISOString(),
       };
       saveAllUnits([...allUnits, newUnit]);
+
+      // Backend Prisma DB create
+      try {
+        await fetch('/api/units', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId: data.propertyId,
+            name: data.name,
+            floor: 1,
+            basePrice: data.pricing.monthly,
+            transitPrice: data.pricing.daily,
+            deposit: data.pricing.deposit,
+            capacity: data.capacity.maxPersons,
+            dimensions: data.capacity.dimensions,
+            facilities: data.facilities,
+            description: data.description,
+            tenantName: data.tenantName,
+            tenantPhone: data.tenantPhone,
+            checkInDate: data.checkInDate,
+          }),
+        });
+      } catch (e) {
+        console.error('Failed to create unit in database:', e);
+      }
     }
   };
 
-  const handleAddBatchUnits = (batchData: Omit<Unit, 'id' | 'createdAt'>[]) => {
+  const handleAddBatchUnits = async (batchData: Omit<Unit, 'id' | 'createdAt'>[]) => {
     const storedUnits = localStorage.getItem('arventa_units');
     const allUnits: Unit[] = storedUnits ? JSON.parse(storedUnits) : [];
 
@@ -104,9 +134,110 @@ export default function PropertyDetailPage() {
     }));
 
     saveAllUnits([...allUnits, ...newUnits]);
+
+    // Backend Prisma DB batch create
+    try {
+      if (batchData.length > 0) {
+        const propertyId = batchData[0].propertyId;
+        const mapped = batchData.map((d) => ({
+          propertyId: d.propertyId,
+          name: d.name,
+          basePrice: d.pricing.monthly,
+          transitPrice: d.pricing.daily,
+          deposit: d.pricing.deposit,
+          capacity: d.capacity.maxPersons,
+          dimensions: d.capacity.dimensions,
+          facilities: d.facilities,
+          description: d.description,
+        }));
+        await fetch('/api/units', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: true, propertyId, units: mapped }),
+        });
+      }
+    } catch (e) {
+      console.error('Failed to batch create units in database:', e);
+    }
   };
 
-  const handleDeleteUnit = (unitId: string, e: React.MouseEvent) => {
+  const handleApplyBulkAction = async (payload: any, customTargetIds?: string[]) => {
+    const storedUnits = localStorage.getItem('arventa_units');
+    const allUnits: Unit[] = storedUnits ? JSON.parse(storedUnits) : [];
+    let updated = [...allUnits];
+
+    const targetIds =
+      customTargetIds && customTargetIds.length > 0
+        ? customTargetIds
+        : selectedUnitIds.length > 0
+        ? selectedUnitIds
+        : units.map((u) => u.id);
+
+    if (payload.actionType === 'delete') {
+      updated = updated.filter((u) => !targetIds.includes(u.id));
+    } else if (payload.actionType === 'status' && payload.newStatus) {
+      updated = updated.map((u) =>
+        targetIds.includes(u.id) ? { ...u, status: payload.newStatus! } : u
+      );
+    } else if (payload.actionType === 'facilities' && payload.facilitiesToApply) {
+      const { facilityOperation, facilitiesToApply } = payload;
+      updated = updated.map((u) => {
+        if (!targetIds.includes(u.id)) return u;
+        let currentFacs = [...u.facilities];
+        if (facilityOperation === 'add') {
+          const toAdd = facilitiesToApply.filter((f: string) => !currentFacs.includes(f));
+          currentFacs = [...currentFacs, ...toAdd];
+        } else if (facilityOperation === 'remove') {
+          currentFacs = currentFacs.filter((f: string) => !facilitiesToApply.includes(f));
+        }
+        return { ...u, facilities: currentFacs };
+      });
+    } else if (payload.actionType === 'pricing' && payload.priceAdjustmentType && payload.priceValue !== undefined) {
+      const { priceAdjustmentType, priceValue } = payload;
+      updated = updated.map((u) => {
+        if (!targetIds.includes(u.id)) return u;
+        let newMonthly = u.pricing.monthly;
+
+        if (priceAdjustmentType === 'set') {
+          newMonthly = priceValue;
+        } else if (priceAdjustmentType === 'flat_increase') {
+          newMonthly = Math.max(0, newMonthly + priceValue);
+        } else if (priceAdjustmentType === 'flat_decrease') {
+          newMonthly = Math.max(0, newMonthly - priceValue);
+        } else if (priceAdjustmentType === 'percent_increase') {
+          newMonthly = Math.max(0, Math.round(newMonthly * (1 + priceValue / 100)));
+        } else if (priceAdjustmentType === 'percent_decrease') {
+          newMonthly = Math.max(0, Math.round(newMonthly * (1 - priceValue / 100)));
+        }
+
+        return { ...u, pricing: { ...u.pricing, monthly: newMonthly } };
+      });
+    }
+
+    saveAllUnits(updated);
+    setSelectedUnitIds([]);
+
+    // Backend Prisma Bulk API call
+    try {
+      await fetch('/api/units/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitIds: targetIds,
+          actionType: payload.actionType,
+          newStatus: payload.newStatus === 'Need Cleaning' ? 'CLEANING' : payload.newStatus?.toUpperCase(),
+          facilityOperation: payload.facilityOperation,
+          facilitiesToApply: payload.facilitiesToApply,
+          priceAdjustmentType: payload.priceAdjustmentType,
+          priceValue: payload.priceValue,
+        }),
+      });
+    } catch (e) {
+      console.error('Failed to apply bulk action in database:', e);
+    }
+  };
+
+  const handleDeleteUnit = async (unitId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     if (window.confirm('Apakah Anda yakin ingin menghapus unit ini?')) {
@@ -115,6 +246,13 @@ export default function PropertyDetailPage() {
         const allUnits: Unit[] = JSON.parse(storedUnits);
         const updated = allUnits.filter((u) => u.id !== unitId);
         saveAllUnits(updated);
+      }
+
+      // Backend Prisma DB delete
+      try {
+        await fetch(`/api/units/${unitId}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Failed to delete unit in database:', err);
       }
     }
   };
@@ -369,23 +507,31 @@ export default function PropertyDetailPage() {
                   <p className="text-xs text-gray-400 mt-0.5">Total {units.length} Unit terdaftar di properti ini</p>
                 </div>
 
-                {/* Add Unit Buttons (Single & Batch Modes) */}
+                {/* Action Buttons: 1. + Tambah Unit (Single entry for single/batch modal), 2. Edit Unit (Bulk/Multi edit modal) */}
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={openSingleUnitModal}
-                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 transition-all shadow-sm"
+                    onClick={() => {
+                      setEditingUnit(null);
+                      setIsUnitFormOpen(true);
+                    }}
+                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-black transition-all shadow-sm"
                   >
-                    <Plus className="h-4 w-4 text-[#8FA28A]" />
-                    + Tambah 1 Unit
+                    <Plus className="h-4 w-4" />
+                    + Tambah Unit
                   </button>
                   <button
                     type="button"
-                    onClick={openBatchUnitModal}
-                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-3.5 py-2 text-xs font-black transition-all shadow-sm"
+                    onClick={() => {
+                      if (selectedUnitIds.length === 0 && units.length > 0) {
+                        setSelectedUnitIds(units.map((u) => u.id));
+                      }
+                      setIsBulkModalOpen(true);
+                    }}
+                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 dark:bg-card dark:text-card-foreground dark:border-border px-3.5 py-2 text-xs font-bold transition-all shadow-sm"
                   >
-                    <Sparkles className="h-4 w-4" />
-                    ⚡ Tambah Beberapa (Batch)
+                    <Edit3 className="h-4 w-4 text-[#8FA28A]" />
+                    Edit Unit
                   </button>
                 </div>
               </div>
@@ -396,17 +542,13 @@ export default function PropertyDetailPage() {
                   <p className="text-xs text-gray-400">Belum ada unit yang terdaftar di properti ini.</p>
                   <div className="flex items-center justify-center gap-3">
                     <button
-                      onClick={openSingleUnitModal}
+                      onClick={() => {
+                        setEditingUnit(null);
+                        setIsUnitFormOpen(true);
+                      }}
                       className="text-xs font-bold text-[#8FA28A] hover:underline"
                     >
-                      + Tambah 1 Unit
-                    </button>
-                    <span className="text-gray-300">•</span>
-                    <button
-                      onClick={openBatchUnitModal}
-                      className="text-xs font-black text-[#8FA28A] hover:underline flex items-center gap-1"
-                    >
-                      <Sparkles className="h-3 w-3" /> Tambah Beberapa Unit Sekaligus
+                      + Tambah Unit Kamar
                     </button>
                   </div>
                 </div>
@@ -524,17 +666,28 @@ export default function PropertyDetailPage() {
               Ringkasan Keterisian
             </h3>
 
-            {/* Circular Rate or Giant Text */}
+            {/* Circular Rate SVG Gauge */}
             <div className="flex flex-col items-center justify-center py-4 space-y-2">
-              <div className="relative flex items-center justify-center h-28 w-28 rounded-full border-4 border-gray-100">
-                <div
-                  className="absolute inset-0 rounded-full border-4 border-t-[#8FA28A] border-r-[#8FA28A]"
-                  style={{
-                    transform: `rotate(${rate * 3.6}deg)`,
-                    transition: 'transform 0.8s ease-in-out',
-                  }}
-                />
-                <span className="text-2xl font-black text-gray-800">{rate}%</span>
+              <div className="relative flex items-center justify-center h-28 w-28">
+                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                  <path
+                    className="text-gray-100 dark:text-muted"
+                    strokeWidth="3.5"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                  <path
+                    className="text-[#8FA28A]"
+                    strokeDasharray={`${rate}, 100`}
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="none"
+                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  />
+                </svg>
+                <span className="absolute text-2xl font-black text-gray-800 dark:text-foreground">{rate}%</span>
               </div>
               <p className="text-xs font-bold text-[#8FA28A] uppercase tracking-wide">Tingkat Keterisian</p>
             </div>
@@ -621,6 +774,19 @@ export default function PropertyDetailPage() {
             initialPropertyId={property.id}
             properties={[property]}
             defaultMode={unitFormDefaultMode}
+          />
+        )}
+      </Suspense>
+
+      {/* Dynamic Bulk Action Modal (Edit Unit Pop-Up) */}
+      <Suspense fallback={null}>
+        {isBulkModalOpen && (
+          <BulkActionModal
+            isOpen={isBulkModalOpen}
+            onClose={() => setIsBulkModalOpen(false)}
+            allUnits={units}
+            selectedUnits={units.filter((u) => selectedUnitIds.includes(u.id))}
+            onApplyBulkAction={handleApplyBulkAction}
           />
         )}
       </Suspense>

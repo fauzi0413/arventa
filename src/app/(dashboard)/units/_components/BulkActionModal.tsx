@@ -7,8 +7,9 @@ import { Unit, UnitStatus, BulkActionType, BulkActionPayload } from '../_types';
 interface BulkActionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  allUnits?: Unit[];
   selectedUnits: Unit[];
-  onApplyBulkAction: (payload: BulkActionPayload) => Promise<void> | void;
+  onApplyBulkAction: (payload: BulkActionPayload, targetIds?: string[]) => Promise<void> | void;
   initialAction?: BulkActionType;
 }
 
@@ -28,12 +29,24 @@ const ALL_FACILITIES = [
 export default function BulkActionModal({
   isOpen,
   onClose,
+  allUnits = [],
   selectedUnits,
   onApplyBulkAction,
   initialAction = 'status',
 }: BulkActionModalProps) {
   const [activeTab, setActiveTab] = useState<BulkActionType>(initialAction);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Available units list (merge allUnits or selectedUnits)
+  const availableUnitsList = allUnits.length > 0 ? allUnits : selectedUnits;
+
+  // Selected unit IDs state inside modal
+  const [targetUnitIds, setTargetUnitIds] = useState<string[]>(() => {
+    if (selectedUnits.length > 0) {
+      return selectedUnits.map((u) => u.id);
+    }
+    return availableUnitsList.map((u) => u.id);
+  });
 
   // Status state
   const [newStatus, setNewStatus] = useState<UnitStatus>('Available');
@@ -48,6 +61,22 @@ export default function BulkActionModal({
 
   if (!isOpen) return null;
 
+  const toggleTargetUnit = (unitId: string) => {
+    if (targetUnitIds.includes(unitId)) {
+      setTargetUnitIds(targetUnitIds.filter((id) => id !== unitId));
+    } else {
+      setTargetUnitIds([...targetUnitIds, unitId]);
+    }
+  };
+
+  const handleSelectAllUnits = () => {
+    if (targetUnitIds.length === availableUnitsList.length) {
+      setTargetUnitIds([]);
+    } else {
+      setTargetUnitIds(availableUnitsList.map((u) => u.id));
+    }
+  };
+
   const toggleFacility = (facility: string) => {
     if (selectedFacilities.includes(facility)) {
       setSelectedFacilities(selectedFacilities.filter((f) => f !== facility));
@@ -58,6 +87,10 @@ export default function BulkActionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (targetUnitIds.length === 0) {
+      alert('Pilih setidaknya 1 unit untuk diedit!');
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -75,7 +108,7 @@ export default function BulkActionModal({
         payload.actionType = 'delete';
       }
 
-      await onApplyBulkAction(payload);
+      await onApplyBulkAction(payload, targetUnitIds);
       onClose();
     } catch (err) {
       console.error('Failed to execute bulk action:', err);
@@ -84,42 +117,71 @@ export default function BulkActionModal({
     }
   };
 
+  const activeTargetUnits = availableUnitsList.filter((u) => targetUnitIds.includes(u.id));
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-0 sm:p-4 transition-opacity">
-      <div className="w-full max-w-lg bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
+      <div className="w-full max-w-lg bg-card dark:bg-card text-card-foreground dark:text-card-foreground rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col border border-border dark:border-border animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-gray-50/50">
+        <div className="flex items-center justify-between border-b border-border dark:border-border px-6 py-4 bg-muted/40 dark:bg-muted/20">
           <div>
-            <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+            <h3 className="text-base font-black text-foreground dark:text-foreground flex items-center gap-2">
               <Layers className="h-5 w-5 text-[#8FA28A]" />
-              Aksi Massal ({selectedUnits.length} Unit)
+              Edit Unit Terpilih ({targetUnitIds.length} Unit)
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Terapkan perubahan serentak untuk unit yang Anda pilih.
+            <p className="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
+              Pilih 1, beberapa, atau semua unit untuk menerapkan pengubahan.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Selected Units Preview Pill */}
-        <div className="px-6 py-2.5 bg-[#8FA28A]/10 border-b border-[#8FA28A]/20 flex items-center gap-2 overflow-x-auto text-xs text-[#6A7866] font-bold">
-          <span className="shrink-0 font-black uppercase text-[10px] tracking-wider text-[#8FA28A]">Target:</span>
-          {selectedUnits.slice(0, 4).map((u) => (
-            <span key={u.id} className="bg-white/80 border border-[#8FA28A]/30 px-2 py-0.5 rounded-md shrink-0">
-              {u.name}
+        {/* Interactive Unit Selection Panel */}
+        <div className="px-6 py-3 bg-[#8FA28A]/10 dark:bg-[#8FA28A]/20 border-b border-[#8FA28A]/30 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-black uppercase text-[10px] tracking-wider text-[#8FA28A] flex items-center gap-1">
+              <span>Target Edit:</span>
+              <span className="font-extrabold text-foreground">({targetUnitIds.length} of {availableUnitsList.length} Unit)</span>
             </span>
-          ))}
-          {selectedUnits.length > 4 && (
-            <span className="text-[10px] text-gray-500 font-semibold">
-              +{selectedUnits.length - 4} unit lainnya
-            </span>
-          )}
+            <button
+              type="button"
+              onClick={handleSelectAllUnits}
+              className="text-[11px] font-black text-[#8FA28A] hover:underline"
+            >
+              {targetUnitIds.length === availableUnitsList.length ? '✓ Batal Pilih Semua' : '☑ Pilih Semua Unit'}
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pt-0.5">
+            {availableUnitsList.map((u) => {
+              const isSelected = targetUnitIds.includes(u.id);
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleTargetUnit(u.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border min-h-[32px] ${
+                    isSelected
+                      ? 'bg-[#8FA28A] text-white border-[#8FA28A] shadow-sm font-black'
+                      : 'bg-card text-muted-foreground border-border hover:border-foreground/30 opacity-70'
+                  }`}
+                >
+                  <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[10px] border ${
+                    isSelected ? 'bg-white text-[#8FA28A] border-white' : 'border-gray-400'
+                  }`}>
+                    {isSelected ? '✓' : ''}
+                  </span>
+                  <span>{u.name}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Tab Selection */}

@@ -8,9 +8,10 @@ import TenantReportDetailModal from './TenantReportDetailModal';
 interface TenantHousekeepingCardProps {
   requests: HousekeepingRequest[];
   onOpenModal: () => void;
+  hasCleaningService?: boolean;
 }
 
-export default function TenantHousekeepingCard({ requests, onOpenModal }: TenantHousekeepingCardProps) {
+export default function TenantHousekeepingCard({ requests, onOpenModal, hasCleaningService = true }: TenantHousekeepingCardProps) {
   const [selectedItem, setSelectedItem] = useState<HousekeepingRequest | null>(null);
 
   const getStatusBadge = (status: HousekeepingStatus | string) => {
@@ -71,16 +72,36 @@ export default function TenantHousekeepingCard({ requests, onOpenModal }: Tenant
             <Sparkles className="h-5 w-5 text-[#8FA28A]" />
             <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Layanan Kebersihan Kamar</h3>
           </div>
-          <span className="text-xs font-bold text-gray-400">
-            {requests.length} Pemanggilan
-          </span>
+          {hasCleaningService ? (
+            <span className="text-xs font-bold text-gray-400">
+              {requests.length} Pemanggilan
+            </span>
+          ) : (
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+              Nonaktif oleh Owner
+            </span>
+          )}
         </div>
+
+        {/* Notice when service is turned OFF by owner */}
+        {!hasCleaningService && (
+          <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3.5 text-center space-y-1">
+            <p className="text-xs font-bold text-rose-800">Layanan Kebersihan Dinonaktifkan</p>
+            <p className="text-[11px] text-rose-600 leading-relaxed">
+              Pemilik properti sedang menonaktifkan fitur panggilan kebersihan untuk unit ini.
+            </p>
+          </div>
+        )}
 
         {/* Housekeeping Clean List View */}
         {requests.length === 0 ? (
           <div className="bg-gray-50/80 rounded-xl p-4 text-center space-y-1 border border-gray-100">
-            <p className="text-xs text-gray-500 font-semibold">Belum ada panggilan kebersihan.</p>
-            <p className="text-[11px] text-gray-400">Anda dapat memanggil tim housekeeping untuk menyapu, ngepel, atau mengganti sprei kamar.</p>
+            <p className="text-xs text-gray-500 font-semibold">Belum ada riwayat panggilan kebersihan.</p>
+            <p className="text-[11px] text-gray-400">
+              {hasCleaningService
+                ? 'Anda dapat memanggil tim housekeeping untuk menyapu, ngepel, atau mengganti sprei kamar.'
+                : 'Fitur panggilan kebersihan saat ini tidak aktif.'}
+            </p>
           </div>
         ) : (
           <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
@@ -126,14 +147,25 @@ export default function TenantHousekeepingCard({ requests, onOpenModal }: Tenant
 
       {/* Action Button */}
       <div className="pt-2">
-        <button
-          type="button"
-          onClick={onOpenModal}
-          className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
-        >
-          <Sparkles className="h-4 w-4" />
-          Panggil Tim Housekeeping
-        </button>
+        {hasCleaningService ? (
+          <button
+            type="button"
+            onClick={onOpenModal}
+            className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
+          >
+            <Sparkles className="h-4 w-4" />
+            Panggil Tim Housekeeping
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 text-gray-400 px-4 py-2.5 text-xs font-bold cursor-not-allowed opacity-80"
+          >
+            <Sparkles className="h-4 w-4 text-gray-400" />
+            Layanan Dinonaktifkan oleh Owner
+          </button>
+        )}
       </div>
 
       {/* Tenant Report Detail & Progress Modal */}

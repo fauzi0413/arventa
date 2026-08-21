@@ -27,6 +27,9 @@ export interface Unit {
   tenantName?: string;
   tenantPhone?: string;
   checkInDate?: string;
+  roomEmail?: string;
+  roomPassword?: string;
+  roomPasswordLastReset?: string;
   createdAt: string;
 }
 

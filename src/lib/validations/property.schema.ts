@@ -15,6 +15,7 @@ export const createPropertySchema = z.object({
   city: z.string().min(2, "City name is required"),
   description: z.string().optional(),
   coverImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
+  hasCleaningService: z.boolean().optional(),
 });
 
 export const updatePropertySchema = createPropertySchema.partial();
