@@ -36,15 +36,14 @@ export async function getSystemSettings(): Promise<SystemSettingsConfig> {
       session_timeout_mins: parseInt(map.session_timeout_mins || "120", 10),
 
       // API Key Gateways (Fallback to process.env if not set in DB)
-      gemini_api_key: map.gemini_api_key || process.env.GEMINI_API_KEY || "",
-      gemini_model: map.gemini_model || process.env.GEMINI_MODEL || "gemini-1.5-flash",
+      gemini_api_key: map.gemini_api_key || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "",
+      gemini_model: map.gemini_model || process.env.GEMINI_MODEL || "gemini-3.6-flash",
 
       resend_api_key: map.resend_api_key || process.env.RESEND_API_KEY || "",
       sender_email: map.sender_email || process.env.SENDER_EMAIL || "no-reply@arventa.id",
 
       supabase_url: map.supabase_url || process.env.NEXT_PUBLIC_SUPABASE_URL || "",
       supabase_service_role: map.supabase_service_role || process.env.SUPABASE_SERVICE_ROLE_KEY || "",
-
       midtrans_server_key: map.midtrans_server_key || process.env.MIDTRANS_SERVER_KEY || "",
       midtrans_client_key: map.midtrans_client_key || process.env.MIDTRANS_CLIENT_KEY || "",
       midtrans_mode: (map.midtrans_mode as any) || "SANDBOX",
@@ -58,8 +57,8 @@ export async function getSystemSettings(): Promise<SystemSettingsConfig> {
       default_currency: "IDR",
       max_login_attempts: 5,
       session_timeout_mins: 120,
-      gemini_api_key: process.env.GEMINI_API_KEY || "",
-      gemini_model: "gemini-1.5-flash",
+      gemini_api_key: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "",
+      gemini_model: "gemini-3.6-flash",
       resend_api_key: process.env.RESEND_API_KEY || "",
       sender_email: "no-reply@arventa.id",
       supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL || "",

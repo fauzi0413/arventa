@@ -116,20 +116,37 @@ model User {
 }
 
 model TenantProfile {
-  id             String   @id @default(uuid())
-  userId         String   @unique @map("user_id")
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String   @id @default(uuid())
+  userId            String?  @unique @map("user_id")
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  nik            String?  @unique
-  ktpImageUrl    String?  @map("ktp_image_url")
-  emergencyName  String?  @map("emergency_name")
-  emergencyPhone String?  @map("emergency_phone")
-  occupation     String?
+  fullName          String?  @map("full_name")
+  email             String?
+  phoneNumber       String?  @map("phone_number")
 
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  nik               String?  @unique
+  ktpImageUrl       String?  @map("ktp_image_url")
+  birthPlaceDate    String?  @map("birth_place_date")
+  gender            String?
+  bloodType         String?  @map("blood_type")
+  addressKtp        String?  @map("address_ktp")
+  rtRw              String?  @map("rt_rw")
+  kelDesa           String?  @map("kel_desa")
+  kecamatan         String?
+  religion          String?
+  maritalStatus     String?  @map("marital_status")
+  occupation        String?
+  nationality       String?  @default("WNI")
+  validUntil        String?  @default("SEUMUR HIDUP") @map("valid_until")
+  emergencyName     String?  @map("emergency_name")
+  emergencyPhone    String?  @map("emergency_phone")
+  emergencyRelation String?  @map("emergency_relation")
 
-  leases         Lease[]
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  leases            Lease[]
+  leaseLogs         LeaseLog[]
 
   @@map("tenant_profiles")
 }
@@ -346,6 +363,7 @@ model Unit {
 
   inventories    UnitInventory[]
   leases         Lease[]
+  leaseLogs      LeaseLog[]
   expenses       Expense[]
   unitStatusLogs UnitStatusLog[]
 
@@ -420,8 +438,31 @@ model Lease {
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
   invoices        Invoice[]
+  leaseLogs       LeaseLog[]
 
   @@map("leases")
+}
+
+model LeaseLog {
+  id             String        @id @default(uuid())
+  leaseId        String?       @map("lease_id")
+  lease          Lease?        @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  tenantId       String        @map("tenant_id")
+  tenant         TenantProfile @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  unitId         String?       @map("unit_id")
+  unit           Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  actionType     String        @map("action_type") // INITIAL_PLACEMENT, TRANSFER_UNIT, PREVIOUS_UNIT_RELEASED, DEACTIVATED, STATUS_CHANGE
+  title          String
+  description    String?       @db.Text
+  propertyName   String?       @map("property_name")
+  unitName       String?       @map("unit_name")
+  fromStatus     String?       @map("from_status")
+  toStatus       String?       @map("to_status")
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@map("log_leases")
 }
 
 model Invoice {

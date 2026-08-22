@@ -446,25 +446,35 @@ export default function PropertyUnitDetailPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-2xl font-black text-foreground dark:text-foreground">{unit.name}</h2>
-                  <span
-                    className={`rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-wider ${
-                      unit.status === 'Available'
-                        ? 'bg-[#8FA28A] text-white'
-                        : unit.status === 'Occupied'
-                        ? 'bg-blue-600 text-white'
-                        : unit.status === 'Need Cleaning'
-                        ? 'bg-[#C8A96B] text-white'
-                        : 'bg-red-600 text-white'
-                    }`}
-                  >
-                    {unit.status === 'Available'
+                  {(() => {
+                    const st = (unit.status as string) || '';
+                    const isAvail = st === 'Available' || st === 'AVAILABLE';
+                    const isOcc = st === 'Occupied' || st === 'OCCUPIED';
+                    const isClean = st === 'Need Cleaning' || st === 'Cleaning' || st === 'CLEANING';
+                    const isRes = st === 'Reserved' || st === 'RESERVED';
+
+                    const badgeClass = isAvail
+                      ? 'bg-emerald-600 text-white'
+                      : isOcc
+                      ? 'bg-blue-600 text-white'
+                      : isClean
+                      ? 'bg-amber-500 text-white'
+                      : isRes
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-rose-600 text-white';
+
+                    const labelText = isAvail
                       ? 'Tersedia'
-                      : unit.status === 'Occupied'
+                      : isOcc
                       ? 'Terisi'
-                      : unit.status === 'Need Cleaning'
-                      ? 'Perlu Bersih-Bersih'
-                      : 'Maintenance'}
-                  </span>
+                      : isClean
+                      ? 'Perlu Dibersihkan'
+                      : isRes
+                      ? 'Reserved'
+                      : 'Perlu Perbaikan';
+
+                    return <span className={`rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-wider ${badgeClass}`}>{labelText}</span>;
+                  })()}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
                   <MapPin className="h-3.5 w-3.5 text-muted-foreground" />

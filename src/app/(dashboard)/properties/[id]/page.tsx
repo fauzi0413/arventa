@@ -66,11 +66,13 @@ export default function PropertyDetailPage() {
             createdAt: p.createdAt || new Date().toISOString(),
           };
 
-          const statusMap: Record<string, 'Available' | 'Occupied' | 'Maintenance' | 'Cleaning'> = {
+          const statusMap: Record<string, UnitStatus> = {
             AVAILABLE: 'Available',
             OCCUPIED: 'Occupied',
             MAINTENANCE: 'Maintenance',
-            CLEANING: 'Cleaning',
+            CLEANING: 'Need Cleaning',
+            NEED_CLEANING: 'Need Cleaning',
+            RESERVED: 'Reserved',
           };
 
           const mappedUnits: Unit[] = (p.units || []).map((u: any) => ({
@@ -645,14 +647,60 @@ export default function PropertyDetailPage() {
                             {/* Inline Custom Status Badge Dropdown */}
                             <UnitStatusBadgeDropdown
                               status={unit.status}
-                              onChange={(newStatus) => {
+                              onChange={async (newStatus) => {
                                 const updatedUnits = units.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
                                 setUnits(updatedUnits);
+
+                                const statusMap: Record<string, string> = {
+                                  Available: 'AVAILABLE',
+                                  Occupied: 'OCCUPIED',
+                                  'Need Cleaning': 'CLEANING',
+                                  Maintenance: 'MAINTENANCE',
+                                  Reserved: 'RESERVED',
+                                };
+                                const dbStatus = statusMap[newStatus] || 'AVAILABLE';
+
                                 const storedUnits = localStorage.getItem('arventa_units');
                                 if (storedUnits) {
-                                  const all: Unit[] = JSON.parse(storedUnits);
-                                  const updatedAll = all.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
-                                  localStorage.setItem('arventa_units', JSON.stringify(updatedAll));
+                                  try {
+                                    const all: Unit[] = JSON.parse(storedUnits);
+                                    const updatedAll = all.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
+                                    localStorage.setItem('arventa_units', JSON.stringify(updatedAll));
+                                  } catch (e) {}
+                                }
+
+                                const storedProps = localStorage.getItem('arventa_properties');
+                                if (storedProps) {
+                                  try {
+                                    const props = JSON.parse(storedProps);
+                                    const updatedProps = props.map((p: any) => {
+                                      if (p.id === id) {
+                                        const updatedPU = (p.units || []).map((pu: any) => {
+                                          if (pu.id === unit.id || pu.unitNumber === unit.name || pu.name === unit.name) {
+                                            return { ...pu, status: dbStatus };
+                                          }
+                                          return pu;
+                                        });
+                                        return { ...p, units: updatedPU };
+                                      }
+                                      return p;
+                                    });
+                                    localStorage.setItem('arventa_properties', JSON.stringify(updatedProps));
+                                  } catch (e) {}
+                                }
+
+                                if (typeof window !== 'undefined') {
+                                  window.dispatchEvent(new Event('storage'));
+                                }
+
+                                try {
+                                  await fetch(`/api/units/${unit.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ status: dbStatus }),
+                                  });
+                                } catch (err) {
+                                  console.warn('API unit status update notice:', err);
                                 }
                               }}
                             />

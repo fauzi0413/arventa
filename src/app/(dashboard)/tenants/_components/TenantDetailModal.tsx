@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
-import { X, User, Phone, Mail, FileText, Briefcase, HeartHandshake, Building, Calendar, CheckCircle2, Clock, AlertCircle, ArrowRightLeft } from 'lucide-react';
-import { Tenant } from '../_types';
+import { X, User, Phone, Mail, FileText, Briefcase, HeartHandshake, Building, Calendar, CheckCircle2, Clock, AlertCircle, ArrowRightLeft, UserX, UserCheck } from 'lucide-react';
+import { formatIndonesianDateTime, formatIndonesianDate } from '@/lib/utils';
+import { Tenant, HistoryEventType } from '../_types';
 
 interface TenantDetailModalProps {
   isOpen: boolean;
@@ -57,6 +58,69 @@ export default function TenantDetailModal({
       .toUpperCase();
   };
 
+  const displayHistory = React.useMemo(() => {
+    if (!tenant?.history || tenant.history.length === 0) return [];
+    const seen = new Set<string>();
+    return tenant.history.filter((item) => {
+      const key = `${item.type}_${item.title}_${item.timestamp}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [tenant]);
+
+  const getHistoryBadge = (type: HistoryEventType | string) => {
+    switch (type) {
+      case 'INITIAL_PLACEMENT':
+        return (
+          <span className="bg-blue-50 text-blue-700 border border-blue-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+            Penempatan Unit
+          </span>
+        );
+      case 'TRANSFER_UNIT':
+        return (
+          <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+            Pindah Unit
+          </span>
+        );
+      case 'PREVIOUS_UNIT_RELEASED':
+        return (
+          <span className="bg-orange-50 text-orange-700 border border-orange-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+            Kamar Lama Ditinggalkan
+          </span>
+        );
+      case 'DEACTIVATED':
+        return (
+          <span className="bg-rose-50 text-rose-700 border border-rose-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+            Status Nonaktif
+          </span>
+        );
+      case 'STATUS_CHANGE':
+      default:
+        return (
+          <span className="bg-purple-50 text-purple-700 border border-purple-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+            Ubah Status
+          </span>
+        );
+    }
+  };
+
+  const getHistoryIcon = (type: HistoryEventType | string) => {
+    switch (type) {
+      case 'INITIAL_PLACEMENT':
+        return <Building className="h-3.5 w-3.5 text-blue-600 shrink-0" />;
+      case 'TRANSFER_UNIT':
+        return <ArrowRightLeft className="h-3.5 w-3.5 text-emerald-600 shrink-0" />;
+      case 'PREVIOUS_UNIT_RELEASED':
+        return <Building className="h-3.5 w-3.5 text-orange-600 shrink-0" />;
+      case 'DEACTIVATED':
+        return <UserX className="h-3.5 w-3.5 text-rose-600 shrink-0" />;
+      case 'STATUS_CHANGE':
+      default:
+        return <UserCheck className="h-3.5 w-3.5 text-purple-600 shrink-0" />;
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]">
@@ -87,7 +151,7 @@ export default function TenantDetailModal({
           {/* Section 1: Kontak & Identitas Utama */}
           <div className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#8FA28A] flex items-center gap-1.5">
-              <User className="h-3.5 w-3.5" /> Identitas & Kontak Utama
+              <User className="h-3.5 w-3.5" /> Identitas &amp; Kontak Utama
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               <div>
@@ -126,7 +190,7 @@ export default function TenantDetailModal({
           <div className="rounded-2xl border border-gray-100 bg-white p-4 space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#8FA28A] flex items-center gap-1.5">
-                <Building className="h-3.5 w-3.5" /> Penempatan & Kontrak Unit
+                <Building className="h-3.5 w-3.5" /> Penempatan &amp; Kontrak Unit
               </h3>
               {onOpenTransfer && (
                 <button
@@ -190,7 +254,75 @@ export default function TenantDetailModal({
             )}
           </div>
 
-          {/* Section 4: Catatan */}
+          {/* Section 4: Riwayat Perpindahan Unit & Perubahan Status */}
+          <div className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4 space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#8FA28A] flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5" /> Riwayat Perpindahan &amp; Status
+            </h3>
+
+            {displayHistory.length > 0 ? (
+              <div className="relative pl-4 space-y-3.5 border-l-2 border-[#8FA28A]/30 ml-2 my-2">
+                {displayHistory.map((item, idx) => (
+                  <div key={item.id || idx} className="relative group">
+                    {/* Node Dot */}
+                    <div className="absolute -left-[21px] top-1.5 h-3 w-3 rounded-full bg-[#8FA28A] ring-4 ring-white shadow-xs" />
+
+                    <div className="bg-white rounded-2xl p-3.5 border border-gray-100/90 shadow-2xs space-y-2 hover:border-[#8FA28A]/40 transition-all">
+                      {/* Baris 1: Tanggal, Waktu & Badge Tipe */}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="inline-flex items-center gap-1 font-bold text-gray-600 bg-gray-100/80 px-2.5 py-0.5 rounded-lg border border-gray-200/50">
+                          <Clock className="h-3 w-3 text-gray-400 shrink-0" />
+                          {formatIndonesianDateTime(item.timestamp)}
+                        </span>
+                        {getHistoryBadge(item.type)}
+                      </div>
+
+                      {/* Baris 2: Judul Utama Perubahan */}
+                      <div className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        {getHistoryIcon(item.type)}
+                        <span className="leading-snug">{item.title}</span>
+                      </div>
+
+                      {/* Baris 3: Deskripsi / Catatan Rinci */}
+                      {item.description && (
+                        <p className="text-[11px] text-gray-600 leading-relaxed font-medium bg-gray-50/80 p-2.5 rounded-xl border border-gray-100">
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : tenant.currentUnitName ? (
+              <div className="relative pl-4 space-y-3.5 border-l-2 border-[#8FA28A]/30 ml-2 my-2">
+                <div className="relative">
+                  <div className="absolute -left-[21px] top-1.5 h-3 w-3 rounded-full bg-[#8FA28A] ring-4 ring-white shadow-xs" />
+                  <div className="bg-white rounded-2xl p-3.5 border border-gray-100/90 shadow-2xs space-y-2">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="inline-flex items-center gap-1 font-bold text-gray-600 bg-gray-100/80 px-2.5 py-0.5 rounded-lg border border-gray-200/50">
+                        <Clock className="h-3 w-3 text-gray-400 shrink-0" />
+                        {tenant.leaseStartDate ? formatIndonesianDate(tenant.leaseStartDate) : 'Terdaftar'}
+                      </span>
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                        Penempatan Awal
+                      </span>
+                    </div>
+                    <div className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5 text-[#8FA28A] shrink-0" />
+                      Penempatan Unit: {tenant.currentPropertyName || 'Properti'} &mdash; {tenant.currentUnitName}
+                    </div>
+                    <p className="text-[11px] text-gray-600 leading-relaxed font-medium bg-gray-50/80 p-2.5 rounded-xl border border-gray-100">
+                      Penempatan kamar pertama kali terdaftar di sistem.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 italic">Belum ada riwayat perpindahan unit atau perubahan status.</p>
+            )}
+          </div>
+
+          {/* Section 5: Catatan */}
           {tenant.notes && (
             <div className="rounded-2xl border border-gray-100 bg-amber-50/40 p-4 space-y-1 border-amber-200/50">
               <h3 className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">

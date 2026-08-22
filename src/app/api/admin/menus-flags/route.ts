@@ -141,6 +141,88 @@ export async function POST(req: Request) {
       });
     }
 
+    // 2.5. Update Feature Flag
+    if (action === "UPDATE_FLAG") {
+      const { flagId, key, name, description } = body;
+      if (!flagId || !name) {
+        return ApiResponse.error({
+          message: "flagId dan Nama feature flag wajib diisi",
+          status: 400,
+        });
+      }
+
+      const existing = await prisma.featureFlag.findUnique({ where: { id: flagId } });
+      if (!existing) {
+        return ApiResponse.error({
+          message: "Feature flag tidak ditemukan",
+          status: 404,
+        });
+      }
+
+      const SYSTEM_IN_USE_FLAGS = ['ocr_ktp_enabled', 'room_account_enabled', 'resident_forum_enabled'];
+      const isInUse = SYSTEM_IN_USE_FLAGS.includes(existing.key);
+
+      let targetKey = existing.key;
+      if (!isInUse && key && key !== existing.key) {
+        const keyConflict = await prisma.featureFlag.findUnique({ where: { key } });
+        if (keyConflict) {
+          return ApiResponse.error({
+            message: `Key "${key}" sudah digunakan oleh feature flag lain`,
+            status: 400,
+          });
+        }
+        targetKey = key;
+      }
+
+      const updated = await prisma.featureFlag.update({
+        where: { id: flagId },
+        data: {
+          key: targetKey,
+          name,
+          description: description || '',
+        },
+      });
+
+      return ApiResponse.success({
+        message: `Feature flag "${updated.name}" berhasil diperbarui`,
+        data: updated,
+      });
+    }
+
+    // 2.6. Delete Feature Flag
+    if (action === "DELETE_FLAG") {
+      const { flagId } = body;
+      if (!flagId) {
+        return ApiResponse.error({
+          message: "flagId wajib diisi",
+          status: 400,
+        });
+      }
+
+      const existing = await prisma.featureFlag.findUnique({ where: { id: flagId } });
+      if (!existing) {
+        return ApiResponse.error({
+          message: "Feature flag tidak ditemukan",
+          status: 404,
+        });
+      }
+
+      const SYSTEM_IN_USE_FLAGS = ['ocr_ktp_enabled', 'room_account_enabled', 'resident_forum_enabled'];
+      const isInUse = SYSTEM_IN_USE_FLAGS.includes(existing.key);
+      if (isInUse) {
+        return ApiResponse.error({
+          message: `Feature flag "${existing.name}" (${existing.key}) sedang digunakan oleh sistem dan tidak dapat dihapus.`,
+          status: 400,
+        });
+      }
+
+      await prisma.featureFlag.delete({ where: { id: flagId } });
+
+      return ApiResponse.success({
+        message: `Feature flag "${existing.name}" berhasil dihapus`,
+      });
+    }
+
     // 3. Create New Menu Item & Link to Roles
     if (action === "CREATE_MENU") {
       const { title, path, icon, group, order, roleCodes, parentId } = body;

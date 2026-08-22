@@ -10,8 +10,15 @@ interface UnitStatusBadgeDropdownProps {
   disabled?: boolean;
 }
 
-const STATUS_CONFIGS: Record<UnitStatus, { label: string; bg: string; text: string; border: string; dotBg: string }> = {
+const STATUS_CONFIGS: Record<string, { label: string; bg: string; text: string; border: string; dotBg: string }> = {
   Available: {
+    label: 'Tersedia',
+    bg: 'bg-emerald-50 hover:bg-emerald-100',
+    text: 'text-emerald-700',
+    border: 'border-emerald-200/80',
+    dotBg: 'bg-emerald-500',
+  },
+  AVAILABLE: {
     label: 'Tersedia',
     bg: 'bg-emerald-50 hover:bg-emerald-100',
     text: 'text-emerald-700',
@@ -25,7 +32,28 @@ const STATUS_CONFIGS: Record<UnitStatus, { label: string; bg: string; text: stri
     border: 'border-blue-200/80',
     dotBg: 'bg-blue-500',
   },
+  OCCUPIED: {
+    label: 'Terisi',
+    bg: 'bg-blue-50 hover:bg-blue-100',
+    text: 'text-blue-700',
+    border: 'border-blue-200/80',
+    dotBg: 'bg-blue-500',
+  },
   'Need Cleaning': {
+    label: 'Perlu Dibersihkan',
+    bg: 'bg-amber-50 hover:bg-amber-100',
+    text: 'text-amber-700',
+    border: 'border-amber-200/80',
+    dotBg: 'bg-amber-500',
+  },
+  Cleaning: {
+    label: 'Perlu Dibersihkan',
+    bg: 'bg-amber-50 hover:bg-amber-100',
+    text: 'text-amber-700',
+    border: 'border-amber-200/80',
+    dotBg: 'bg-amber-500',
+  },
+  CLEANING: {
     label: 'Perlu Dibersihkan',
     bg: 'bg-amber-50 hover:bg-amber-100',
     text: 'text-amber-700',
@@ -39,7 +67,21 @@ const STATUS_CONFIGS: Record<UnitStatus, { label: string; bg: string; text: stri
     border: 'border-rose-200/80',
     dotBg: 'bg-rose-500',
   },
+  MAINTENANCE: {
+    label: 'Perbaikan',
+    bg: 'bg-rose-50 hover:bg-rose-100',
+    text: 'text-rose-700',
+    border: 'border-rose-200/80',
+    dotBg: 'bg-rose-500',
+  },
   Reserved: {
+    label: 'Reserved',
+    bg: 'bg-purple-50 hover:bg-purple-100',
+    text: 'text-purple-700',
+    border: 'border-purple-200/80',
+    dotBg: 'bg-purple-500',
+  },
+  RESERVED: {
     label: 'Reserved',
     bg: 'bg-purple-50 hover:bg-purple-100',
     text: 'text-purple-700',

@@ -45,7 +45,7 @@ export default function UnitCard({
       case 'Need Cleaning':
         return { bg: 'bg-[#C8A96B]/10 text-[#C8A96B] border-[#C8A96B]/30', label: 'Perlu Dibersihkan' };
       case 'Maintenance':
-        return { bg: 'bg-red-50 text-red-600 border-red-200', label: 'Perbaikan' };
+        return { bg: 'bg-red-50 text-red-600 border-red-200', label: 'Perlu Perbaikan' };
       case 'Reserved':
         return { bg: 'bg-purple-50 text-purple-600 border-purple-200', label: 'Reserved' };
       default:

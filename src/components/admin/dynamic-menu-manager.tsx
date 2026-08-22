@@ -257,11 +257,15 @@ export function DynamicMenuManager() {
   const [showIconPickerModal, setShowIconPickerModal] = useState(false);
   const [searchIcon, setSearchIcon] = useState("");
 
-  // New Feature Flag Modal State
+  // Feature Flag Modal State (Create & Edit)
   const [showFlagModal, setShowFlagModal] = useState(false);
+  const [editFlagId, setEditFlagId] = useState<string | null>(null);
   const [newFlagKey, setNewFlagKey] = useState("");
   const [newFlagName, setNewFlagName] = useState("");
   const [newFlagDesc, setNewFlagDesc] = useState("");
+
+  // Delete Flag Confirmation State
+  const [deleteConfirmFlag, setDeleteConfirmFlag] = useState<FeatureFlag | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -350,10 +354,30 @@ export function DynamicMenuManager() {
     }
   };
 
-  const handleCreateFlag = async (e: React.FormEvent) => {
+  const handleOpenCreateFlagModal = () => {
+    setModalErrorMsg(null);
+    setErrorMsg(null);
+    setEditFlagId(null);
+    setNewFlagKey("");
+    setNewFlagName("");
+    setNewFlagDesc("");
+    setShowFlagModal(true);
+  };
+
+  const handleOpenEditFlagModal = (flag: FeatureFlag) => {
+    setModalErrorMsg(null);
+    setErrorMsg(null);
+    setEditFlagId(flag.id);
+    setNewFlagKey(flag.key);
+    setNewFlagName(flag.name);
+    setNewFlagDesc(flag.description || "");
+    setShowFlagModal(true);
+  };
+
+  const handleSaveFlag = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFlagKey || !newFlagName) {
-      setModalErrorMsg("Key dan Nama flag wajib diisi");
+    if (!newFlagName) {
+      setModalErrorMsg("Nama feature flag wajib diisi");
       return;
     }
 
@@ -361,11 +385,13 @@ export function DynamicMenuManager() {
     setModalErrorMsg(null);
     setErrorMsg(null);
     try {
+      const isEdit = Boolean(editFlagId);
       const res = await fetch("/api/admin/menus-flags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "CREATE_FLAG",
+          action: isEdit ? "UPDATE_FLAG" : "CREATE_FLAG",
+          flagId: editFlagId,
           key: newFlagKey,
           name: newFlagName,
           description: newFlagDesc,
@@ -375,21 +401,56 @@ export function DynamicMenuManager() {
       if (json.success) {
         setSuccessMsg(json.message);
         setShowFlagModal(false);
+        setEditFlagId(null);
         setNewFlagKey("");
         setNewFlagName("");
         setNewFlagDesc("");
         setModalErrorMsg(null);
         fetchData();
       } else {
-        setModalErrorMsg(json.message || "Gagal membuat feature flag.");
-        setErrorMsg(json.message || "Gagal membuat feature flag.");
+        setModalErrorMsg(json.message || "Gagal menyimpan feature flag.");
+        setErrorMsg(json.message || "Gagal menyimpan feature flag.");
       }
     } catch (err) {
       console.error(err);
-      setModalErrorMsg("Terjadi kesalahan sistem saat membuat feature flag.");
-      setErrorMsg("Terjadi kesalahan sistem saat membuat feature flag.");
+      setModalErrorMsg("Terjadi kesalahan sistem saat menyimpan feature flag.");
+      setErrorMsg("Terjadi kesalahan sistem saat menyimpan feature flag.");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDeleteFlag = async () => {
+    if (!deleteConfirmFlag) return;
+
+    setIsDeleting(true);
+    setModalErrorMsg(null);
+    setErrorMsg(null);
+    try {
+      const res = await fetch("/api/admin/menus-flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_FLAG",
+          flagId: deleteConfirmFlag.id,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSuccessMsg(`Feature flag "${deleteConfirmFlag.name}" berhasil dihapus`);
+        setDeleteConfirmFlag(null);
+        setModalErrorMsg(null);
+        fetchData();
+      } else {
+        setModalErrorMsg(json.message || "Gagal menghapus feature flag");
+        setErrorMsg(json.message || "Gagal menghapus feature flag");
+      }
+    } catch (err) {
+      console.error(err);
+      setModalErrorMsg("Terjadi kesalahan sistem saat menghapus feature flag.");
+      setErrorMsg("Terjadi kesalahan sistem saat menghapus feature flag.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -877,38 +938,72 @@ export function DynamicMenuManager() {
                 Aktifkan atau nonaktifkan modul seperti OCR KTP AI, Akun Kamar, dan Forum secara langsung.
               </CardDescription>
             </div>
-            <Button size="sm" onClick={() => setShowFlagModal(true)} className="gap-1.5 text-xs font-semibold">
+            <Button size="sm" onClick={handleOpenCreateFlagModal} className="gap-1.5 text-xs font-semibold">
               <IconPlus className="size-4" /> Buat Feature Flag
             </Button>
           </CardHeader>
 
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            {featureFlags.map((flag) => (
-              <div key={flag.id} className="rounded-xl border p-4 flex flex-col justify-between space-y-3 bg-card shadow-sm">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-bold text-sm text-foreground">{flag.name}</h3>
-                    <Badge variant={flag.isEnabled ? "default" : "outline"} className={flag.isEnabled ? "bg-emerald-600 text-white" : ""}>
-                      {flag.isEnabled ? "ON (AKTIF)" : "OFF (NON-AKTIF)"}
-                    </Badge>
-                  </div>
-                  <p className="font-mono text-[11px] text-muted-foreground mt-0.5">Key: {flag.key}</p>
-                  <p className="text-xs text-muted-foreground mt-2">{flag.description || "Tidak ada deskripsi."}</p>
-                </div>
+            {featureFlags.map((flag) => {
+              const isInUse = ['ocr_ktp_enabled', 'room_account_enabled', 'resident_forum_enabled'].includes(flag.key);
 
-                <div className="pt-2 border-t flex justify-end">
-                  <Button
-                    size="sm"
-                    variant={flag.isEnabled ? "default" : "outline"}
-                    onClick={() => handleToggleFlag(flag.id)}
-                    className="text-xs font-semibold h-8 gap-1.5"
-                  >
-                    {flag.isEnabled ? <IconToggleRight className="size-4 text-emerald-400" /> : <IconToggleLeft className="size-4" />}
-                    {flag.isEnabled ? "Nonaktifkan Fitur" : "Aktifkan Fitur"}
-                  </Button>
+              return (
+                <div key={flag.id} className="rounded-xl border p-4 flex flex-col justify-between space-y-3 bg-card shadow-sm">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-sm text-foreground">{flag.name}</h3>
+                        {isInUse && (
+                          <span className="text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                            Sedang Digunakan
+                          </span>
+                        )}
+                      </div>
+                      <Badge variant={flag.isEnabled ? "default" : "outline"} className={flag.isEnabled ? "bg-emerald-600 text-white shrink-0" : "shrink-0"}>
+                        {flag.isEnabled ? "ON (AKTIF)" : "OFF (NON-AKTIF)"}
+                      </Badge>
+                    </div>
+                    <p className="font-mono text-[11px] text-muted-foreground mt-0.5">Key: {flag.key}</p>
+                    <p className="text-xs text-muted-foreground mt-2">{flag.description || "Tidak ada deskripsi."}</p>
+                  </div>
+
+                  <div className="pt-2 border-t flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleOpenEditFlagModal(flag)}
+                        className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        title={isInUse ? "Edit Nama & Deskripsi Feature Flag" : "Edit Feature Flag"}
+                      >
+                        <IconPencil className="size-3.5 mr-1" /> Edit
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={isInUse}
+                        onClick={() => setDeleteConfirmFlag(flag)}
+                        className="h-8 px-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={isInUse ? "Feature flag sedang digunakan oleh sistem, tidak dapat dihapus" : "Hapus Feature Flag"}
+                      >
+                        <IconTrash className="size-3.5 mr-1" /> Hapus
+                      </Button>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      variant={flag.isEnabled ? "default" : "outline"}
+                      onClick={() => handleToggleFlag(flag.id)}
+                      className="text-xs font-semibold h-8 gap-1.5"
+                    >
+                      {flag.isEnabled ? <IconToggleRight className="size-4 text-emerald-400" /> : <IconToggleLeft className="size-4" />}
+                      {flag.isEnabled ? "Nonaktifkan Fitur" : "Aktifkan Fitur"}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -1149,12 +1244,13 @@ export function DynamicMenuManager() {
         </div>
       )}
 
-      {/* CREATE NEW FEATURE FLAG MODAL */}
+      {/* CREATE / EDIT FEATURE FLAG MODAL */}
       {showFlagModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-card border shadow-2xl p-6 space-y-4">
             <h3 className="text-lg font-extrabold text-foreground flex items-center gap-2">
-              <IconPlus className="size-5 text-amber-500" /> Buat Feature Flag Baru
+              {editFlagId ? <IconPencil className="size-5 text-amber-500" /> : <IconPlus className="size-5 text-amber-500" />}
+              {editFlagId ? "Edit Feature Flag" : "Buat Feature Flag Baru"}
             </h3>
 
             {/* Alert Error Notification inside Flag Modal */}
@@ -1170,7 +1266,7 @@ export function DynamicMenuManager() {
               </div>
             )}
 
-            <form onSubmit={handleCreateFlag} className="space-y-3 text-xs">
+            <form onSubmit={handleSaveFlag} className="space-y-3 text-xs">
               <div>
                 <label className="font-bold block mb-1">Key Flag (Unik)</label>
                 <input
@@ -1178,9 +1274,15 @@ export function DynamicMenuManager() {
                   placeholder="Contoh: auto_whatsapp_invoice_enabled"
                   value={newFlagKey}
                   onChange={(e) => setNewFlagKey(e.target.value.toLowerCase())}
-                  className="w-full rounded-lg border p-2.5 bg-background font-mono text-xs"
+                  disabled={Boolean(editFlagId && ['ocr_ktp_enabled', 'room_account_enabled', 'resident_forum_enabled'].includes(newFlagKey))}
+                  className="w-full rounded-lg border p-2.5 bg-background font-mono text-xs disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
                   required
                 />
+                {editFlagId && ['ocr_ktp_enabled', 'room_account_enabled', 'resident_forum_enabled'].includes(newFlagKey) && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 font-semibold">
+                    ℹ️ Key tidak dapat diubah karena fitur ini sedang digunakan oleh sistem.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -1206,15 +1308,66 @@ export function DynamicMenuManager() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => { setShowFlagModal(false); setModalErrorMsg(null); }}>
+                <Button type="button" variant="outline" size="sm" onClick={() => { setShowFlagModal(false); setModalErrorMsg(null); setEditFlagId(null); }}>
                   Batal
                 </Button>
                 <Button type="submit" size="sm" disabled={isSubmitting} className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold">
                   {isSubmitting ? <IconLoader2 className="size-4 animate-spin" /> : <IconCheck className="size-4" />}
-                  Simpan Feature Flag
+                  {editFlagId ? "Simpan Perubahan" : "Simpan Feature Flag"}
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE FEATURE FLAG CONFIRMATION DIALOG MODAL */}
+      {deleteConfirmFlag && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-sm rounded-2xl bg-card border shadow-2xl p-6 space-y-4 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-red-500/10 text-red-500 border border-red-500/20">
+              <IconTrash className="size-7" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-base font-extrabold text-foreground">Hapus Feature Flag?</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Apakah Anda yakin ingin menghapus feature flag <span className="font-bold text-foreground font-mono bg-muted px-1.5 py-0.5 rounded">"{deleteConfirmFlag.name}"</span>? Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+
+            {/* Alert Error Notification inside Delete Modal */}
+            {modalErrorMsg && (
+              <div className="flex items-start justify-between rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-xs font-semibold text-red-600 dark:text-red-400 animate-in fade-in duration-150 text-left">
+                <div className="flex items-start gap-2">
+                  <IconX className="size-4 shrink-0 text-red-500 mt-0.5" />
+                  <span className="leading-tight">{modalErrorMsg}</span>
+                </div>
+                <button type="button" onClick={() => setModalErrorMsg(null)} className="text-[11px] hover:underline shrink-0 ml-2">
+                  Tutup
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full text-xs font-semibold"
+                onClick={() => { setDeleteConfirmFlag(null); setModalErrorMsg(null); }}
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDeleteFlag}
+                className="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold gap-1.5"
+              >
+                {isDeleting ? <IconLoader2 className="size-4 animate-spin" /> : <IconTrash className="size-4" />}
+                Ya, Hapus
+              </Button>
+            </div>
           </div>
         </div>
       )}
