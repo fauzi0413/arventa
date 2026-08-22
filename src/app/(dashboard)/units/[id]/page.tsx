@@ -45,37 +45,52 @@ export default function UnitDetailPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedProps = localStorage.getItem('arventa_properties');
-    const storedUnits = localStorage.getItem('arventa_units');
+    const fetchUnitData = async () => {
+      // 1. Try API fetch
+      try {
+        const res = await fetch(`/api/units/${id}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data) {
+            setUnit(json.data);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('API unit detail fetch error:', err);
+      }
 
-    let loadedProps: Property[] = [];
-    let loadedUnits: Unit[] = [];
+      // 2. Fallback to Local Storage
+      const storedProps = localStorage.getItem('arventa_properties');
+      const storedUnits = localStorage.getItem('arventa_units');
 
-    if (storedProps) loadedProps = JSON.parse(storedProps);
-    if (storedUnits) loadedUnits = JSON.parse(storedUnits);
+      let loadedProps: Property[] = [];
+      let loadedUnits: Unit[] = [];
 
-    const found = loadedUnits.find((u) => u.id === id);
+      if (storedProps) loadedProps = JSON.parse(storedProps);
+      if (storedUnits) loadedUnits = JSON.parse(storedUnits);
 
-    // Auto generate room credentials if missing
-    if (found && (!found.roomEmail || !found.roomPassword)) {
-      const cleanName = found.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      found.roomEmail = `${cleanName || 'kamar'}@arventa.id`;
-      found.roomPassword = `Arv!${Math.random().toString(36).substring(2, 8)}`;
-      found.roomPasswordLastReset = new Date().toISOString();
+      const found = loadedUnits.find((u) => u.id === id);
 
-      const updated = loadedUnits.map((u) => (u.id === found.id ? found : u));
-      localStorage.setItem('arventa_units', JSON.stringify(updated));
-    }
+      if (found && (!found.roomEmail || !found.roomPassword)) {
+        const cleanName = found.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        found.roomEmail = `${cleanName || 'kamar'}@arventa.id`;
+        found.roomPassword = `Arv!${Math.random().toString(36).substring(2, 8)}`;
+        found.roomPasswordLastReset = new Date().toISOString();
 
-    const timer = setTimeout(() => {
+        const updated = loadedUnits.map((u) => (u.id === found.id ? found : u));
+        localStorage.setItem('arventa_units', JSON.stringify(updated));
+      }
+
       setProperties(loadedProps);
       if (found) {
         setUnit(found);
       }
       setLoading(false);
-    }, 0);
+    };
 
-    return () => clearTimeout(timer);
+    fetchUnitData();
   }, [id]);
 
   if (loading) {

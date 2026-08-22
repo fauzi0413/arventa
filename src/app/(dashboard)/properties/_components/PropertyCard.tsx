@@ -20,18 +20,30 @@ export default function PropertyCard({
   onEdit,
   onDelete,
 }: PropertyCardProps) {
-  const [totalUnits, setTotalUnits] = useState(0);
-  const [occupiedUnits, setOccupiedUnits] = useState(0);
+  const [totalUnits, setTotalUnits] = useState(property.totalUnits ?? 0);
+  const [occupiedUnits, setOccupiedUnits] = useState(property.occupiedUnits ?? 0);
 
   useEffect(() => {
     const storedUnits = localStorage.getItem('arventa_units');
     if (storedUnits) {
-      const allUnits = JSON.parse(storedUnits);
-      const propUnits = allUnits.filter((u: any) => u.propertyId === property.id);
-      setTotalUnits(propUnits.length);
-      setOccupiedUnits(propUnits.filter((u: any) => u.status === 'Occupied').length);
+      try {
+        const allUnits = JSON.parse(storedUnits);
+        const propUnits = allUnits.filter((u: any) => u.propertyId === property.id);
+        if (propUnits.length > 0) {
+          setTotalUnits(propUnits.length);
+          setOccupiedUnits(
+            propUnits.filter((u: any) => u.status === 'Occupied' || u.status === 'OCCUPIED').length
+          );
+          return;
+        }
+      } catch (e) {
+        console.error('Error parsing stored units:', e);
+      }
     }
-  }, [property.id]);
+
+    setTotalUnits(property.totalUnits ?? 0);
+    setOccupiedUnits(property.occupiedUnits ?? 0);
+  }, [property.id, property.totalUnits, property.occupiedUnits]);
 
   const occupancyRate = totalUnits > 0 
     ? Math.round((occupiedUnits / totalUnits) * 100) 

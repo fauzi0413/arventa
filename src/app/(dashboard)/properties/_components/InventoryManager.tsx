@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Trash2, Edit3, MessageCircle, AlertCircle, Filter, CheckCircle2, Wrench } from 'lucide-react';
 import { InventoryItem, InventoryCondition } from '../_types';
 import PhotoUploader from './PhotoUploader';
@@ -45,52 +45,135 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
   const [imageUrl, setImageUrl] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Load from localStorage asynchronously
+  const [loading, setLoading] = useState(true);
+
+  // Load inventory from API or localStorage
   useEffect(() => {
-    const storedItems = localStorage.getItem('arventa_inventory');
-    const storedUnits = localStorage.getItem('arventa_units');
+    const loadInventory = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/properties/${propertyId}`);
+        if (res.ok) {
+          const json = await res.json();
+          const p = json.data;
+          if (p && Array.isArray(p.units)) {
+            const dbItems: InventoryItem[] = [];
+            const dbUnits: Unit[] = [];
 
-    let loadedItems: InventoryItem[] = [];
-    if (storedItems) {
-      loadedItems = JSON.parse(storedItems);
-    } else {
-      // Seed default items
-      loadedItems = [
-        {
-          id: 'inv-1',
-          propertyId,
-          unitId: 'unit-1',
-          unitName: 'Kamar 101',
-          name: 'AC',
-          condition: 'Baik',
-          imageUrl: 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&q=80&w=200',
-          lastUpdated: new Date().toISOString(),
-        },
-        {
-          id: 'inv-2',
-          propertyId,
-          unitId: 'unit-2',
-          unitName: 'Kamar 102',
-          name: 'Kasur Springbed',
-          condition: 'Perlu Perbaikan',
-          imageUrl: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
-          lastUpdated: new Date().toISOString(),
-        },
-      ];
-      localStorage.setItem('arventa_inventory', JSON.stringify(loadedItems));
-    }
+            const statusMap: Record<string, any> = {
+              AVAILABLE: 'Available',
+              OCCUPIED: 'Occupied',
+              MAINTENANCE: 'Maintenance',
+              CLEANING: 'Need Cleaning',
+            };
 
-    let loadedUnits: Unit[] = [];
-    if (storedUnits) {
-      loadedUnits = JSON.parse(storedUnits).filter((u: Unit) => u.propertyId === propertyId);
-    }
+            p.units.forEach((u: any) => {
+              dbUnits.push({
+                id: u.id,
+                propertyId: p.id,
+                name: u.unitNumber,
+                status: statusMap[u.status] || 'Available',
+                facilities: u.facilities || [],
+                capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
+                pricing: { monthly: Number(u.basePrice) || 1500000, deposit: 500000 },
+                description: `Lantai ${u.floor || 1}`,
+                createdAt: u.createdAt || new Date().toISOString(),
+              });
 
-    const timer = setTimeout(() => {
-      setItems(loadedItems.filter((item) => item.propertyId === propertyId));
+              if (Array.isArray(u.inventories) && u.inventories.length > 0) {
+                u.inventories.forEach((inv: any) => {
+                  dbItems.push({
+                    id: inv.id,
+                    propertyId: p.id,
+                    unitId: u.id,
+                    unitName: u.unitNumber,
+                    name: inv.itemName,
+                    condition: (inv.condition as InventoryCondition) || 'Baik',
+                    imageUrl: inv.imageUrl || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
+                    lastUpdated: inv.updatedAt || new Date().toISOString(),
+                  });
+                });
+              }
+            });
+
+            setUnits(dbUnits);
+
+            if (dbItems.length > 0) {
+              setItems(dbItems);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('API fetch inventory notice: using fallback', err);
+      }
+
+      // Local storage fallback with default seed items for this propertyId
+      const storedItems = localStorage.getItem('arventa_inventory');
+      const storedUnits = localStorage.getItem('arventa_units');
+
+      let loadedItems: InventoryItem[] = storedItems ? JSON.parse(storedItems) : [];
+      let loadedUnits: Unit[] = storedUnits ? JSON.parse(storedUnits).filter((u: Unit) => u.propertyId === propertyId) : [];
+
+      const propItems = loadedItems.filter((item) => item.propertyId === propertyId);
+      if (propItems.length === 0) {
+        const defaultSeedItems: InventoryItem[] = [
+          {
+            id: `inv-${Date.now()}-1`,
+            propertyId,
+            unitId: loadedUnits[0]?.id || 'unit-1',
+            unitName: loadedUnits[0]?.name || 'Apt 12B-01',
+            name: 'Kasur Springbed',
+            condition: 'Baik',
+            imageUrl: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
+            lastUpdated: new Date().toISOString(),
+          },
+          {
+            id: `inv-${Date.now()}-2`,
+            propertyId,
+            unitId: loadedUnits[0]?.id || 'unit-1',
+            unitName: loadedUnits[0]?.name || 'Apt 12B-01',
+            name: 'AC LG 1PK',
+            condition: 'Baik',
+            imageUrl: 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&q=80&w=200',
+            lastUpdated: new Date().toISOString(),
+          },
+          {
+            id: `inv-${Date.now()}-3`,
+            propertyId,
+            unitId: loadedUnits[1]?.id || 'unit-2',
+            unitName: loadedUnits[1]?.name || 'Apt 12B-02',
+            name: 'Smart TV 32 inch',
+            condition: 'Baik',
+            imageUrl: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&q=80&w=200',
+            lastUpdated: new Date().toISOString(),
+          },
+          {
+            id: `inv-${Date.now()}-4`,
+            propertyId,
+            unitId: loadedUnits[1]?.id || 'unit-2',
+            unitName: loadedUnits[1]?.name || 'Apt 12B-02',
+            name: 'Lemari Pakaian',
+            condition: 'Baik',
+            imageUrl: 'https://images.unsplash.com/photo-1558997519-83ea9252edf8?auto=format&fit=crop&q=80&w=200',
+            lastUpdated: new Date().toISOString(),
+          },
+        ];
+
+        const mergedItems = [...loadedItems, ...defaultSeedItems];
+        localStorage.setItem('arventa_inventory', JSON.stringify(mergedItems));
+        setItems(defaultSeedItems);
+      } else {
+        setItems(propItems);
+      }
       setUnits(loadedUnits);
-    }, 0);
+      setLoading(false);
+    };
 
-    return () => clearTimeout(timer);
+    loadInventory();
+
+    loadInventory();
   }, [propertyId]);
 
   const saveItems = (updatedItems: InventoryItem[]) => {
@@ -202,12 +285,49 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
     window.open(waUrl, '_blank');
   };
 
-  // Filter Logic
-  const filteredItems = items.filter((item) => {
-    if (selectedUnitId === 'all') return true;
-    if (selectedUnitId === 'umum') return !item.unitId;
-    return item.unitId === selectedUnitId;
-  });
+  // Filter & Deduplicate Logic for Property-level inventory view
+  const displayItems = useMemo(() => {
+    if (selectedUnitId !== 'all') {
+      return items.filter((item) => {
+        if (selectedUnitId === 'umum') return !item.unitId;
+        return item.unitId === selectedUnitId;
+      });
+    }
+
+    // When viewing 'Semua Lokasi / Kamar' at property level:
+    // Deduplicate / group items by item name to present a clean per-property inventory view
+    const groupedMap = new Map<string, { item: InventoryItem; totalCount: number; unitNames: string[] }>();
+
+    items.forEach((item) => {
+      const key = item.name.trim().toLowerCase();
+      const existing = groupedMap.get(key);
+      if (existing) {
+        existing.totalCount += 1;
+        if (item.unitName && !existing.unitNames.includes(item.unitName)) {
+          existing.unitNames.push(item.unitName);
+        }
+      } else {
+        groupedMap.set(key, {
+          item: { ...item },
+          totalCount: 1,
+          unitNames: item.unitName ? [item.unitName] : [],
+        });
+      }
+    });
+
+    return Array.from(groupedMap.values()).map(({ item, totalCount, unitNames }) => {
+      let locationBadge = 'Area Umum';
+      if (unitNames.length === 1) {
+        locationBadge = `Unit: ${unitNames[0]}`;
+      } else if (unitNames.length > 1) {
+        locationBadge = `${totalCount} Unit (${unitNames.join(', ')})`;
+      }
+      return {
+        ...item,
+        unitName: locationBadge,
+      };
+    });
+  }, [items, selectedUnitId]);
 
   return (
     <div className="space-y-6">
@@ -336,15 +456,28 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
       )}
 
       {/* Grid of Items */}
-      {filteredItems.length === 0 ? (
+      {loading ? (
+        <div className="flex h-52 items-center justify-center rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-8 shadow-xs">
+          <div className="text-center space-y-2.5">
+            <div className="h-7 w-7 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
+            <p className="text-xs text-gray-500 font-bold">Memuat barang inventaris dari database...</p>
+          </div>
+        </div>
+      ) : displayItems.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm">
           <p className="text-sm font-semibold text-gray-400">Tidak ada barang inventaris terdaftar untuk filter ini.</p>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {filteredItems.map((item) => {
+          {displayItems.map((item: InventoryItem) => {
             const condStyle = CONDITION_COLORS(item.condition);
             const CondIcon = condStyle.icon;
+            const badgeText = item.unitName
+              ? item.unitName.includes('Unit') || item.unitName.includes('Area')
+                ? item.unitName
+                : `Unit: ${item.unitName}`
+              : 'Area Umum';
+
             return (
               <div
                 key={item.id}
@@ -366,8 +499,8 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
                   <div className="flex-1 space-y-1.5 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <h5 className="font-bold text-gray-800 truncate">{item.name}</h5>
-                      <span className="text-[10px] text-gray-400 font-semibold shrink-0">
-                        {item.unitName ? `Unit: ${item.unitName}` : 'Area Umum'}
+                      <span className="text-[10px] text-[#8FA28A] font-bold shrink-0 bg-[#8FA28A]/10 px-2 py-0.5 rounded-full border border-[#8FA28A]/20">
+                        {badgeText}
                       </span>
                     </div>
 

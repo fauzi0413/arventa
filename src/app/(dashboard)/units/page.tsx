@@ -87,31 +87,81 @@ function UnitsPageContent() {
     router.replace(`/units?${params.toString()}`);
   };
 
-  // Load data from localStorage
-  useEffect(() => {
+  const fetchUnitsAndProperties = async () => {
+    try {
+      const res = await fetch('/api/properties?limit=50');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.data) && json.data.length > 0) {
+          const typeToCat: Record<string, string> = {
+            KOS: 'cat-1',
+            APARTEMEN: 'cat-2',
+            KONTRAKAN: 'cat-3',
+            RUKO: 'cat-4',
+          };
+          const mappedProps: Property[] = json.data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            categoryId: typeToCat[p.type] || 'cat-1',
+            statusId: 'st-1',
+            totalUnits: p.units?.length || 0,
+            occupiedUnits: p.units?.filter((u: any) => u.status === 'OCCUPIED').length || 0,
+            description: p.description || '',
+            imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5',
+            hasCleaningService: p.hasCleaningService ?? true,
+            createdAt: p.createdAt || new Date().toISOString(),
+          }));
+
+          const statusMap: Record<string, UnitStatus> = {
+            AVAILABLE: 'Available',
+            OCCUPIED: 'Occupied',
+            MAINTENANCE: 'Maintenance',
+            CLEANING: 'Need Cleaning',
+          };
+
+          const allMappedUnits: Unit[] = [];
+          json.data.forEach((p: any) => {
+            if (Array.isArray(p.units)) {
+              p.units.forEach((u: any) => {
+                allMappedUnits.push({
+                  id: u.id,
+                  propertyId: p.id,
+                  name: u.unitNumber,
+                  status: statusMap[u.status] || 'Available',
+                  facilities: u.facilities || ['AC', 'WiFi', 'Kamar Mandi Dalam'],
+                  capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
+                  pricing: { monthly: Number(u.basePrice) || 1500000, deposit: 500000 },
+                  description: `Lantai ${u.floor || 1}`,
+                  createdAt: u.createdAt || new Date().toISOString(),
+                });
+              });
+            }
+          });
+
+          setProperties(mappedProps);
+          setUnits(allMappedUnits);
+          localStorage.setItem('arventa_properties', JSON.stringify(mappedProps));
+          localStorage.setItem('arventa_units', JSON.stringify(allMappedUnits));
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Notice: fallback to local storage for units', err);
+    }
+
     const storedProps = localStorage.getItem('arventa_properties');
     const storedUnits = localStorage.getItem('arventa_units');
+    let loadedProps: Property[] = storedProps ? JSON.parse(storedProps) : [];
+    let loadedUnits: Unit[] = storedUnits ? JSON.parse(storedUnits) : [];
+    setProperties(loadedProps);
+    setUnits(loadedUnits);
+    setLoading(false);
+  };
 
-    let loadedProps: Property[] = [];
-    if (storedProps) {
-      loadedProps = JSON.parse(storedProps);
-    }
-
-    const propId1 = loadedProps[0]?.id || 'prop-1';
-    const propId2 = loadedProps[1]?.id || 'prop-2';
-
-    const loadedUnits = storedUnits ? JSON.parse(storedUnits) : DEFAULT_UNITS(propId1, propId2);
-    if (!storedUnits) {
-      localStorage.setItem('arventa_units', JSON.stringify(DEFAULT_UNITS(propId1, propId2)));
-    }
-
-    const timer = setTimeout(() => {
-      setProperties(loadedProps);
-      setUnits(loadedUnits);
-      setLoading(false);
-    }, 0);
-
-    return () => clearTimeout(timer);
+  useEffect(() => {
+    fetchUnitsAndProperties();
   }, []);
 
   const saveUnits = (updated: Unit[]) => {

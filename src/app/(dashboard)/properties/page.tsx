@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Filter, LayoutGrid, Layers, CheckSquare } from 'lucide-react';
+import { Search, Plus, Filter, LayoutGrid, Layers, CheckSquare, RefreshCw } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from './_types';
 import PropertyCard from './_components/PropertyCard';
 import PropertyFormModal from './_components/PropertyFormModal';
@@ -61,10 +61,40 @@ const DEFAULT_PROPERTIES: Property[] = [
   },
 ];
 
+function mapApiPropertyToFrontend(p: any): Property {
+  const typeToCat: Record<string, string> = {
+    KOS: 'cat-1',
+    APARTEMEN: 'cat-2',
+    KONTRAKAN: 'cat-3',
+    RUKO: 'cat-4',
+  };
+
+  const categoryId = typeToCat[p.type] || 'cat-1';
+  const units = p.units || [];
+  const totalUnits = p._count?.units || units.length || 0;
+  const occupiedUnits = units.filter((u: any) => u.status === 'OCCUPIED' || u.status === 'Occupied').length;
+  const statusId = (totalUnits > 0 && occupiedUnits === totalUnits) ? 'st-4' : 'st-1';
+
+  return {
+    id: p.id,
+    name: p.name,
+    address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+    categoryId,
+    statusId,
+    totalUnits,
+    occupiedUnits,
+    description: p.description || '',
+    imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
+    hasCleaningService: p.hasCleaningService ?? true,
+    createdAt: p.createdAt || new Date().toISOString(),
+  };
+}
+
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [categories, setCategories] = useState<PropertyCategory[]>([]);
   const [statuses, setStatuses] = useState<PropertyStatus[]>([]);
+  const [loading, setLoading] = useState(true);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,27 +107,45 @@ export default function PropertiesPage() {
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
 
-  // Load from local storage asynchronously to bypass set-state-in-effect rule
-  useEffect(() => {
+  // Fetch properties from API (Prisma Database)
+  const fetchProperties = async () => {
+    try {
+      const res = await fetch('/api/properties?limit=50');
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.data) && json.data.length > 0) {
+          const mapped = json.data.map(mapApiPropertyToFrontend);
+          setProperties(mapped);
+          localStorage.setItem('arventa_properties', JSON.stringify(mapped));
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('API fetch properties notice: using local storage cache', err);
+    }
+
+    // Fallback local storage
     const storedProps = localStorage.getItem('arventa_properties');
+    const props = storedProps ? JSON.parse(storedProps) : DEFAULT_PROPERTIES;
+    setProperties(props);
+    setLoading(false);
+  };
+
+  useEffect(() => {
     const storedCats = localStorage.getItem('arventa_categories');
     const storedStats = localStorage.getItem('arventa_statuses');
 
-    const props = storedProps ? JSON.parse(storedProps) : DEFAULT_PROPERTIES;
     const cats = storedCats ? JSON.parse(storedCats) : DEFAULT_CATEGORIES;
     const stats = storedStats ? JSON.parse(storedStats) : DEFAULT_STATUSES;
 
-    if (!storedProps) localStorage.setItem('arventa_properties', JSON.stringify(DEFAULT_PROPERTIES));
     if (!storedCats) localStorage.setItem('arventa_categories', JSON.stringify(DEFAULT_CATEGORIES));
     if (!storedStats) localStorage.setItem('arventa_statuses', JSON.stringify(DEFAULT_STATUSES));
 
-    const timer = setTimeout(() => {
-      setProperties(props);
-      setCategories(cats);
-      setStatuses(stats);
-    }, 0);
+    setCategories(cats);
+    setStatuses(stats);
 
-    return () => clearTimeout(timer);
+    fetchProperties();
   }, []);
 
   // Sync to local storage
@@ -117,18 +165,72 @@ export default function PropertiesPage() {
   };
 
   // Property Handlers
-  const handleAddOrEditProperty = (data: Omit<Property, 'id' | 'createdAt'>) => {
+  const handleAddOrEditProperty = async (data: Omit<Property, 'id' | 'createdAt'>) => {
+    const catToType: Record<string, string> = {
+      'cat-1': 'KOS',
+      'cat-2': 'APARTEMEN',
+      'cat-3': 'KONTRAKAN',
+      'cat-4': 'RUKO',
+    };
+
     if (editingProperty) {
-      // Update
+      // Update API
+      try {
+        const res = await fetch(`/api/properties/${editingProperty.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: data.name,
+            address: data.address,
+            type: catToType[data.categoryId] || 'KOS',
+            description: data.description,
+            coverImage: data.imageUrl,
+            hasCleaningService: data.hasCleaningService,
+          }),
+        });
+
+        if (res.ok) {
+          await fetchProperties();
+          setEditingProperty(null);
+          return;
+        }
+      } catch (err) {
+        console.warn('API update property error, updating locally', err);
+      }
+
+      // Local fallback
       const updated = properties.map((p) =>
-        p.id === editingProperty.id
-          ? { ...p, ...data }
-          : p
+        p.id === editingProperty.id ? { ...p, ...data } : p
       );
       saveProperties(updated);
       setEditingProperty(null);
     } else {
-      // Create
+      // Create API
+      try {
+        const res = await fetch('/api/properties', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ownerId: 'owner-head-1',
+            name: data.name,
+            address: data.address,
+            city: 'Bandung',
+            type: catToType[data.categoryId] || 'KOS',
+            description: data.description,
+            coverImage: data.imageUrl,
+            hasCleaningService: data.hasCleaningService ?? true,
+          }),
+        });
+
+        if (res.ok) {
+          await fetchProperties();
+          return;
+        }
+      } catch (err) {
+        console.warn('API create property error, saving locally', err);
+      }
+
+      // Local fallback
       const newProperty: Property = {
         ...data,
         id: `prop-${Date.now()}`,
@@ -138,8 +240,20 @@ export default function PropertiesPage() {
     }
   };
 
-  const handleDeleteProperty = (id: string) => {
+  const handleDeleteProperty = async (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus properti ini?')) {
+      try {
+        const res = await fetch(`/api/properties/${id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          await fetchProperties();
+          return;
+        }
+      } catch (err) {
+        console.warn('API delete property notice: deleting locally', err);
+      }
+
       const updated = properties.filter((p) => p.id !== id);
       saveProperties(updated);
     }
@@ -178,12 +292,12 @@ export default function PropertiesPage() {
 
   // Status Handlers
   const handleAddStatus = (name: string, color: string) => {
-    const newSt: PropertyStatus = {
+    const newStat: PropertyStatus = {
       id: `st-${Date.now()}`,
       name,
       color,
     };
-    saveStatuses([...statuses, newSt]);
+    saveStatuses([...statuses, newStat]);
   };
 
   const handleEditStatus = (id: string, name: string, color: string) => {
@@ -202,19 +316,24 @@ export default function PropertiesPage() {
     saveStatuses(updated);
   };
 
-  // Filtering Logic
-  const filteredProperties = properties.filter((p) => {
+  // Filter Logic
+  const filteredProperties = properties.filter((prop) => {
     const matchesSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.address.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategoryId === 'all' || p.categoryId === selectedCategoryId;
-    const matchesStatus = selectedStatusId === 'all' || p.statusId === selectedStatusId;
+      prop.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      prop.address.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesCategory =
+      selectedCategoryId === 'all' || prop.categoryId === selectedCategoryId;
+
+    const matchesStatus =
+      selectedStatusId === 'all' || prop.statusId === selectedStatusId;
+
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
   return (
     <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-6 rounded-2xl border border-[#C7D3C0]/40">
-      {/* Top Header Card */}
+      {/* Top Bar Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-black text-gray-800 flex items-center gap-2">
@@ -226,20 +345,20 @@ export default function PropertiesPage() {
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Management Controls & Add Button */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsCategoryOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-[#C7D3C0] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-[#C7D3C0]/20 transition-all shadow-sm"
+            className="flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
           >
-            <Layers className="h-4 w-4 text-gray-500" />
+            <Layers className="h-3.5 w-3.5 text-[#8FA28A]" />
             Kategori
           </button>
           <button
             onClick={() => setIsStatusOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-[#C7D3C0] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-[#C7D3C0]/20 transition-all shadow-sm"
+            className="flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
           >
-            <CheckSquare className="h-4 w-4 text-gray-500" />
+            <CheckSquare className="h-3.5 w-3.5 text-[#8FA28A]" />
             Status
           </button>
           <button
@@ -247,7 +366,7 @@ export default function PropertiesPage() {
               setEditingProperty(null);
               setIsFormOpen(true);
             }}
-            className="flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-black transition-all shadow-sm hover:shadow"
+            className="flex items-center gap-2 rounded-xl bg-[#8FA28A] px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-[#7D9178] transition-all"
           >
             <Plus className="h-4 w-4" />
             Tambah Properti
@@ -255,8 +374,8 @@ export default function PropertiesPage() {
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center">
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-xs md:flex-row md:items-center">
         {/* Search */}
         <div className="relative flex-1">
           <Search className="absolute top-2.5 left-3.5 h-4 w-4 text-gray-400" />
@@ -265,34 +384,33 @@ export default function PropertiesPage() {
             placeholder="Cari nama properti atau alamat..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2 text-sm text-gray-800 focus:border-[#8FA28A] focus:bg-white focus:outline-none transition-all"
+            className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2 text-xs focus:border-[#8FA28A] focus:bg-white focus:outline-none transition-all"
           />
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Category Filter */}
-          <div className="flex items-center gap-1.5">
-            <Filter className="h-3.5 w-3.5 text-gray-400" />
-            <select
-              value={selectedCategoryId}
-              onChange={(e) => setSelectedCategoryId(e.target.value)}
-              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none"
-            >
-              <option value="all">Semua Kategori</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Filter Category */}
+        <div className="flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5 text-gray-400" />
+          <select
+            value={selectedCategoryId}
+            onChange={(e) => setSelectedCategoryId(e.target.value)}
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 focus:border-[#8FA28A] focus:outline-none"
+          >
+            <option value="all">Semua Kategori</option>
+            {categories.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          {/* Status Filter */}
+        {/* Filter Status */}
+        <div className="flex items-center gap-1.5">
           <select
             value={selectedStatusId}
             onChange={(e) => setSelectedStatusId(e.target.value)}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none"
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 focus:border-[#8FA28A] focus:outline-none"
           >
             <option value="all">Semua Status</option>
             {statuses.map((st) => (
@@ -304,31 +422,27 @@ export default function PropertiesPage() {
         </div>
       </div>
 
-      {/* Main Grid View */}
-      {filteredProperties.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm">
-          <p className="text-sm font-semibold text-gray-400">
-            Tidak ada properti ditemukan dengan kriteria pencarian ini.
-          </p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setSelectedCategoryId('all');
-              setSelectedStatusId('all');
-            }}
-            className="mt-3 text-xs font-bold text-[#8FA28A] hover:underline"
-          >
-            Reset filter
-          </button>
+      {/* Property Cards Grid */}
+      {loading ? (
+        <div className="flex h-60 items-center justify-center">
+          <div className="text-center space-y-2">
+            <div className="h-7 w-7 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
+            <p className="text-xs text-gray-500 font-medium">Memuat data properti dari database...</p>
+          </div>
+        </div>
+      ) : filteredProperties.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-xs space-y-2">
+          <p className="text-sm font-bold text-gray-600">Tidak ada properti ditemukan.</p>
+          <p className="text-xs text-gray-400">Coba ubah kata kunci pencarian atau filter kategori/status.</p>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredProperties.map((property) => (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredProperties.map((prop) => (
             <PropertyCard
-              key={property.id}
-              property={property}
-              category={categories.find((c) => c.id === property.categoryId)}
-              status={statuses.find((s) => s.id === property.statusId)}
+              key={prop.id}
+              property={prop}
+              category={categories.find((c) => c.id === prop.categoryId)}
+              status={statuses.find((s) => s.id === prop.statusId)}
               onEdit={triggerEditProperty}
               onDelete={handleDeleteProperty}
             />
@@ -338,16 +452,15 @@ export default function PropertiesPage() {
 
       {/* Modals */}
       <PropertyFormModal
-        key={editingProperty ? editingProperty.id : 'new-property'}
         isOpen={isFormOpen}
         onClose={() => {
           setIsFormOpen(false);
           setEditingProperty(null);
         }}
         onSubmit={handleAddOrEditProperty}
+        initialData={editingProperty}
         categories={categories}
         statuses={statuses}
-        initialData={editingProperty}
       />
 
       <CategoryManager

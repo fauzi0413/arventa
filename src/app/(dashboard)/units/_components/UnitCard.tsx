@@ -4,12 +4,14 @@ import React from 'react';
 import Link from 'next/link';
 import { Edit3, Trash2, ArrowRight, Maximize2, Users, Receipt, UserCheck, Check } from 'lucide-react';
 import { Unit, UnitStatus } from '../_types';
+import UnitStatusBadgeDropdown from './UnitStatusBadgeDropdown';
 
 interface UnitCardProps {
   unit: Unit;
   propertyName: string;
   onEdit: (unit: Unit) => void;
   onDelete: (id: string) => void;
+  onStatusChange?: (unitId: string, newStatus: UnitStatus) => void;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
   selectable?: boolean;
@@ -20,6 +22,7 @@ export default function UnitCard({
   propertyName,
   onEdit,
   onDelete,
+  onStatusChange,
   isSelected = false,
   onToggleSelect,
   selectable = true,
@@ -90,9 +93,11 @@ export default function UnitCard({
             </div>
           </div>
 
-          <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider shrink-0 ${statusStyle.bg}`}>
-            {statusStyle.label}
-          </span>
+          <UnitStatusBadgeDropdown
+            status={unit.status}
+            onChange={(newStatus) => onStatusChange && onStatusChange(unit.id, newStatus)}
+            disabled={!onStatusChange}
+          />
         </div>
 
         {/* Pricing Detail Indicator */}

@@ -65,6 +65,7 @@ export class PropertyService {
             select: {
               id: true,
               unitNumber: true,
+              status: true,
             },
             orderBy: {
               unitNumber: "asc",
@@ -110,6 +111,7 @@ export class PropertyService {
         units: {
           orderBy: { unitNumber: "asc" },
           include: {
+            inventories: true,
             _count: {
               select: {
                 inventories: true,

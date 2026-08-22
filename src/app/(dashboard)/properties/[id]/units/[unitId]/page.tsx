@@ -103,48 +103,133 @@ export default function PropertyUnitDetailPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedProps = localStorage.getItem('arventa_properties');
-    const storedUnits = localStorage.getItem('arventa_units');
-    const storedInventory = localStorage.getItem('arventa_inventory');
+    const fetchUnitData = async () => {
+      // 1. Attempt API fetch
+      try {
+        const res = await fetch(`/api/units/${unitId}`);
+        if (res.ok) {
+          const json = await res.json();
+          const uData = json.data;
+          if (uData) {
+            let pData: Property | null = null;
+            try {
+              const pRes = await fetch(`/api/properties/${propertyId}`);
+              if (pRes.ok) {
+                const pJson = await pRes.json();
+                const pRaw = pJson.data;
+                if (pRaw) {
+                  const typeToCat: Record<string, string> = {
+                    KOS: 'cat-1',
+                    APARTEMEN: 'cat-2',
+                    KONTRAKAN: 'cat-3',
+                    RUKO: 'cat-4',
+                  };
+                  pData = {
+                    id: pRaw.id,
+                    name: pRaw.name,
+                    address: `${pRaw.address}${pRaw.city ? `, ${pRaw.city}` : ''}`,
+                    categoryId: typeToCat[pRaw.type] || 'cat-1',
+                    statusId: 'st-1',
+                    totalUnits: pRaw.units?.length || 0,
+                    occupiedUnits: pRaw.units?.filter((u: any) => u.status === 'OCCUPIED' || u.status === 'Occupied').length || 0,
+                    description: pRaw.description || '',
+                    imageUrl: pRaw.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
+                    hasCleaningService: pRaw.hasCleaningService ?? true,
+                    createdAt: pRaw.createdAt || new Date().toISOString(),
+                  };
+                }
+              }
+            } catch (err) {
+              console.warn('API property detail error:', err);
+            }
 
-    let loadedProps: Property[] = [];
-    let loadedUnits: Unit[] = [];
-    let loadedInventory: InventoryItem[] = [];
+            if (!pData) {
+              const storedProps = localStorage.getItem('arventa_properties');
+              if (storedProps) {
+                const loadedProps: Property[] = JSON.parse(storedProps);
+                pData = loadedProps.find((p) => p.id === propertyId) || null;
+              }
+            }
 
-    if (storedProps) loadedProps = JSON.parse(storedProps);
-    if (storedUnits) loadedUnits = JSON.parse(storedUnits);
-    if (storedInventory) loadedInventory = JSON.parse(storedInventory);
+            if (!pData) {
+              pData = {
+                id: propertyId,
+                name: uData.propertyName || 'Properti',
+                address: 'Bandung',
+                categoryId: 'cat-1',
+                statusId: 'st-1',
+                totalUnits: 1,
+                occupiedUnits: uData.status === 'Occupied' ? 1 : 0,
+                description: '',
+                hasCleaningService: true,
+                createdAt: new Date().toISOString(),
+              };
+            }
 
-    const foundProp = loadedProps.find((p) => p.id === propertyId);
-    const foundUnit = loadedUnits.find((u) => u.id === unitId);
+            setProperty(pData);
+            setUnit(uData);
 
-    if (foundUnit && (!foundUnit.roomEmail || !foundUnit.roomPassword)) {
-      const cleanName = foundUnit.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      foundUnit.roomEmail = `${cleanName || 'kamar'}@arventa.id`;
-      foundUnit.roomPassword = `Arv!${Math.random().toString(36).substring(2, 8)}`;
-      foundUnit.roomPasswordLastReset = new Date().toISOString();
+            const storedInventory = localStorage.getItem('arventa_inventory');
+            let loadedInventory: InventoryItem[] = storedInventory ? JSON.parse(storedInventory) : [];
+            let unitInventory = (uData.inventories && uData.inventories.length > 0)
+              ? uData.inventories
+              : loadedInventory.filter((item) => item.unitId === unitId);
 
-      const updated = loadedUnits.map((u) => (u.id === foundUnit.id ? foundUnit : u));
-      localStorage.setItem('arventa_units', JSON.stringify(updated));
-    }
+            if (unitInventory.length === 0) {
+              unitInventory = DEFAULT_INVENTORIES(propertyId, unitId, uData.name);
+            }
 
-    let unitInventory = loadedInventory.filter((item) => item.unitId === unitId);
+            setInventories(unitInventory);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('API unit detail error notice: falling back to local storage', err);
+      }
 
-    if (unitInventory.length === 0 && foundProp && foundUnit) {
-      const defaults = DEFAULT_INVENTORIES(propertyId, unitId, foundUnit.name);
-      const updatedMasterInventory = [...loadedInventory, ...defaults];
-      localStorage.setItem('arventa_inventory', JSON.stringify(updatedMasterInventory));
-      unitInventory = defaults;
-    }
+      // 2. Fallback to LocalStorage
+      const storedProps = localStorage.getItem('arventa_properties');
+      const storedUnits = localStorage.getItem('arventa_units');
+      const storedInventory = localStorage.getItem('arventa_inventory');
 
-    const timer = setTimeout(() => {
+      let loadedProps: Property[] = [];
+      let loadedUnits: Unit[] = [];
+      let loadedInventory: InventoryItem[] = [];
+
+      if (storedProps) loadedProps = JSON.parse(storedProps);
+      if (storedUnits) loadedUnits = JSON.parse(storedUnits);
+      if (storedInventory) loadedInventory = JSON.parse(storedInventory);
+
+      const foundProp = loadedProps.find((p) => p.id === propertyId);
+      const foundUnit = loadedUnits.find((u) => u.id === unitId);
+
+      if (foundUnit && (!foundUnit.roomEmail || !foundUnit.roomPassword)) {
+        const cleanName = foundUnit.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        foundUnit.roomEmail = `${cleanName || 'kamar'}@arventa.id`;
+        foundUnit.roomPassword = `Arv!${Math.random().toString(36).substring(2, 8)}`;
+        foundUnit.roomPasswordLastReset = new Date().toISOString();
+
+        const updated = loadedUnits.map((u) => (u.id === foundUnit.id ? foundUnit : u));
+        localStorage.setItem('arventa_units', JSON.stringify(updated));
+      }
+
+      let unitInventory = loadedInventory.filter((item) => item.unitId === unitId);
+
+      if (unitInventory.length === 0 && foundProp && foundUnit) {
+        const defaults = DEFAULT_INVENTORIES(propertyId, unitId, foundUnit.name);
+        const updatedMasterInventory = [...loadedInventory, ...defaults];
+        localStorage.setItem('arventa_inventory', JSON.stringify(updatedMasterInventory));
+        unitInventory = defaults;
+      }
+
       setProperty(foundProp || null);
       setUnit(foundUnit || null);
       setInventories(unitInventory);
       setLoading(false);
-    }, 0);
+    };
 
-    return () => clearTimeout(timer);
+    fetchUnitData();
   }, [propertyId, unitId]);
 
   const [isAssignTenantOpen, setIsAssignTenantOpen] = useState(false);

@@ -65,11 +65,23 @@ export class UnitService {
       imageUrl: unit.imageUrl || '',
       roomEmail: unit.unitUser?.email || `${unit.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`,
       roomPassword: unit.roomPassword || 'Arv!789210',
-      roomPasswordLastReset: unit.roomPasswordLastReset?.toISOString() || unit.createdAt.toISOString(),
+      roomPasswordLastReset: unit.roomPasswordLastReset?.toISOString?.() || (typeof unit.roomPasswordLastReset === 'string' ? unit.roomPasswordLastReset : unit.createdAt?.toISOString?.() || new Date().toISOString()),
       tenantName: activeLease?.tenant?.user?.fullName || undefined,
       tenantPhone: activeLease?.tenant?.user?.phoneNumber || undefined,
-      checkInDate: activeLease?.startDate ? activeLease.startDate.toISOString().split('T')[0] : undefined,
-      createdAt: unit.createdAt.toISOString(),
+      checkInDate: activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
+      createdAt: typeof unit.createdAt === 'string' ? unit.createdAt : unit.createdAt.toISOString(),
+      inventories: (unit.inventories || []).map((inv: any) => ({
+        id: inv.id,
+        propertyId: unit.propertyId,
+        unitId: inv.unitId,
+        unitName: unit.unitNumber,
+        name: inv.itemName,
+        quantity: inv.quantity,
+        condition: inv.condition,
+        imageUrl: inv.imageUrl || undefined,
+        notes: inv.notes || undefined,
+        lastUpdated: inv.updatedAt ? (typeof inv.updatedAt === 'string' ? inv.updatedAt : inv.updatedAt.toISOString()) : (typeof inv.createdAt === 'string' ? inv.createdAt : inv.createdAt.toISOString()),
+      })),
     };
   }
 
@@ -111,6 +123,9 @@ export class UnitService {
             email: true,
             fullName: true,
           },
+        },
+        inventories: {
+          orderBy: { createdAt: 'desc' },
         },
         leases: {
           where: { status: 'ACTIVE' },

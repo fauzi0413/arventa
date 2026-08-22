@@ -8,6 +8,7 @@ import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import PropertyFormModal from '../_components/PropertyFormModal';
 import InventoryManager from '../_components/InventoryManager';
 import { Unit, UnitStatus } from '../../units/_types';
+import UnitStatusBadgeDropdown from '../../units/_components/UnitStatusBadgeDropdown';
 import { useSafeBack } from '@/app/_hooks/useSafeBack';
 
 const UnitFormModal = lazy(() => import('../../units/_components/UnitFormModal'));
@@ -38,7 +39,62 @@ export default function PropertyDetailPage() {
   // Tabs state
   const [activeTab, setActiveTab] = useState<'units' | 'inventory'>('units');
 
-  const loadData = () => {
+  const loadData = async () => {
+    try {
+      const res = await fetch(`/api/properties/${id}`);
+      if (res.ok) {
+        const json = await res.json();
+        const p = json.data;
+        if (p) {
+          const typeToCat: Record<string, string> = {
+            KOS: 'cat-1',
+            APARTEMEN: 'cat-2',
+            KONTRAKAN: 'cat-3',
+            RUKO: 'cat-4',
+          };
+          const mappedProp: Property = {
+            id: p.id,
+            name: p.name,
+            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            categoryId: typeToCat[p.type] || 'cat-1',
+            statusId: 'st-1',
+            totalUnits: p.units?.length || 0,
+            occupiedUnits: p.units?.filter((u: any) => u.status === 'OCCUPIED').length || 0,
+            description: p.description || '',
+            imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
+            hasCleaningService: p.hasCleaningService ?? true,
+            createdAt: p.createdAt || new Date().toISOString(),
+          };
+
+          const statusMap: Record<string, 'Available' | 'Occupied' | 'Maintenance' | 'Cleaning'> = {
+            AVAILABLE: 'Available',
+            OCCUPIED: 'Occupied',
+            MAINTENANCE: 'Maintenance',
+            CLEANING: 'Cleaning',
+          };
+
+          const mappedUnits: Unit[] = (p.units || []).map((u: any) => ({
+            id: u.id,
+            propertyId: p.id,
+            name: u.unitNumber,
+            status: statusMap[u.status] || 'Available',
+            facilities: u.facilities || ['AC', 'WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed'],
+            capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
+            pricing: { monthly: Number(u.basePrice) || 1500000 },
+            description: `Lantai ${u.floor || 1}`,
+            createdAt: u.createdAt || new Date().toISOString(),
+          }));
+
+          setProperty(mappedProp);
+          setUnits(mappedUnits);
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('API fetch property detail notice: using local storage cache', err);
+    }
+
     const storedProps = localStorage.getItem('arventa_properties');
     const storedCats = localStorage.getItem('arventa_categories');
     const storedStats = localStorage.getItem('arventa_statuses');
@@ -67,11 +123,7 @@ export default function PropertyDetailPage() {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadData();
-    }, 0);
-
-    return () => clearTimeout(timer);
+    loadData();
   }, [id]);
 
   const saveAllUnits = (allUnits: Unit[]) => {
@@ -377,6 +429,17 @@ export default function PropertyDetailPage() {
     }).format(val);
   };
 
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED] rounded-2xl border border-[#C7D3C0]/40 p-6">
+        <div className="text-center space-y-3">
+          <div className="h-9 w-9 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
+          <p className="text-xs text-gray-600 font-bold tracking-wide">Memuat rincian properti & unit dari database...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 bg-[#F7F4ED] min-h-[90vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
       {/* Navigation Header */}
@@ -579,28 +642,20 @@ export default function PropertyDetailPage() {
                               </p>
                             </div>
 
-                            {/* Inline Quick Status Selector */}
-                            <select
-                              value={unit.status}
-                              onChange={(e) => handleQuickStatusChange(unit.id, e.target.value as UnitStatus, e)}
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider border focus:outline-none cursor-pointer ${
-                                unit.status === 'Available'
-                                  ? 'bg-[#8FA28A] text-white border-[#8FA28A]'
-                                  : unit.status === 'Occupied'
-                                  ? 'bg-blue-600 text-white border-blue-600'
-                                  : unit.status === 'Need Cleaning'
-                                  ? 'bg-[#C8A96B] text-white border-[#C8A96B]'
-                                  : unit.status === 'Reserved'
-                                  ? 'bg-purple-600 text-white border-purple-600'
-                                  : 'bg-red-600 text-white border-red-600'
-                              }`}
-                            >
-                              <option value="Available" className="bg-white text-gray-800">Tersedia</option>
-                              <option value="Occupied" className="bg-white text-gray-800">Terisi</option>
-                              <option value="Need Cleaning" className="bg-white text-gray-800">Need Cleaning</option>
-                              <option value="Maintenance" className="bg-white text-gray-800">Perbaikan</option>
-                              <option value="Reserved" className="bg-white text-gray-800">Reserved</option>
-                            </select>
+                            {/* Inline Custom Status Badge Dropdown */}
+                            <UnitStatusBadgeDropdown
+                              status={unit.status}
+                              onChange={(newStatus) => {
+                                const updatedUnits = units.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
+                                setUnits(updatedUnits);
+                                const storedUnits = localStorage.getItem('arventa_units');
+                                if (storedUnits) {
+                                  const all: Unit[] = JSON.parse(storedUnits);
+                                  const updatedAll = all.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
+                                  localStorage.setItem('arventa_units', JSON.stringify(updatedAll));
+                                }
+                              }}
+                            />
                           </div>
 
                           <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100/80">
