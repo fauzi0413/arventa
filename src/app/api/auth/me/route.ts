@@ -28,12 +28,15 @@ export async function GET(request: NextRequest) {
 
     const sessionCookie = request.cookies.get("arventa_session")?.value;
     const demoRoleCookie = (request.cookies.get("arventa_demo_role")?.value as UserRole) || UserRole.OWNER;
+    const userEmailCookie = request.cookies.get("arventa_user_email")?.value;
 
     if (!authUserId && !authUserEmail) {
-      if (sessionCookie === "true" || request.headers.get("cookie")?.includes("arventa_session=true")) {
+      if (userEmailCookie) {
+        authUserEmail = userEmailCookie;
+      } else if (sessionCookie === "true" || request.headers.get("cookie")?.includes("arventa_session=true")) {
         if (demoRoleCookie === UserRole.PLATFORM_ADMIN) authUserEmail = "admin@arventra.id";
         else if (demoRoleCookie === UserRole.HOUSEKEEPING) authUserEmail = "agus.hk@arventra.id";
-        else if (demoRoleCookie === UserRole.USER) authUserEmail = "siti.rahma@gmail.com";
+        else if (demoRoleCookie === UserRole.USER) authUserEmail = "apt12b01@arventa.id";
         else authUserEmail = "budi@kostsejahtera.com";
       } else {
         return ApiResponse.error({
@@ -67,7 +70,7 @@ export async function GET(request: NextRequest) {
       let fullName = "Budi Santoso (Owner)";
       if (demoRoleCookie === UserRole.PLATFORM_ADMIN) fullName = "Super Admin Platform";
       else if (demoRoleCookie === UserRole.HOUSEKEEPING) fullName = "Agus (Housekeeping)";
-      else if (demoRoleCookie === UserRole.USER) fullName = "Siti Rahma (Penghuni)";
+      else if (demoRoleCookie === UserRole.USER) fullName = "Siti Rahmawati (Penghuni)";
 
       dbUser = {
         id: "demo-user-id",
@@ -76,6 +79,33 @@ export async function GET(request: NextRequest) {
         role: demoRoleCookie,
         isActive: true,
       };
+    } else if (dbUser.role === "TENANT" || dbUser.role === "USER") {
+      const unit = await prisma.unit.findFirst({
+        where: {
+          OR: [
+            { unitUserId: dbUser.id },
+            { unitUser: { email: dbUser.email } },
+            { leases: { some: { tenant: { user: { email: dbUser.email } } } } },
+          ],
+        },
+        include: {
+          leases: {
+            where: { status: "ACTIVE" },
+            take: 1,
+            include: {
+              tenant: { include: { user: true } },
+            },
+          },
+        },
+      });
+
+      if (unit && unit.leases[0]?.tenant) {
+        const tenant = unit.leases[0].tenant;
+        const tenantName = tenant.fullName || tenant.user?.fullName;
+        if (tenantName) {
+          dbUser.fullName = `${tenantName} (Penghuni)`;
+        }
+      }
     }
 
     return ApiResponse.success({

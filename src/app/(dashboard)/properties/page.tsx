@@ -87,6 +87,9 @@ function mapApiPropertyToFrontend(p: any): Property {
     imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
     hasCleaningService: p.hasCleaningService ?? true,
     createdAt: p.createdAt || new Date().toISOString(),
+    ownerName: p.owner?.fullName || p.ownerName,
+    ownerPhone: p.owner?.phoneNumber || p.ownerPhone,
+    ownerEmail: p.owner?.email || p.ownerEmail,
   };
 }
 

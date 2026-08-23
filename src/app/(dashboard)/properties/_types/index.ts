@@ -22,6 +22,9 @@ export interface Property {
   imageUrl?: string;
   hasCleaningService?: boolean;
   createdAt: string;
+  ownerName?: string;
+  ownerPhone?: string;
+  ownerEmail?: string;
 }
 
 export type InventoryCondition = 'Baik' | 'Perlu Perbaikan' | 'Rusak Berat' | 'Hilang';

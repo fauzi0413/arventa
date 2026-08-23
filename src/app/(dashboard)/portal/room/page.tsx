@@ -40,7 +40,33 @@ export default function PortalRoomPage() {
   const [isComplaintModalOpen, setIsComplaintModalOpen] = useState(false);
   const [isHousekeepingModalOpen, setIsHousekeepingModalOpen] = useState(false);
 
-  const loadPortalData = () => {
+  const loadPortalData = async () => {
+    try {
+      const userEmail = (typeof window !== 'undefined' && localStorage.getItem('arventa_user_email')) || 'apt12b01@arventa.id';
+      const res = await fetch(`/api/portal/my-room?email=${encodeURIComponent(userEmail)}`);
+      if (res.ok) {
+        const json = await res.json();
+        const apiData = json.data;
+        if (apiData && apiData.unit && apiData.property) {
+          setDetails({
+            unit: apiData.unit,
+            property: apiData.property,
+            inventories: apiData.inventories || [],
+            houseRules: DEFAULT_RULES,
+            emergencyContacts: DEFAULT_CONTACTS,
+            billingSummary: apiData.billingSummary,
+            wifiSsid: apiData.wifiSsid,
+            wifiPassword: apiData.wifiPassword,
+            smartLockCode: apiData.smartLockCode,
+          });
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend API portal fetch notice: falling back to client cache', err);
+    }
+
     const storedUnits = localStorage.getItem('arventa_units');
     const storedProps = localStorage.getItem('arventa_properties');
     const storedInventory = localStorage.getItem('arventa_inventory');

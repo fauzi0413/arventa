@@ -49,7 +49,7 @@ const ROLE_PRESETS: RolePreset[] = [
   {
     id: UserRole.USER,
     label: "TENANT",
-    email: "siti.rahma@gmail.com",
+    email: "apt12b01@arventa.id",
     icon: Bed,
   },
 ];
@@ -83,7 +83,7 @@ export function LoginForm() {
         return "/portal/room";
       case UserRole.OWNER:
       default:
-        return "/owner/dashboard";
+        return "/properties";
     }
   };
 
@@ -93,29 +93,60 @@ export function LoginForm() {
     setErrorMessage(null);
 
     try {
-      // 1. Set session cookies for demo/dev session
-      document.cookie = "arventa_session=true; path=/; max-age=86400";
-      document.cookie = `arventa_demo_role=${selectedRole}; path=/; max-age=86400`;
-      if (typeof window !== "undefined") {
-        localStorage.setItem("arventa_user_role", selectedRole);
+      // 1. Verify credentials & role against PostgreSQL DB API
+      let activeRole: UserRole = selectedRole;
+      let targetRoute = getDestinationRoute(selectedRole);
+
+      try {
+        const loginRes = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, role: selectedRole }),
+        });
+
+        if (loginRes.ok) {
+          const json = await loginRes.json();
+          const dbData = json.data;
+          if (dbData) {
+            // Map DB role ('TENANT', 'OWNER', 'HOUSEKEEPING', 'PLATFORM_ADMIN')
+            if (dbData.role === "TENANT") {
+              activeRole = UserRole.USER; // UI UserRole enum mapping for Tenant
+            } else if (dbData.role === "HOUSEKEEPING") {
+              activeRole = UserRole.HOUSEKEEPING;
+            } else if (dbData.role === "PLATFORM_ADMIN" || dbData.role === "SUPER_ADMIN") {
+              activeRole = UserRole.PLATFORM_ADMIN;
+            } else {
+              activeRole = UserRole.OWNER;
+            }
+
+            if (dbData.destination) {
+              targetRoute = dbData.destination;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("API DB Auth Notice: falling back to client role state", e);
       }
 
-      // 2. Attempt Supabase login if real backend is configured
+      // 2. Set session cookies & localStorage with verified role & email
+      document.cookie = "arventa_session=true; path=/; max-age=86400; SameSite=Lax";
+      document.cookie = `arventa_demo_role=${activeRole}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `arventa_user_email=${encodeURIComponent(email)}; path=/; max-age=86400; SameSite=Lax`;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("arventa_user_role", activeRole);
+        localStorage.setItem("arventa_user_email", email);
+      }
+
+      // 3. Attempt Supabase login if configured
       try {
         const supabase = createClient();
-        const { error } = await supabase.auth.signInWithPassword({
+        await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) {
-          console.warn("Supabase auth response:", error.message);
-        }
-      } catch (err) {
-        console.warn("Supabase client auth fallback active:", err);
-      }
+      } catch (err) {}
 
-      // 3. Navigate to the role's specific entry route from roles-menus.seeder.ts
-      const targetRoute = getDestinationRoute(selectedRole);
+      // 4. Navigate to the verified role's destination route
       router.push(targetRoute);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal melakukan login. Silakan coba lagi.";

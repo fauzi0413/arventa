@@ -146,129 +146,54 @@ export async function seedUsers() {
     }
   }
 
-  // 4. Tenant Siti Rahmawati
-  const sitiAuthId = await getOrCreateSupabaseAuthUser(
-    "tenant.siti@gmail.com",
-    "Siti Rahmawati"
-  );
-  let tenantSiti = await prisma.user.findUnique({
+
+  // 4. Tenant Profile Siti Rahmawati
+  let tenantSitiProfile = await prisma.tenantProfile.findFirst({
     where: { email: "tenant.siti@gmail.com" },
-    include: { tenantProfile: true },
   });
-  if (!tenantSiti) {
-    tenantSiti = await prisma.user.create({
+  if (!tenantSitiProfile) {
+    tenantSitiProfile = await prisma.tenantProfile.create({
       data: {
-        email: "tenant.siti@gmail.com",
         fullName: "Siti Rahmawati",
+        email: "tenant.siti@gmail.com",
         phoneNumber: "081444444444",
-        role: UserRole.USER,
-        supabaseAuthId: sitiAuthId,
-        tenantProfile: {
-          create: {
-            nik: "3273012345670001",
-            ktpImageUrl:
-              "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/siti_ktp.jpg",
-            occupation: "Software Engineer",
-            emergencyName: "Ibu Ratna (Ibu Kandung)",
-            emergencyPhone: "081234567890",
-          },
-        },
+        nik: "3273012345670001",
+        ktpImageUrl:
+          "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/siti_ktp.jpg",
+        occupation: "Software Engineer",
+        emergencyName: "Ibu Ratna (Ibu Kandung)",
+        emergencyPhone: "081234567890",
       },
-      include: { tenantProfile: true },
     });
-    console.log(`✅ Created Public User [User]: ${tenantSiti.fullName}`);
-  } else {
-    if (!tenantSiti.supabaseAuthId && sitiAuthId) {
-      tenantSiti = await prisma.user.update({
-        where: { id: tenantSiti.id },
-        data: { supabaseAuthId: sitiAuthId },
-        include: { tenantProfile: true },
-      });
-      console.log(`🔄 Linked existing Tenant Siti to Supabase Auth UID: ${sitiAuthId}`);
-    }
-    if (!tenantSiti.tenantProfile) {
-      const profile = await prisma.tenantProfile.upsert({
-        where: { userId: tenantSiti.id },
-        update: {},
-        create: {
-          userId: tenantSiti.id,
-          nik: "3273012345670001",
-          ktpImageUrl:
-            "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/siti_ktp.jpg",
-          occupation: "Software Engineer",
-          emergencyName: "Ibu Ratna (Ibu Kandung)",
-          emergencyPhone: "081234567890",
-        },
-      });
-      tenantSiti = { ...tenantSiti, tenantProfile: profile };
-    }
-    console.log(`ℹ️ Existing Tenant found: ${tenantSiti.fullName}`);
+    console.log(`✅ Created TenantProfile: ${tenantSitiProfile.fullName}`);
   }
 
-  // 5. Tenant Rizky Pratama
-  const rizkyAuthId = await getOrCreateSupabaseAuthUser(
-    "tenant.rizky@gmail.com",
-    "Rizky Pratama"
-  );
-  let tenantRizky = await prisma.user.findUnique({
+  // 5. Tenant Profile Rizky Pratama
+  let tenantRizkyProfile = await prisma.tenantProfile.findFirst({
     where: { email: "tenant.rizky@gmail.com" },
-    include: { tenantProfile: true },
   });
-  if (!tenantRizky) {
-    tenantRizky = await prisma.user.create({
+  if (!tenantRizkyProfile) {
+    tenantRizkyProfile = await prisma.tenantProfile.create({
       data: {
-        email: "tenant.rizky@gmail.com",
         fullName: "Rizky Pratama",
+        email: "tenant.rizky@gmail.com",
         phoneNumber: "081555555555",
-        role: UserRole.USER,
-        supabaseAuthId: rizkyAuthId,
-        tenantProfile: {
-          create: {
-            nik: "3273012345670002",
-            ktpImageUrl:
-              "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/rizky_ktp.jpg",
-            occupation: "Account Executive",
-            emergencyName: "Bpk. Bambang (Ayah Kandung)",
-            emergencyPhone: "081987654321",
-          },
-        },
+        nik: "3273012345670002",
+        ktpImageUrl:
+          "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/rizky_ktp.jpg",
+        occupation: "Account Executive",
+        emergencyName: "Bpk. Bambang (Ayah Kandung)",
+        emergencyPhone: "081987654321",
       },
-      include: { tenantProfile: true },
     });
-    console.log(`✅ Created Public User [Tenant]: ${tenantRizky.fullName}`);
-  } else {
-    if (!tenantRizky.supabaseAuthId && rizkyAuthId) {
-      tenantRizky = await prisma.user.update({
-        where: { id: tenantRizky.id },
-        data: { supabaseAuthId: rizkyAuthId },
-        include: { tenantProfile: true },
-      });
-      console.log(`🔄 Linked existing Tenant Rizky to Supabase Auth UID: ${rizkyAuthId}`);
-    }
-    if (!tenantRizky.tenantProfile) {
-      const profile = await prisma.tenantProfile.upsert({
-        where: { userId: tenantRizky.id },
-        update: {},
-        create: {
-          userId: tenantRizky.id,
-          nik: "3273012345670002",
-          ktpImageUrl:
-            "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/rizky_ktp.jpg",
-          occupation: "Account Executive",
-          emergencyName: "Bpk. Bambang (Ayah Kandung)",
-          emergencyPhone: "081987654321",
-        },
-      });
-      tenantRizky = { ...tenantRizky, tenantProfile: profile };
-    }
-    console.log(`ℹ️ Existing Tenant found: ${tenantRizky.fullName}`);
+    console.log(`✅ Created TenantProfile: ${tenantRizkyProfile.fullName}`);
   }
 
   return {
     admin,
     ownerHendra,
     housekeepingBudi,
-    tenantSiti,
-    tenantRizky,
+    tenantSitiProfile,
+    tenantRizkyProfile,
   };
 }

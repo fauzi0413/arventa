@@ -19,7 +19,7 @@ async function main() {
   console.log("🌱 Starting ARVENTA Full System Database Seeding (8 Modules)...");
 
   // 1. Users & Tenant Profiles
-  const { admin, ownerHendra, housekeepingBudi, tenantSiti, tenantRizky } =
+  const { admin, ownerHendra, housekeepingBudi, tenantSitiProfile, tenantRizkyProfile } =
     await seedUsers();
 
   // 2. Roles, Permissions & Dynamic Menus
@@ -50,8 +50,8 @@ async function main() {
   await seedLeasesAndInvoices({
     unitKos101,
     unitApt12B01,
-    tenantSitiProfile: tenantSiti.tenantProfile!,
-    tenantRizkyProfile: tenantRizky.tenantProfile!,
+    tenantSitiProfile,
+    tenantRizkyProfile,
   });
 
   // 8. Operational Expenses (OpEx)
@@ -64,8 +64,6 @@ async function main() {
   await seedCommunity({
     kosGrahaAsri,
     owner: ownerHendra,
-    tenantSiti,
-    tenantRizky,
   });
 
   // 10. System Settings & Audit Logs

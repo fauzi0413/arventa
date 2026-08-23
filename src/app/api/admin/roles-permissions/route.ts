@@ -4,6 +4,12 @@ import { ApiResponse } from "@/lib/api-response";
 
 export async function GET() {
   try {
+    // Update any legacy 'USER' role code in database to 'TENANT'
+    await prisma.role.updateMany({
+      where: { code: 'USER' },
+      data: { code: 'TENANT' },
+    });
+
     // 1. Fetch all Roles with User & Permission counts
     const roles = await prisma.role.findMany({
       include: {
@@ -198,7 +204,7 @@ export async function POST(req: Request) {
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
-          role: roleCode || "USER",
+          role: roleCode || "TENANT",
           customRoleId: customRoleId || null,
         },
       });

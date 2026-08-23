@@ -108,13 +108,31 @@ export class PropertyService {
             phoneNumber: true,
           },
         },
+        inventories: true,
         units: {
           orderBy: { unitNumber: "asc" },
           include: {
-            inventories: true,
+            inventoryItems: true,
+            leases: {
+              where: { status: 'ACTIVE' },
+              take: 1,
+              include: {
+                tenant: {
+                  include: {
+                    user: {
+                      select: {
+                        fullName: true,
+                        phoneNumber: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
             _count: {
               select: {
-                inventories: true,
+                inventoryItems: true,
                 leases: true,
               },
             },

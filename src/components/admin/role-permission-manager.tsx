@@ -676,7 +676,7 @@ export function RolePermissionManager() {
 
                   <div className="flex items-center gap-3">
                     <select
-                      value={u.customRoleId ? `CUSTOM:${u.customRoleId}` : u.role}
+                      value={u.customRoleId ? `CUSTOM:${u.customRoleId}` : (u.role === 'USER' ? 'TENANT' : u.role)}
                       onChange={(e) => {
                         const val = e.target.value;
                         if (val.startsWith("CUSTOM:")) {
@@ -686,12 +686,12 @@ export function RolePermissionManager() {
                           handleAssignUserRole(u.id, val);
                         }
                       }}
-                      className="rounded-lg border bg-background px-3 py-1.5 text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary"
+                      className="rounded-lg border bg-background px-3 py-1.5 text-xs font-semibold text-foreground focus:ring-2 focus:ring-primary cursor-pointer"
                     >
                       <option value="PLATFORM_ADMIN">PLATFORM_ADMIN</option>
                       <option value="OWNER">OWNER</option>
                       <option value="HOUSEKEEPING">HOUSEKEEPING</option>
-                      <option value="USER">USER (Tenant)</option>
+                      <option value="TENANT">TENANT</option>
                       {roles.filter((r) => !r.isSystem).map((customRole) => (
                         <option key={customRole.id} value={`CUSTOM:${customRole.id}`}>
                           CUSTOM: {customRole.name}

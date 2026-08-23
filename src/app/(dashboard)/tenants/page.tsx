@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Search,
   Filter,
@@ -22,11 +23,14 @@ import {
   X,
   Loader2,
   AlertCircle,
+  FileText,
 } from 'lucide-react';
 import { Tenant, TenantStatus, TenantHistoryRecord, HistoryEventType } from './_types';
 import TenantFormModal from './_components/TenantFormModal';
 import TenantDetailModal from './_components/TenantDetailModal';
 import TransferUnitModal from './_components/TransferUnitModal';
+import ContractPreviewModal from '../tenant-contract/_components/ContractPreviewModal';
+import { ContractItem } from '../tenant-contract/_types';
 
 // Mock Master Data for Initial Seed & Fallback
 const INITIAL_MASTER_TENANTS: Tenant[] = [
@@ -299,7 +303,7 @@ function mapApiTenantToFrontend(item: any): Tenant {
   };
 }
 
-export default function TenantsPage() {
+function TenantsPageContent() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -309,11 +313,106 @@ export default function TenantsPage() {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isPreviewContractOpen, setIsPreviewContractOpen] = useState(false);
+  const [selectedContractForPreview, setSelectedContractForPreview] = useState<ContractItem | null>(null);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [tenantToEdit, setTenantToEdit] = useState<Tenant | null>(null);
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null);
   const [tenantToTransfer, setTenantToTransfer] = useState<Tenant | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleViewContract = async (tenant: Tenant) => {
+    try {
+      const res = await fetch(`/api/contracts`);
+      if (res.ok) {
+        const json = await res.json();
+        const rawList = json.data || json || [];
+        const match = rawList.find(
+          (c: any) =>
+            c.tenantId === tenant.id ||
+            c.tenant?.id === tenant.id ||
+            c.tenant?.userId === tenant.id ||
+            c.tenant?.fullName?.toLowerCase() === tenant.fullName?.toLowerCase() ||
+            c.tenant?.user?.fullName?.toLowerCase() === tenant.fullName?.toLowerCase()
+        );
+
+        if (match) {
+          const formatted: ContractItem = {
+            id: match.id,
+            contractNumber: match.contractNumber || `KTR/ARV/${match.id.slice(-6).toUpperCase()}`,
+            scope: match.scope || (match.unitId ? 'UNIT' : 'PROPERTY'),
+            status: match.status || 'ACTIVE',
+            tenantId: match.tenantId || tenant.id,
+            tenantName: match.tenant?.fullName || match.tenant?.user?.fullName || tenant.fullName,
+            tenantPhone: match.tenant?.phoneNumber || match.tenant?.user?.phoneNumber || tenant.phoneNumber || '',
+            tenantEmail: match.tenant?.email || match.tenant?.user?.email || tenant.email || '',
+            tenantNik: match.tenant?.nik || tenant.nik || '',
+            propertyId: match.unit?.property?.id || match.unit?.propertyId || tenant.currentPropertyId || '',
+            propertyName: match.unit?.property?.name || tenant.currentPropertyName || 'Kos Graha Asri',
+            propertyAddress: match.unit?.property?.address || 'Sesuai Data Properti',
+            ownerName: match.unit?.property?.owner?.fullName || 'Budi Santoso',
+            ownerPhone: match.unit?.property?.owner?.phoneNumber || '081234567890',
+            ownerEmail: match.unit?.property?.owner?.email || 'budi@kostsejahtera.com',
+            unitId: match.unitId || tenant.currentUnitId,
+            unitName: match.unit?.unitNumber || tenant.currentUnitName || 'Unit Kamar',
+            rentalPeriod: match.rentalPeriod || 'MONTHLY',
+            startDate: match.startDate || tenant.leaseStartDate || new Date().toISOString().split('T')[0],
+            endDate: match.endDate || tenant.leaseEndDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            rentPrice: match.rentPrice ?? 1500000,
+            securityDeposit: match.securityDeposit ?? 500000,
+            createdAt: match.createdAt || tenant.createdAt,
+            notes: match.notes || '',
+            customClauses: match.customClauses && match.customClauses.length > 0 ? match.customClauses : [
+              'Pembayaran sewa dilakukan tepat waktu di awal periode sewa.',
+              'Penyewa wajib menjaga kebersihan dan ketertiban lingkungan properti.',
+              'Uang jaminan (deposit) akan dikembalikan penuh saat check-out jika tidak ada kerusakan unit.',
+            ],
+          };
+
+          setSelectedContractForPreview(formatted);
+          setIsPreviewContractOpen(true);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching tenant contract:', e);
+    }
+
+    // Fallback contract if match is not found in database
+    const fallbackContract: ContractItem = {
+      id: `contract-${tenant.id}`,
+      contractNumber: `KTR/ARV/${tenant.id.slice(-6).toUpperCase()}`,
+      scope: 'UNIT',
+      status: tenant.status === 'AKTIF' ? 'ACTIVE' : tenant.status === 'CALON' ? 'DRAFT' : 'TERMINATED',
+      tenantId: tenant.id,
+      tenantName: tenant.fullName,
+      tenantPhone: tenant.phoneNumber || '',
+      tenantEmail: tenant.email || '',
+      tenantNik: tenant.nik || '',
+      propertyId: tenant.currentPropertyId || '',
+      propertyName: tenant.currentPropertyName || 'Kos Graha Asri',
+      propertyAddress: 'Sesuai Data Properti',
+      ownerName: 'Budi Santoso',
+      ownerPhone: '081234567890',
+      ownerEmail: 'budi@kostsejahtera.com',
+      unitId: tenant.currentUnitId,
+      unitName: tenant.currentUnitName || 'Unit Kamar',
+      rentalPeriod: 'MONTHLY',
+      startDate: tenant.leaseStartDate || new Date().toISOString().split('T')[0],
+      endDate: tenant.leaseEndDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      rentPrice: 1500000,
+      securityDeposit: 500000,
+      createdAt: tenant.createdAt,
+      customClauses: [
+        'Pembayaran sewa dilakukan tepat waktu di awal periode sewa.',
+        'Penyewa wajib menjaga kebersihan dan ketertiban lingkungan properti.',
+        'Uang jaminan (deposit) akan dikembalikan penuh saat check-out jika tidak ada kerusakan unit.',
+      ],
+    };
+
+    setSelectedContractForPreview(fallbackContract);
+    setIsPreviewContractOpen(true);
+  };
 
   // Modern Toast Alert Notification State
   const [toastNotification, setToastNotification] = useState<{
@@ -366,9 +465,29 @@ export default function TenantsPage() {
     setLoading(false);
   };
 
+  const searchParams = useSearchParams();
+  const editTenantId = searchParams ? (searchParams.get('editTenantId') || searchParams.get('editForTenantId')) : null;
+
   useEffect(() => {
     fetchTenants();
   }, []);
+
+  useEffect(() => {
+    if (editTenantId && tenants.length > 0) {
+      const targetParam = decodeURIComponent(editTenantId);
+      const match = tenants.find(
+        (t) =>
+          t.id === targetParam ||
+          t.id.includes(targetParam) ||
+          t.fullName.toLowerCase().includes(targetParam.toLowerCase()) ||
+          (t as any).userId === targetParam
+      );
+      if (match) {
+        setTenantToEdit(match);
+        setIsFormModalOpen(true);
+      }
+    }
+  }, [editTenantId, tenants]);
 
   const saveTenantsLocally = (updated: Tenant[]) => {
     setTenants(updated);
@@ -1077,14 +1196,39 @@ export default function TenantsPage() {
                     {/* Actions */}
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Pindah Unit */}
-                        <button
-                          onClick={() => handleOpenTransferModal(tenant)}
-                          title="Pindah / Atur Penempatan Unit"
-                          className="rounded-xl p-2 text-gray-500 hover:bg-emerald-50 hover:text-emerald-700 transition-all"
-                        >
-                          <ArrowRightLeft className="h-4 w-4" />
-                        </button>
+                        {/* Pindah Unit (Hanya untuk penyewa AKTIF yang sudah memiliki penempatan unit) */}
+                        {tenant.status === 'AKTIF' && tenant.currentUnitName && (
+                          <button
+                            onClick={() => handleOpenTransferModal(tenant)}
+                            title="Pindah / Atur Penempatan Unit"
+                            className="rounded-xl p-2 text-gray-500 hover:bg-emerald-50 hover:text-emerald-700 transition-all"
+                          >
+                            <ArrowRightLeft className="h-4 w-4" />
+                          </button>
+                        )}
+
+                        {/* Buat Kontrak (Shortcut khusus untuk Calon Penyewa) */}
+                        {tenant.status === 'CALON' && (
+                          <a
+                            href={`/tenant-contract?createForTenantId=${tenant.id}`}
+                            title="Terbitkan Kontrak Sewa untuk Calon Penyewa Ini"
+                            className="rounded-xl p-2 text-amber-600 hover:bg-amber-100/60 transition-all flex items-center gap-1 font-bold text-xs"
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span className="hidden md:inline">Terbitkan Kontrak</span>
+                          </a>
+                        )}
+
+                        {/* Lihat Kontrak (Hanya untuk penyewa aktif yang memiliki unit) */}
+                        {tenant.status === 'AKTIF' && tenant.currentUnitName && (
+                          <button
+                            onClick={() => handleViewContract(tenant)}
+                            title="Lihat Surat Perjanjian Kontrak Sewa"
+                            className="rounded-xl p-2 text-gray-500 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                        )}
 
                         {/* Detail */}
                         <button
@@ -1172,6 +1316,14 @@ export default function TenantsPage() {
         tenant={selectedTenant}
         onEdit={handleOpenEditModal}
         onOpenTransfer={handleOpenTransferModal}
+        onViewContract={handleViewContract}
+      />
+
+      {/* Contract Preview Modal */}
+      <ContractPreviewModal
+        isOpen={isPreviewContractOpen}
+        onClose={() => setIsPreviewContractOpen(false)}
+        contract={selectedContractForPreview}
       />
 
       {/* Transfer / Pindah Unit Modal */}
@@ -1259,5 +1411,20 @@ export default function TenantsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function TenantsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs font-semibold text-gray-500 flex items-center justify-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          <span>Memuat data penyewa...</span>
+        </div>
+      }
+    >
+      <TenantsPageContent />
+    </Suspense>
   );
 }
