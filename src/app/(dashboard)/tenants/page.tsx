@@ -438,7 +438,7 @@ function TenantsPageContent() {
       if (res.ok) {
         const json = await res.json();
         const apiData = json.data;
-        if (Array.isArray(apiData) && apiData.length > 0) {
+        if (Array.isArray(apiData)) {
           const mapped = apiData.map(mapApiTenantToFrontend);
           setTenants(mapped);
           localStorage.setItem('arventa_master_tenants', JSON.stringify(mapped));
@@ -450,17 +450,16 @@ function TenantsPageContent() {
       console.warn('Backend API fetch notice: using cached local storage data', err);
     }
 
-    // Fallback to localStorage / initial seed
+    // Fallback to localStorage / initial seed only if network error
     const stored = localStorage.getItem('arventa_master_tenants');
     if (stored) {
       try {
         setTenants(JSON.parse(stored));
       } catch {
-        setTenants(INITIAL_MASTER_TENANTS);
+        setTenants([]);
       }
     } else {
-      setTenants(INITIAL_MASTER_TENANTS);
-      localStorage.setItem('arventa_master_tenants', JSON.stringify(INITIAL_MASTER_TENANTS));
+      setTenants([]);
     }
     setLoading(false);
   };

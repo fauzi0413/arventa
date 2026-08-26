@@ -12,6 +12,8 @@ import {
   ArrowLeft,
   Loader2,
   Sparkles,
+  Send,
+  CheckCircle2,
 } from "lucide-react";
 import { UserRole } from "@/types/roles";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +27,9 @@ export function LoginForm() {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isUnverified, setIsUnverified] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState<string | null>(null);
 
   const getDestinationRoute = (role: UserRole): string => {
     switch (role) {
@@ -36,7 +41,38 @@ export function LoginForm() {
         return "/portal/room";
       case UserRole.OWNER:
       default:
-        return "/properties";
+        return "/owner/dashboard";
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setErrorMessage("Silakan isi alamat email Anda terlebih dahulu.");
+      return;
+    }
+    setResendLoading(true);
+    setResendSuccess(null);
+
+    try {
+      const res = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        setErrorMessage(json.message || "Gagal mengirim ulang email verifikasi.");
+      } else {
+        setResendSuccess(
+          json.message || `Link verifikasi telah dikirim ulang ke ${email}. Silakan periksa inbox/spam Anda.`
+        );
+      }
+    } catch (err) {
+      setErrorMessage("Terjadi kesalahan koneksi saat mengirim ulang verifikasi.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -44,6 +80,8 @@ export function LoginForm() {
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage(null);
+    setResendSuccess(null);
+    setIsUnverified(false);
 
     try {
       // 1. Verify user credentials against Database Users table & issue JWT HttpOnly cookies
@@ -59,6 +97,11 @@ export function LoginForm() {
         setErrorMessage(
           json.message || "Gagal melakukan login. Silakan periksa kembali email dan password Anda."
         );
+        if (json.error?.isUnverified) {
+          setIsUnverified(true);
+        } else {
+          setIsUnverified(false);
+        }
         setIsLoading(false);
         return;
       }
@@ -144,10 +187,40 @@ export function LoginForm() {
         </p>
       </div>
 
+      {/* Success Alert (e.g. Resend Email) */}
+      {resendSuccess && (
+        <div className="flex items-start gap-2.5 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3.5 text-xs text-emerald-800 font-semibold">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+          <div className="flex-1">{resendSuccess}</div>
+        </div>
+      )}
+
       {/* Error Alert */}
       {errorMessage && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-600 text-center font-semibold">
-          {errorMessage}
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-xs text-red-600 text-center font-semibold space-y-3">
+          <p>{errorMessage}</p>
+
+          {/* Resend Email Button if Unverified */}
+          {isUnverified && (
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              disabled={resendLoading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#5B7555] hover:bg-[#445840] text-white px-4 py-2 text-xs font-black transition-colors shadow-xs cursor-pointer disabled:opacity-50"
+            >
+              {resendLoading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Mengirim Email...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Kirim Ulang Email Verifikasi</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
 

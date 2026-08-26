@@ -2,10 +2,13 @@ import { NextRequest } from "next/server";
 import { ApiResponse } from "@/lib/api-response";
 import { UnitService } from "@/services/unit.service";
 import { UnitStatus } from "@/generated/prisma/client";
+import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { UserRole } from "@/types/roles";
+import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/units
- * Retrieve units list with filters (propertyId, status, search)
+ * Retrieve units list scoped to current user with filters (propertyId, status, search)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +17,39 @@ export async function GET(request: NextRequest) {
     const status = (searchParams.get("status") as UnitStatus) || undefined;
     const search = searchParams.get("search") || undefined;
 
+    const authUser = await getAuthenticatedUser(request);
+    let propertyIds: string[] | undefined = undefined;
+
+    if (authUser) {
+      if (authUser.role === UserRole.OWNER) {
+        const ownerProps = await prisma.property.findMany({
+          where: { ownerId: authUser.id },
+          select: { id: true },
+        });
+        propertyIds = ownerProps.map((p) => p.id);
+      } else if (authUser.role === UserRole.HOUSEKEEPING) {
+        const assignments = await prisma.housekeepingAssignment.findMany({
+          where: { userId: authUser.id },
+          select: { propertyId: true },
+        });
+        propertyIds = assignments.map((a) => a.propertyId);
+      } else if (authUser.role === UserRole.USER) {
+        const tenantUnits = await prisma.unit.findMany({
+          where: {
+            OR: [
+              { unitUserId: authUser.id },
+              { leases: { some: { tenant: { userId: authUser.id } } } },
+            ],
+          },
+          select: { propertyId: true },
+        });
+        propertyIds = tenantUnits.map((u) => u.propertyId);
+      }
+    }
+
     const units = await UnitService.getAllUnits({
       propertyId,
+      propertyIds,
       status,
       search,
     });

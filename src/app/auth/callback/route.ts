@@ -62,11 +62,11 @@ export async function GET(request: NextRequest) {
             7 * 24 * 60 * 60
           );
 
-          let destination = "/properties";
+          let destination = "/owner/dashboard";
           if (user.role === "TENANT" || user.role === "USER") {
             destination = "/portal/room";
           } else if (user.role === "HOUSEKEEPING") {
-            destination = "/housekeeping";
+            destination = "/housekeeping/room-grid";
           } else if ((user.role as string) === "PLATFORM_ADMIN" || (user.role as string) === "SUPER_ADMIN") {
             destination = "/platform/dashboard";
           }

@@ -3,6 +3,7 @@ import { RentalPeriodType, UnitStatus, UserRole } from "@/generated/prisma/clien
 
 export interface UnitFilterParams {
   propertyId?: string;
+  propertyIds?: string[];
   status?: UnitStatus;
   search?: string;
   page?: number;
@@ -105,6 +106,8 @@ export class UnitService {
 
     if (params.propertyId) {
       where.propertyId = params.propertyId;
+    } else if (params.propertyIds !== undefined) {
+      where.propertyId = { in: params.propertyIds };
     }
 
     if (params.status) {

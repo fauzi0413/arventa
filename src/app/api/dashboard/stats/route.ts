@@ -1,60 +1,30 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { ApiResponse } from "@/lib/api-response";
 import { UserRole } from "@/types/roles";
+import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
 
 export async function GET(request: NextRequest) {
   try {
-    let authUserEmail: string | undefined;
-    let authUserId: string | undefined;
+    const authUser = await getAuthenticatedUser(request);
 
-    try {
-      const supabase = await createClient();
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
-
-      if (authUser) {
-        authUserId = authUser.id;
-        authUserEmail = authUser.email;
-      }
-    } catch (err) {
-      console.warn("Supabase auth check in stats API warning:", err);
+    if (!authUser) {
+      return ApiResponse.error({
+        message: "Pengguna belum terautentikasi",
+        status: 401,
+      });
     }
 
-    const sessionCookie = request.cookies.get("arventa_session")?.value;
-    const demoRoleCookie = (request.cookies.get("arventa_demo_role")?.value as UserRole) || UserRole.OWNER;
-
-    if (!authUserId && !authUserEmail) {
-      if (sessionCookie === "true" || request.headers.get("cookie")?.includes("arventa_session=true")) {
-        if (demoRoleCookie === UserRole.PLATFORM_ADMIN) authUserEmail = "admin@arventra.id";
-        else if (demoRoleCookie === UserRole.HOUSEKEEPING) authUserEmail = "agus.hk@arventra.id";
-        else if (demoRoleCookie === UserRole.USER) authUserEmail = "siti.rahma@gmail.com";
-        else authUserEmail = "budi@kostsejahtera.com";
-      } else {
-        return ApiResponse.error({
-          message: "Pengguna belum terautentikasi",
-          status: 401,
-        });
-      }
-    }
-
-    let dbUser: any = await prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(authUserId ? [{ supabaseAuthId: authUserId }] : []),
-          ...(authUserEmail ? [{ email: authUserEmail }] : []),
-        ],
-      },
+    let dbUser: any = await prisma.user.findUnique({
+      where: { id: authUser.id },
     });
 
     if (!dbUser) {
       dbUser = {
-        id: "demo-user-id",
-        name: "Demo User",
-        email: authUserEmail || "owner@arventa.id",
-        role: demoRoleCookie,
+        id: authUser.id,
+        fullName: authUser.fullName,
+        email: authUser.email,
+        role: authUser.role,
       };
     }
 

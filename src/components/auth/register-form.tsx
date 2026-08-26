@@ -39,6 +39,7 @@ export function RegisterForm() {
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
+    mode: "onChange",
     defaultValues: {
       fullName: "",
       email: "",
@@ -49,13 +50,10 @@ export function RegisterForm() {
     },
   });
 
-  const [verificationLink, setVerificationLink] = useState<string | null>(null);
-
   const onSubmit = async (data: RegisterInput) => {
     setIsLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
-    setVerificationLink(null);
 
     try {
       const response = await fetch("/api/auth/register", {
@@ -79,11 +77,8 @@ export function RegisterForm() {
 
       setSuccessMessage(
         result.message ||
-          "Registrasi akun berhasil! Link verifikasi email telah dikirim. Silakan cek inbox email Anda."
+        "Registrasi akun berhasil! Link verifikasi email telah dikirim. Silakan cek inbox email Anda."
       );
-      if (result.data?.verificationLink) {
-        setVerificationLink(result.data.verificationLink);
-      }
     } catch (err: any) {
       console.error("Registration Error:", err);
       setErrorMessage("Terjadi kesalahan sistem. Silakan coba beberapa saat lagi.");
@@ -120,8 +115,8 @@ export function RegisterForm() {
 
   return (
     <div className="space-y-5 text-[#2F332E]">
-      {/* Alert Error */}
-      {errorMessage && (
+      {/* Backend API Alert Error */}
+      {errorMessage && Object.keys(errors).length === 0 && (
         <div className="flex items-start gap-3 rounded-2xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-600 font-semibold">
           <IconAlertCircle className="mt-0.5 size-4 shrink-0" />
           <div className="flex-1">{errorMessage}</div>
@@ -130,29 +125,12 @@ export function RegisterForm() {
 
       {/* Alert Success */}
       {successMessage && (
-        <div className="space-y-3">
-          <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-800 font-semibold">
-            <IconCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" />
-            <div className="flex-1 space-y-1">
-              <p className="font-bold text-sm text-emerald-900">Registrasi Berhasil!</p>
-              <p className="leading-relaxed text-xs">{successMessage}</p>
-            </div>
+        <div className="flex items-start gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs text-emerald-800 font-semibold">
+          <IconCheck className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+          <div className="flex-1 space-y-1">
+            <p className="font-bold text-sm text-emerald-900">Registrasi Berhasil!</p>
+            <p className="leading-relaxed text-xs">{successMessage}</p>
           </div>
-
-          {/* Verification Link Action Banner (Simulasi / Quick Verification) */}
-          {verificationLink && (
-            <div className="rounded-2xl border border-[#D5E2D3] bg-[#F0F5EF] p-4 text-center space-y-2">
-              <p className="text-xs font-bold text-[#2F332E]">
-                Simulasi / Klik Tombol Dibawah untuk Verifikasi Email:
-              </p>
-              <a
-                href={verificationLink}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#5B7555] px-4 py-2 text-xs font-black text-white hover:bg-[#445840] transition-colors shadow-xs"
-              >
-                <span>Verifikasi Email Akun Saya</span>
-              </a>
-            </div>
-          )}
         </div>
       )}
 

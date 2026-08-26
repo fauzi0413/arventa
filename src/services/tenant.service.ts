@@ -56,6 +56,8 @@ async function deleteStorageFiles(urls: (string | null | undefined)[]) {
 
 export interface TenantFilterParams {
   search?: string;
+  propertyIds?: string[];
+  userId?: string;
   page?: number;
   limit?: number;
 }
@@ -85,6 +87,20 @@ export class TenantService {
         { user: { phoneNumber: { contains: params.search, mode: "insensitive" } } },
         { nik: { contains: params.search, mode: "insensitive" } },
       ];
+    }
+
+    if (params.propertyIds !== undefined) {
+      where.leases = {
+        some: {
+          unit: {
+            propertyId: { in: params.propertyIds },
+          },
+        },
+      };
+    }
+
+    if (params.userId) {
+      where.userId = params.userId;
     }
 
     const [items, total] = await Promise.all([

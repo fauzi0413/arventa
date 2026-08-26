@@ -112,7 +112,7 @@ export default function TransferUnitModal({
         const res = await fetch('/api/properties?limit=50');
         if (res.ok) {
           const json = await res.json();
-          if (Array.isArray(json.data) && json.data.length > 0) {
+          if (Array.isArray(json.data)) {
             rawData = json.data;
           }
         }

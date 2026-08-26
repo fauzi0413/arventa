@@ -77,7 +77,7 @@ export default function TenantFormModal({
   const [notes, setNotes] = useState('');
 
   // Unit Assignment States
-  const [propertiesList, setPropertiesList] = useState<PropertyOption[]>(DEFAULT_PROPERTIES);
+  const [propertiesList, setPropertiesList] = useState<PropertyOption[]>([]);
   const [selectedPropertyName, setSelectedPropertyName] = useState<string>('');
   const [selectedUnitName, setSelectedUnitName] = useState<string>('');
   const [leaseStartDate, setLeaseStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -191,7 +191,7 @@ export default function TenantFormModal({
         const res = await fetch('/api/properties?limit=50');
         if (res.ok) {
           const json = await res.json();
-          if (Array.isArray(json.data) && json.data.length > 0) {
+          if (Array.isArray(json.data)) {
             rawData = json.data;
           }
         }

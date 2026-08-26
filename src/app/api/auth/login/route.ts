@@ -33,28 +33,84 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return ApiResponse.notFound(`Akun dengan email '${cleanEmail}' tidak ditemukan dalam database.`);
+      return ApiResponse.badRequest("Email atau password yang Anda masukkan salah.");
     }
 
+    // 2. Check if account is active/verified FIRST
     if (!user.isActive) {
-      return ApiResponse.forbidden(
-        "Akun Anda belum terverifikasi. Silakan periksa inbox email Anda dan klik tautan verifikasi sebelum melakukan login."
+      if (user.role === "OWNER") {
+        return ApiResponse.forbidden(
+          "Akun Anda belum terverifikasi. Silakan periksa inbox email Anda dan klik tautan verifikasi sebelum melakukan login.",
+          { isUnverified: true, email: user.email, role: user.role }
+        );
+      } else {
+        return ApiResponse.forbidden(
+          "Akun Anda belum aktif. Aktivasi akun dilakukan oleh Owner Properti Anda. Silakan hubungi Owner Properti Anda untuk mengaktifkan akun.",
+          { isUnverified: false, isInactiveNonOwner: true, email: user.email, role: user.role }
+        );
+      }
+    }
+
+    // 3. Ensure user in Supabase Auth is confirmed so password verification works
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      try {
+        const { createClient: createSupabaseAdmin } = await import("@supabase/supabase-js");
+        const supabaseAdmin = createSupabaseAdmin(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          supabaseServiceRoleKey,
+          { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+        if (user.supabaseAuthId) {
+          await supabaseAdmin.auth.admin.updateUserById(user.supabaseAuthId, { email_confirm: true });
+        } else {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+          const target = listData?.users?.find((u) => u.email === cleanEmail);
+          if (target) {
+            await supabaseAdmin.auth.admin.updateUserById(target.id, { email_confirm: true });
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { supabaseAuthId: target.id },
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("⚠️ Failed to auto-confirm user in Supabase Auth:", e);
+      }
+    }
+
+    // 4. Verify password against Supabase Auth
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+      const supabase = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       );
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (authError) {
+        console.warn(`⚠️ Login password verification failed for ${cleanEmail}:`, authError.message);
+        return ApiResponse.badRequest("Email atau password yang Anda masukkan salah.");
+      }
     }
 
     // 2. Determine actual role from database user table
     const dbRole = user.role;
 
-    // 3. Determine redirect URL based on DB Role
-    let destination = "/properties";
+    // 3. Determine redirect URL based on DB Role (Always redirect to top-most menu for each role)
+    let destination = "/owner/dashboard";
     if (dbRole === "TENANT" || dbRole === "USER") {
       destination = "/portal/room";
     } else if (dbRole === "HOUSEKEEPING") {
-      destination = "/housekeeping";
+      destination = "/housekeeping/room-grid";
     } else if ((dbRole as string) === "PLATFORM_ADMIN" || (dbRole as string) === "SUPER_ADMIN") {
       destination = "/platform/dashboard";
     } else {
-      destination = "/properties";
+      destination = "/owner/dashboard";
     }
 
     // 4. Generate Short-lived Access Token (15 min) & Long-lived Refresh Token (7 days)

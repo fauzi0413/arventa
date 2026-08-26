@@ -121,7 +121,7 @@ function ResetPasswordFormContent() {
 
         {/* Alert Error */}
         {errorMessage && (
-          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-600 text-center font-semibold">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3.5 text-xs text-red-600 text-center font-semibold animate-shake">
             {errorMessage}
           </div>
         )}
@@ -150,9 +150,12 @@ function ResetPasswordFormContent() {
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setErrorMessage(null);
+                  }}
                   placeholder="Minimal 8 karakter (termasuk huruf kapital & angka)"
-                  className="w-full rounded-xl border border-[#E1ECE0] bg-[#F9FAF8] pl-10 pr-10 py-2.5 text-xs text-[#2F332E] font-medium placeholder-gray-400 focus:border-[#6B8065] focus:bg-white focus:outline-none transition-colors"
+                  className="w-full rounded-xl border border-[#E1ECE0] bg-[#F9FAF8] focus:border-[#6B8065] focus:bg-white pl-10 pr-10 py-2.5 text-xs text-[#2F332E] font-medium placeholder-gray-400 focus:outline-none transition-colors"
                 />
                 <button
                   type="button"
@@ -175,9 +178,12 @@ function ResetPasswordFormContent() {
                   type={showConfirmPassword ? "text" : "password"}
                   required
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    setErrorMessage(null);
+                  }}
                   placeholder="Ulangi password baru Anda"
-                  className="w-full rounded-xl border border-[#E1ECE0] bg-[#F9FAF8] pl-10 pr-10 py-2.5 text-xs text-[#2F332E] font-medium placeholder-gray-400 focus:border-[#6B8065] focus:bg-white focus:outline-none transition-colors"
+                  className="w-full rounded-xl border border-[#E1ECE0] bg-[#F9FAF8] focus:border-[#6B8065] focus:bg-white pl-10 pr-10 py-2.5 text-xs text-[#2F332E] font-medium placeholder-gray-400 focus:outline-none transition-colors"
                 />
                 <button
                   type="button"
@@ -187,6 +193,11 @@ function ResetPasswordFormContent() {
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {confirmPassword && password !== confirmPassword && (
+                <p className="text-[11px] text-red-500 font-semibold mt-1">
+                  ❌ Konfirmasi password tidak cocok dengan password baru
+                </p>
+              )}
             </div>
 
             {/* Submit Button */}

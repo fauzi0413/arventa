@@ -7,6 +7,7 @@ export interface PropertyFilterParams {
   type?: PropertyType;
   city?: string;
   ownerId?: string;
+  propertyIds?: string[];
   page?: number;
   limit?: number;
 }
@@ -44,6 +45,10 @@ export class PropertyService {
 
     if (params.ownerId) {
       where.ownerId = params.ownerId;
+    }
+
+    if (params.propertyIds !== undefined) {
+      where.id = { in: params.propertyIds };
     }
 
     const [items, total] = await Promise.all([

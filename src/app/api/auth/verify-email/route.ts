@@ -38,12 +38,36 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Activate user
+    // Activate user in Prisma DB
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: { isActive: true },
       select: { id: true, email: true, fullName: true, role: true, isActive: true },
     });
+
+    // Sync Supabase Auth email_confirm state
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (supabaseServiceRoleKey && supabaseUrl) {
+      try {
+        const { createClient: createSupabaseAdmin } = await import("@supabase/supabase-js");
+        const supabaseAdmin = createSupabaseAdmin(supabaseUrl, supabaseServiceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+
+        if (user.supabaseAuthId) {
+          await supabaseAdmin.auth.admin.updateUserById(user.supabaseAuthId, { email_confirm: true });
+        } else {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+          const target = listData?.users?.find((u) => u.email === user.email);
+          if (target) {
+            await supabaseAdmin.auth.admin.updateUserById(target.id, { email_confirm: true });
+          }
+        }
+      } catch (adminErr) {
+        console.warn("⚠️ Failed to sync email_confirm to Supabase Auth:", adminErr);
+      }
+    }
 
     return ApiResponse.success({
       message: "Verifikasi email berhasil! Akun Anda telah aktif dan siap digunakan untuk login.",
