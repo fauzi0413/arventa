@@ -146,6 +146,7 @@ export async function seedRolesAndMenus() {
       { title: "Keuangan & Penagihan", path: "/finance", icon: "IconCash", group: "PENYEWA & KEUANGAN", order: 9, roles: ["OWNER"] },
       { title: "Pengeluaran Operasional (OpEx)", path: "/finance/expenses", icon: "IconReceipt", group: "PENYEWA & KEUANGAN", order: 10, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
       { title: "Laporan & Analytics", path: "/reports", icon: "IconChartBar", group: "PENYEWA & KEUANGAN", order: 11, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "FAQ & Bantuan", path: "/owner/faq", icon: "IconHelpCircle", group: "BANTUAN", order: 12, roles: ["OWNER"] },
 
       // --- HOUSEKEEPING MENUS ---
       { title: "Status Kamar Grid", path: "/housekeeping/room-grid", icon: "IconClipboardCheck", group: "LAPANGAN & UNIT", order: 1, roles: ["HOUSEKEEPING"] },

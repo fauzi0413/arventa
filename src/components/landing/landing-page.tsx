@@ -2,21 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import CarouselStacked from "@/components/ui/feature-showcase";
+import { FAQ, type FaqItem } from "@/components/ui/faq-tabs";
 import packageJson from "../../../package.json";
 import {
   Building2,
-  Building,
   Store,
   CheckCircle2,
-  Users,
   BedDouble,
   ShieldCheck,
   Sparkles,
   ArrowRight,
-  Receipt,
-  Wallet,
-  ClipboardList,
-  BarChart3,
   LayoutDashboard,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -26,6 +22,34 @@ export function LandingPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [dashboardHref, setDashboardHref] = useState("/dashboard");
   const [userRoleText, setUserRoleText] = useState<string | null>(null);
+
+  // FAQ state — fetched from public API
+  const [faqCategories, setFaqCategories] = useState<Record<string, string>>({});
+  const [faqData, setFaqData] = useState<Record<string, FaqItem[]>>({});
+
+  useEffect(() => {
+    async function fetchFaqs() {
+      try {
+        const res = await fetch("/api/faq");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json.success) return;
+
+        const cats: Record<string, string> = {};
+        for (const cat of json.data.categories as string[]) {
+          cats[cat] = cat
+            .split(" ")
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+            .join(" ");
+        }
+        setFaqCategories(cats);
+        setFaqData(json.data.faqs);
+      } catch {
+        // silently fail — FAQ is non-critical
+      }
+    }
+    fetchFaqs();
+  }, []);
 
   useEffect(() => {
     async function checkUserAuth() {
@@ -124,6 +148,9 @@ export function LandingPage() {
             </a>
             <a href="#paket-harga" className="hover:text-[#8FA28A] transition-colors">
               Paket Harga
+            </a>
+            <a href="#faq" className="hover:text-[#8FA28A] transition-colors">
+              FAQ
             </a>
           </nav>
 
@@ -384,7 +411,7 @@ export function LandingPage() {
       </section>
 
       {/* ---------------------------------------------------------------- FITUR UTAMA SECTION ---------------------------------------------------------------- */}
-      <section id="fitur-utama" className="py-20 px-4 max-w-7xl mx-auto space-y-12">
+      <section id="fitur-utama" className="py-10 px-4 max-w-7xl mx-auto space-y-4">
         <div className="text-center space-y-3">
           <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
             Fitur Utama Platform
@@ -394,88 +421,8 @@ export function LandingPage() {
           </h2>
         </div>
 
-        {/* 8 Feature Cards Grid */}
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <Building className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">Property Management</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Kelola banyak aset properti kos, apartemen, kontrakan, dan ruko dalam satu dashboard terpusat.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <BedDouble className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">Room Management</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Pantau status kamar secara room-centric (Available, Occupied, Need Cleaning, Maintenance).
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <Users className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">Tenant Management</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Pencatatan profil penyewa, data KTP, kontrak sewa, dan riwayat pembayaran sewa.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <ClipboardList className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">Housekeeping Grid</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Penugasan staf lapangan, update status pembersihan kamar, dan checklist inventaris.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <Receipt className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">Invoice & Payment</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Pembuatan invoice otomatis, bukti bayar digital, dan peringatan tunggakan sewa.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <Wallet className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">Financial Management</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Pencatatan pendapatan (Income), pengeluaran operasional (OpEx), dan laba bersih (net profit).
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">AI Financial Insight</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Analisis cerdas proyeksi pendapatan dan rekomendasi penyesuaian tarif sewa kamar.
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[#C7D3C0]/30 bg-white/80 p-6 space-y-3 shadow-xs">
-            <div className="h-10 w-10 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 flex items-center justify-center text-[#8FA28A]">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-            <h3 className="text-sm font-bold text-[#2F332E]">Reporting & Analytics</h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Laporan keuangan bulanan, tren okupansi, dan data ekspor PDF/Excel.
-            </p>
-          </div>
-        </div>
+        {/* Sliding Stacked Carousel */}
+        <CarouselStacked />
       </section>
 
       {/* ---------------------------------------------------------------- PAKET HARGA SUBSCRIPTION SECTION ---------------------------------------------------------------- */}
@@ -609,6 +556,19 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ---------------------------------------------------------------- FAQ SECTION ---------------------------------------------------------------- */}
+      {Object.keys(faqCategories).length > 0 && (
+        <section id="faq" className="py-20 px-4 max-w-7xl mx-auto">
+          <FAQ
+            title="Pertanyaan yang Sering Ditanyakan"
+            subtitle="FAQ & Help Center"
+            categories={faqCategories}
+            faqData={faqData}
+            className="py-0"
+          />
+        </section>
+      )}
+
       {/* ---------------------------------------------------------------- BOTTOM CTA BANNER ---------------------------------------------------------------- */}
       <section className="bg-[#242823] text-white py-16 md:py-20 px-4 text-center space-y-6">
         <div className="max-w-3xl mx-auto space-y-4">
@@ -658,6 +618,9 @@ export function LandingPage() {
             </a>
             <a href="#paket-harga" className="hover:text-white transition-colors">
               Paket Harga
+            </a>
+            <a href="#faq" className="hover:text-white transition-colors">
+              FAQ
             </a>
             <Link href="/login" className="hover:text-white transition-colors">
               Login

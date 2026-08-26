@@ -197,6 +197,7 @@ const ownerNavItems: NavItem[] = [
   { id: "owner-3", href: "/operations/housekeeping-team", label: "Tim Operasional & Housekeeping", icon: IconSparkles, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-4", href: "/tenants", label: "Penyewa & Kontrak", icon: IconUsers, group: "PENYEWA & KEUANGAN" },
   { id: "owner-5", href: "/finance", label: "Keuangan & Penagihan", icon: IconCash, group: "PENYEWA & KEUANGAN" },
+  { id: "owner-6", href: "/owner/faq", label: "FAQ & Bantuan", icon: IconHelpCircle, group: "BANTUAN" },
 ];
 
 const housekeepingNavItems: NavItem[] = [
