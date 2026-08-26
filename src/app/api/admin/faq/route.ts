@@ -65,7 +65,7 @@ const DEFAULT_FAQS: FaqItem[] = [
     category: "SEWA & KONTRAK",
     question: "Bagaimana penyewa dapat melihat invoice dan bukti pembayaran sewa kamar?",
     answer: 'Penyewa/Tenant dapat membuka menu <a href="/portal/invoices">Tagihan & Pembayaran Portal</a> untuk mengunduh struk pembayaran digital serta melihat status aktif kontrak sewa.',
-    targetRole: "USER",
+    targetRole: "TENANT",
     order: 4,
     isPublished: true,
     createdAt: new Date().toISOString(),
@@ -177,7 +177,13 @@ export async function GET(req: Request) {
 
     // Filter by Target Role
     if (targetRole !== "all") {
-      items = items.filter((item) => item.targetRole === "ALL" || item.targetRole === targetRole);
+      items = items.filter(
+        (item) =>
+          item.targetRole === "ALL" ||
+          item.targetRole === targetRole ||
+          (targetRole === "TENANT" && item.targetRole === "USER") ||
+          (targetRole === "USER" && item.targetRole === "TENANT")
+      );
     }
 
     // Filter by Search Query

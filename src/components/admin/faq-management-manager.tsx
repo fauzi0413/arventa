@@ -548,7 +548,7 @@ export function FaqManagementManager() {
                 <option value="all" className="font-sans font-medium bg-background text-foreground py-1">Semua Peran (All Roles)</option>
                 <option value="OWNER" className="font-sans font-medium bg-background text-foreground py-1">Owner Properti</option>
                 <option value="HOUSEKEEPING" className="font-sans font-medium bg-background text-foreground py-1">Staf Housekeeping</option>
-                <option value="USER" className="font-sans font-medium bg-background text-foreground py-1">Penyewa / Tenant</option>
+                <option value="TENANT" className="font-sans font-medium bg-background text-foreground py-1">Penyewa / Tenant (TENANT)</option>
               </select>
             </div>
           </div>
@@ -632,7 +632,7 @@ export function FaqManagementManager() {
                               {item.category}
                             </Badge>
                             <Badge variant="outline" className="text-[10px] font-mono font-semibold bg-muted text-muted-foreground">
-                              Role: {item.targetRole}
+                              Role: {item.targetRole === "USER" ? "TENANT" : item.targetRole}
                             </Badge>
                             <Badge
                               variant={item.isPublished ? "default" : "secondary"}
@@ -850,7 +850,7 @@ export function FaqManagementManager() {
                     <option value="ALL" className="font-sans font-medium bg-background text-foreground py-1">ALL ROLES (Semua User)</option>
                     <option value="OWNER" className="font-sans font-medium bg-background text-foreground py-1">OWNER Properti</option>
                     <option value="HOUSEKEEPING" className="font-sans font-medium bg-background text-foreground py-1">HOUSEKEEPING Staf</option>
-                    <option value="USER" className="font-sans font-medium bg-background text-foreground py-1">USER / Penyewa</option>
+                    <option value="TENANT" className="font-sans font-medium bg-background text-foreground py-1">TENANT / Penyewa</option>
                   </select>
                 </div>
               </div>
