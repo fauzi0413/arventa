@@ -4,10 +4,6 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  User,
-  Shield,
-  Users,
-  Bed,
   Mail,
   Lock,
   Eye,
@@ -20,59 +16,16 @@ import {
 import { UserRole } from "@/types/roles";
 import { createClient } from "@/lib/supabase/client";
 
-interface RolePreset {
-  id: UserRole;
-  label: string;
-  email: string;
-  icon: React.ElementType;
-}
-
-const ROLE_PRESETS: RolePreset[] = [
-  {
-    id: UserRole.OWNER,
-    label: "OWNER",
-    email: "budi@kostsejahtera.com",
-    icon: User,
-  },
-  {
-    id: UserRole.PLATFORM_ADMIN,
-    label: "PLATFORM_ADMIN",
-    email: "admin@arventra.id",
-    icon: Shield,
-  },
-  {
-    id: UserRole.HOUSEKEEPING,
-    label: "HOUSEKEEPING",
-    email: "agus.hk@arventra.id",
-    icon: Users,
-  },
-  {
-    id: UserRole.USER,
-    label: "TENANT",
-    email: "apt12b01@arventa.id",
-    icon: Bed,
-  },
-];
-
 export function LoginForm() {
   const router = useRouter();
 
-  const [selectedRole, setSelectedRole] = useState<UserRole>(UserRole.OWNER);
-  const [email, setEmail] = useState("budi@kostsejahtera.com");
-  const [password, setPassword] = useState("Password123!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleRoleSelect = (preset: RolePreset) => {
-    setSelectedRole(preset.id);
-    setEmail(preset.email);
-    setPassword("Password123!");
-    setErrorMessage(null);
-  };
-
-  // Exact entry routes matching Order 1 in prisma/seeders/roles-menus.seeder.ts
   const getDestinationRoute = (role: UserRole): string => {
     switch (role) {
       case UserRole.PLATFORM_ADMIN:
@@ -93,39 +46,37 @@ export function LoginForm() {
     setErrorMessage(null);
 
     try {
-      // 1. Verify credentials & role against PostgreSQL DB API
-      let activeRole: UserRole = selectedRole;
-      let targetRoute = getDestinationRoute(selectedRole);
+      // 1. Verify user credentials against Database Users table & issue JWT HttpOnly cookies
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, rememberMe }),
+      });
 
-      try {
-        const loginRes = await fetch("/api/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, role: selectedRole }),
-        });
+      const json = await loginRes.json();
 
-        if (loginRes.ok) {
-          const json = await loginRes.json();
-          const dbData = json.data;
-          if (dbData) {
-            // Map DB role ('TENANT', 'OWNER', 'HOUSEKEEPING', 'PLATFORM_ADMIN')
-            if (dbData.role === "TENANT") {
-              activeRole = UserRole.USER; // UI UserRole enum mapping for Tenant
-            } else if (dbData.role === "HOUSEKEEPING") {
-              activeRole = UserRole.HOUSEKEEPING;
-            } else if (dbData.role === "PLATFORM_ADMIN" || dbData.role === "SUPER_ADMIN") {
-              activeRole = UserRole.PLATFORM_ADMIN;
-            } else {
-              activeRole = UserRole.OWNER;
-            }
+      if (!loginRes.ok || !json.success) {
+        setErrorMessage(
+          json.message || "Gagal melakukan login. Silakan periksa kembali email dan password Anda."
+        );
+        setIsLoading(false);
+        return;
+      }
 
-            if (dbData.destination) {
-              targetRoute = dbData.destination;
-            }
-          }
+      const dbData = json.data;
+      let activeRole: UserRole = UserRole.OWNER;
+      let targetRoute = dbData?.destination || "/properties";
+
+      if (dbData) {
+        if (dbData.role === "TENANT" || dbData.role === "USER") {
+          activeRole = UserRole.USER;
+        } else if (dbData.role === "HOUSEKEEPING") {
+          activeRole = UserRole.HOUSEKEEPING;
+        } else if (dbData.role === "PLATFORM_ADMIN" || dbData.role === "SUPER_ADMIN") {
+          activeRole = UserRole.PLATFORM_ADMIN;
+        } else {
+          activeRole = UserRole.OWNER;
         }
-      } catch (e) {
-        console.warn("API DB Auth Notice: falling back to client role state", e);
       }
 
       // 2. Set session cookies & localStorage with verified role & email
@@ -146,13 +97,38 @@ export function LoginForm() {
         });
       } catch (err) {}
 
-      // 4. Navigate to the verified role's destination route
+      // 4. Navigate to destination route determined by user DB role
       router.push(targetRoute);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal melakukan login. Silakan coba lagi.";
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    setErrorMessage(null);
+    try {
+      const supabase = createClient();
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setErrorMessage(error.message || "Gagal menghubungkan ke Google Sign-In");
+        setIsGoogleLoading(false);
+      }
+    } catch (err: any) {
+      setErrorMessage("Terjadi kesalahan saat menghubungkan ke Google OAuth.");
+      setIsGoogleLoading(false);
     }
   };
 
@@ -164,7 +140,7 @@ export function LoginForm() {
           Masuk ke Account ARVENTRA
         </h2>
         <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-xs mx-auto">
-          Pilih peran pengguna dan masukkan kredensial untuk mengakses dashboard
+          Gunakan akun Google atau email terdaftar untuk mengakses dashboard
         </p>
       </div>
 
@@ -175,50 +151,59 @@ export function LoginForm() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Role Selection Grid */}
-        <div className="space-y-2">
-          <label className="block text-xs font-extrabold text-[#2F332E]">
-            Pilih Peran Pengguna (Role):
-          </label>
-          <div className="grid grid-cols-2 gap-2.5">
-            {ROLE_PRESETS.map((preset) => {
-              const Icon = preset.icon;
-              const isSelected = selectedRole === preset.id;
-              return (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => handleRoleSelect(preset)}
-                  className={`flex items-center gap-2.5 rounded-xl border p-3 text-xs font-bold transition-all text-left cursor-pointer ${
-                    isSelected
-                      ? "border-[#6B8065] bg-[#F0F5EF] text-[#2F332E] shadow-xs ring-1 ring-[#6B8065]"
-                      : "border-[#E1ECE0] bg-[#F9FAF8] text-gray-600 hover:border-[#6B8065]/50 hover:bg-[#F0F5EF]/50"
-                  }`}
-                >
-                  <div
-                    className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                      isSelected
-                        ? "bg-[#5B7555] text-white"
-                        : "bg-gray-200 text-gray-500"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="truncate">{preset.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* Google OAuth Login Button */}
+      <button
+        type="button"
+        onClick={handleGoogleLogin}
+        disabled={isLoading || isGoogleLoading}
+        className="w-full py-3 px-4 rounded-2xl border border-[#E1ECE0] bg-[#F9FAF8] hover:bg-white hover:border-[#6B8065] text-[#2F332E] font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+      >
+        {isGoogleLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin text-[#5B7555]" />
+            <span>Menghubungkan ke Google...</span>
+          </>
+        ) : (
+          <>
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>Masuk dengan Google</span>
+          </>
+        )}
+      </button>
 
+      {/* Divider */}
+      <div className="relative flex items-center justify-center my-2">
+        <div className="border-t border-[#E1ECE0] w-full" />
+        <span className="bg-white px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wider absolute">
+          atau dengan email
+        </span>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
         {/* Email Address Input */}
         <div className="space-y-1.5">
           <label className="block text-xs font-extrabold text-[#2F332E]">
             Email Address
           </label>
-          <div className="relative">
-            <Mail className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+          <div className="relative flex items-center">
+            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               type="email"
               required
@@ -236,19 +221,15 @@ export function LoginForm() {
             <label className="block text-xs font-extrabold text-[#2F332E]">
               Password
             </label>
-            <a
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                alert("Silakan hubungi administrator untuk reset password.");
-              }}
+            <Link
+              href="/forgot-password"
               className="text-[11px] font-bold text-[#5B7555] hover:underline transition-colors"
             >
               Lupa password?
-            </a>
+            </Link>
           </div>
-          <div className="relative">
-            <Lock className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+          <div className="relative flex items-center">
+            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
             <input
               type={showPassword ? "text" : "password"}
               required
@@ -260,7 +241,7 @@ export function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 p-0.5"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-md flex items-center justify-center transition-colors"
             >
               {showPassword ? (
                 <EyeOff className="h-4 w-4" />

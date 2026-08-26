@@ -30,22 +30,24 @@ export const registerSchema = z
       .email("Format email tidak valid"),
     phoneNumber: z
       .string()
-      .min(10, "Nomor telepon minimal 10 digit")
-      .regex(/^[0-9+\-\s]+$/, "Nomor telepon hanya boleh berisi angka")
-      .optional()
-      .or(z.literal("")),
+      .min(1, "Nomor HP / WhatsApp wajib diisi")
+      .min(10, "Nomor HP / WhatsApp minimal 10 digit")
+      .regex(/^[0-9+\-\s]+$/, "Nomor telepon hanya boleh berisi angka"),
     role: z.nativeEnum(UserRole, {
       errorMap: () => ({ message: "Pilih peran yang valid" }),
     }),
     password: z
       .string()
+      .min(1, "Password wajib diisi")
       .min(8, "Password minimal 8 karakter")
-      .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar")
-      .regex(/[0-9]/, "Password harus mengandung minimal 1 angka"),
-    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi"),
+      .regex(/[A-Z]/, "Password harus mengandung minimal 1 huruf besar (A-Z)")
+      .regex(/[0-9]/, "Password harus mengandung minimal 1 angka (0-9)"),
+    confirmPassword: z
+      .string()
+      .min(1, "Konfirmasi password wajib diisi"),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Konfirmasi password tidak cocok",
+    message: "Konfirmasi password tidak cocok dengan password",
     path: ["confirmPassword"],
   });
 

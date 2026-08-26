@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { ApiResponse } from "@/lib/api-response";
 import { UserRole } from "@/types/roles";
+import { verifyJwt } from "@/lib/auth/jwt";
 
 // ---------------------------------------------------------------------------
 // GET /api/auth/me — Retrieve current active user profile & role
@@ -12,18 +13,40 @@ export async function GET(request: NextRequest) {
     let authUserEmail: string | undefined;
     let authUserId: string | undefined;
 
-    try {
-      const supabase = await createClient();
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+    // 1. First check JWT Access Token / Refresh Token from HttpOnly cookies
+    const accessTokenCookie = request.cookies.get("arventa_access_token")?.value;
+    const refreshTokenCookie = request.cookies.get("arventa_refresh_token")?.value;
 
-      if (authUser) {
-        authUserId = authUser.id;
-        authUserEmail = authUser.email;
+    if (accessTokenCookie) {
+      const jwtPayload = verifyJwt(accessTokenCookie);
+      if (jwtPayload?.email) {
+        authUserEmail = jwtPayload.email;
+        authUserId = jwtPayload.userId;
       }
-    } catch (err) {
-      console.warn("Supabase auth check in me API warning:", err);
+    }
+
+    if (!authUserEmail && refreshTokenCookie) {
+      const refreshPayload = verifyJwt(refreshTokenCookie);
+      if (refreshPayload?.email) {
+        authUserEmail = refreshPayload.email;
+        authUserId = refreshPayload.userId;
+      }
+    }
+
+    if (!authUserEmail) {
+      try {
+        const supabase = await createClient();
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (authUser) {
+          authUserId = authUser.id;
+          authUserEmail = authUser.email;
+        }
+      } catch (err) {
+        console.warn("Supabase auth check in me API warning:", err);
+      }
     }
 
     const sessionCookie = request.cookies.get("arventa_session")?.value;
