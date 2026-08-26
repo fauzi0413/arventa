@@ -3,6 +3,7 @@ import { RentalPeriodType, UnitStatus, UserRole } from "@/generated/prisma/clien
 
 export interface UnitFilterParams {
   propertyId?: string;
+  propertyIds?: string[];
   status?: UnitStatus;
   search?: string;
   page?: number;
@@ -49,6 +50,8 @@ export class UnitService {
       propertyId: unit.propertyId,
       propertyName: unit.property?.name,
       name: unit.unitNumber,
+      unitNumber: unit.unitNumber,
+      rawStatus: unit.status,
       floor: unit.floor,
       status: unit.status === 'CLEANING' ? 'Need Cleaning' : unit.status === 'AVAILABLE' ? 'Available' : unit.status === 'OCCUPIED' ? 'Occupied' : unit.status === 'MAINTENANCE' ? 'Maintenance' : 'Reserved',
       pricing: {
@@ -66,11 +69,21 @@ export class UnitService {
       roomEmail: unit.unitUser?.email || `${unit.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`,
       roomPassword: unit.roomPassword || 'Arv!789210',
       roomPasswordLastReset: unit.roomPasswordLastReset?.toISOString?.() || (typeof unit.roomPasswordLastReset === 'string' ? unit.roomPasswordLastReset : unit.createdAt?.toISOString?.() || new Date().toISOString()),
-      tenantName: activeLease?.tenant?.user?.fullName || undefined,
-      tenantPhone: activeLease?.tenant?.user?.phoneNumber || undefined,
+      tenantName: activeLease?.tenant?.fullName || activeLease?.tenant?.user?.fullName || undefined,
+      tenantPhone: activeLease?.tenant?.phoneNumber || activeLease?.tenant?.user?.phoneNumber || undefined,
       checkInDate: activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
+      activeLease: activeLease ? {
+        id: activeLease.id,
+        contractNumber: activeLease.contractUrl || `KTR/ARV/${activeLease.id.slice(0, 6).toUpperCase()}`,
+        startDate: activeLease.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
+        endDate: activeLease.endDate ? (typeof activeLease.endDate === 'string' ? activeLease.endDate.split('T')[0] : activeLease.endDate.toISOString().split('T')[0]) : undefined,
+        status: activeLease.status || 'ACTIVE',
+        rentPrice: Number(activeLease.rentPrice || unit.basePrice || 0),
+        securityDeposit: Number(activeLease.securityDeposit || unit.deposit || 0),
+        rentalPeriod: activeLease.rentalPeriod || 'MONTHLY',
+      } : undefined,
       createdAt: typeof unit.createdAt === 'string' ? unit.createdAt : unit.createdAt.toISOString(),
-      inventories: (unit.inventories || []).map((inv: any) => ({
+      inventories: (unit.inventoryItems || unit.inventories || []).map((inv: any) => ({
         id: inv.id,
         propertyId: unit.propertyId,
         unitId: inv.unitId,
@@ -93,6 +106,8 @@ export class UnitService {
 
     if (params.propertyId) {
       where.propertyId = params.propertyId;
+    } else if (params.propertyIds !== undefined) {
+      where.propertyId = { in: params.propertyIds };
     }
 
     if (params.status) {
@@ -124,7 +139,7 @@ export class UnitService {
             fullName: true,
           },
         },
-        inventories: {
+        inventoryItems: {
           orderBy: { createdAt: 'desc' },
         },
         leases: {
@@ -172,7 +187,7 @@ export class UnitService {
             fullName: true,
           },
         },
-        inventories: {
+        inventoryItems: {
           orderBy: { createdAt: 'desc' },
         },
         leases: {
@@ -223,9 +238,11 @@ export class UnitService {
       if (!roomUser) {
         roomUser = await tx.user.create({
           data: {
-            fullName: `Unit ${data.name}`,
+            fullName: `Akun Unit ${data.name}`,
             email: roomEmail,
-            role: UserRole.USER,
+            role: UserRole.TENANT,
+            phoneNumber: '0812' + Math.floor(10000000 + Math.random() * 90000000),
+            isActive: true,
           },
         });
       }

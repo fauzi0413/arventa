@@ -56,6 +56,8 @@ async function deleteStorageFiles(urls: (string | null | undefined)[]) {
 
 export interface TenantFilterParams {
   search?: string;
+  propertyIds?: string[];
+  userId?: string;
   page?: number;
   limit?: number;
 }
@@ -85,6 +87,20 @@ export class TenantService {
         { user: { phoneNumber: { contains: params.search, mode: "insensitive" } } },
         { nik: { contains: params.search, mode: "insensitive" } },
       ];
+    }
+
+    if (params.propertyIds !== undefined) {
+      where.leases = {
+        some: {
+          unit: {
+            propertyId: { in: params.propertyIds },
+          },
+        },
+      };
+    }
+
+    if (params.userId) {
+      where.userId = params.userId;
     }
 
     const [items, total] = await Promise.all([
@@ -218,7 +234,7 @@ export class TenantService {
       let unit: any = null;
       let lease: any = null;
 
-      // 1. If unit is provided AND status === 'AKTIF', create User account per room
+      // 1. If unit is provided AND status === 'AKTIF', find unit and mark occupied
       if (data.unitName && data.status === "AKTIF") {
         unit = await tx.unit.findFirst({
           where: {
@@ -236,27 +252,16 @@ export class TenantService {
             where: { id: unit.id },
             data: { status: "OCCUPIED" },
           });
-
-          // Create User account assigned to room
-          const roomEmail = data.email || `tenant.${unit.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, "")}@arventa.local`;
-          user = await tx.user.create({
-            data: {
-              fullName: data.fullName,
-              email: roomEmail,
-              phoneNumber: data.phoneNumber || null,
-              role: UserRole.TENANT,
-            },
-          });
         }
       }
 
-      // 2. Create TenantProfile standalone (No User record created if not assigned to room)
+      // 2. Create TenantProfile standalone (User account is not created when adding a tenant)
       const tenantProfile = await tx.tenantProfile.create({
         data: {
           fullName: data.fullName,
           email: data.email || null,
           phoneNumber: data.phoneNumber || null,
-          userId: user?.id || null,
+          userId: null,
           nik: data.nik || null,
           ktpImageUrl: data.ktpImageUrl || null,
           birthPlaceDate: data.birthPlaceDate || null,
@@ -277,7 +282,7 @@ export class TenantService {
         },
       });
 
-      // 3. Create Lease if unit assigned
+      // 3. Create Lease & initial Invoice if unit assigned & status === 'AKTIF'
       if (unit && data.status === "AKTIF") {
         const startDate = data.leaseStartDate ? new Date(data.leaseStartDate) : new Date();
         const endDate = new Date(startDate);
@@ -292,6 +297,24 @@ export class TenantService {
             rentPrice: unit.price,
             rentalPeriod: "MONTHLY",
             status: "ACTIVE",
+          },
+        });
+
+        // Auto-generate initial Invoice (Rent + Deposit) for ACTIVE contract
+        const invNumber = `INV/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, "0")}/${Math.floor(1000 + Math.random() * 9000)}`;
+        const rentAmt = Number(unit.price || 0);
+        const depAmt = Number(unit.deposit || 0);
+
+        await tx.invoice.create({
+          data: {
+            invoiceNumber: invNumber,
+            leaseId: lease.id,
+            amount: rentAmt,
+            utilityAmount: 0,
+            penaltyAmount: 0,
+            totalAmount: rentAmt + depAmt,
+            dueDate: startDate,
+            status: "PENDING",
           },
         });
       }

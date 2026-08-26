@@ -3,11 +3,13 @@ import { ApiResponse } from "@/lib/api-response";
 import { PropertyService } from "@/services/property.service";
 import { createPropertySchema } from "@/lib/validations/property.schema";
 import { PropertyType } from "@/generated/prisma/client";
+import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { UserRole } from "@/types/roles";
+import { prisma } from "@/lib/prisma";
 
 /**
  * GET /api/properties
- * Fetch paginated & filtered list of properties.
- * Query Params: ?search=...&type=KOS&city=Bandung&ownerId=...&page=1&limit=10
+ * Fetch paginated & filtered list of properties scoped to current user.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -16,15 +18,42 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || undefined;
     const type = (searchParams.get("type") as PropertyType) || undefined;
     const city = searchParams.get("city") || undefined;
-    const ownerId = searchParams.get("ownerId") || undefined;
+    let ownerId = searchParams.get("ownerId") || undefined;
     const page = searchParams.get("page") ? parseInt(searchParams.get("page")!, 10) : 1;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : 10;
+
+    const authUser = await getAuthenticatedUser(request);
+    let propertyIds: string[] | undefined = undefined;
+
+    if (authUser) {
+      if (authUser.role === UserRole.OWNER) {
+        ownerId = authUser.id;
+      } else if (authUser.role === UserRole.HOUSEKEEPING) {
+        const assignments = await prisma.housekeepingAssignment.findMany({
+          where: { userId: authUser.id },
+          select: { propertyId: true },
+        });
+        propertyIds = assignments.map((a) => a.propertyId);
+      } else if (authUser.role === UserRole.USER) {
+        const tenantUnits = await prisma.unit.findMany({
+          where: {
+            OR: [
+              { unitUserId: authUser.id },
+              { leases: { some: { tenant: { userId: authUser.id } } } },
+            ],
+          },
+          select: { propertyId: true },
+        });
+        propertyIds = tenantUnits.map((u) => u.propertyId);
+      }
+    }
 
     const result = await PropertyService.getAllProperties({
       search,
       type,
       city,
       ownerId,
+      propertyIds,
       page,
       limit,
     });
@@ -44,11 +73,16 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/properties
- * Create a new property record.
+ * Create a new property record for logged-in owner.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const authUser = await getAuthenticatedUser(request);
+
+    if (authUser && (!body.ownerId || body.ownerId === "demo-user-id")) {
+      body.ownerId = authUser.id;
+    }
 
     // Validate request payload with Zod
     const validationResult = createPropertySchema.safeParse(body);

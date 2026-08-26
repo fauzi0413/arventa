@@ -7,6 +7,7 @@ export interface PropertyFilterParams {
   type?: PropertyType;
   city?: string;
   ownerId?: string;
+  propertyIds?: string[];
   page?: number;
   limit?: number;
 }
@@ -44,6 +45,10 @@ export class PropertyService {
 
     if (params.ownerId) {
       where.ownerId = params.ownerId;
+    }
+
+    if (params.propertyIds !== undefined) {
+      where.id = { in: params.propertyIds };
     }
 
     const [items, total] = await Promise.all([
@@ -108,13 +113,31 @@ export class PropertyService {
             phoneNumber: true,
           },
         },
+        inventories: true,
         units: {
           orderBy: { unitNumber: "asc" },
           include: {
-            inventories: true,
+            inventoryItems: true,
+            leases: {
+              where: { status: 'ACTIVE' },
+              take: 1,
+              include: {
+                tenant: {
+                  include: {
+                    user: {
+                      select: {
+                        fullName: true,
+                        phoneNumber: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
             _count: {
               select: {
-                inventories: true,
+                inventoryItems: true,
                 leases: true,
               },
             },

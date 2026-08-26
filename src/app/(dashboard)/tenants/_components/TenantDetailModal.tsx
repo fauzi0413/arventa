@@ -11,6 +11,7 @@ interface TenantDetailModalProps {
   tenant: Tenant | null;
   onEdit?: (tenant: Tenant) => void;
   onOpenTransfer?: (tenant: Tenant) => void;
+  onViewContract?: (tenant: Tenant) => void;
 }
 
 export default function TenantDetailModal({
@@ -19,6 +20,7 @@ export default function TenantDetailModal({
   tenant,
   onEdit,
   onOpenTransfer,
+  onViewContract,
 }: TenantDetailModalProps) {
   if (!isOpen || !tenant) return null;
 
@@ -192,18 +194,32 @@ export default function TenantDetailModal({
               <h3 className="text-xs font-bold uppercase tracking-wider text-[#8FA28A] flex items-center gap-1.5">
                 <Building className="h-3.5 w-3.5" /> Penempatan &amp; Kontrak Unit
               </h3>
-              {onOpenTransfer && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onOpenTransfer(tenant);
-                  }}
-                  className="flex items-center gap-1 rounded-xl bg-[#8FA28A] px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-[#7D9178] transition-all"
-                >
-                  <ArrowRightLeft className="h-3 w-3" /> Pindah Unit
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {onViewContract && tenant.status === 'AKTIF' && tenant.currentUnitName && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onViewContract(tenant);
+                    }}
+                    className="flex items-center gap-1 rounded-xl bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-slate-800 transition-all cursor-pointer"
+                  >
+                    <FileText className="h-3 w-3" /> Lihat Kontrak
+                  </button>
+                )}
+
+                {onOpenTransfer && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenTransfer(tenant);
+                    }}
+                    className="flex items-center gap-1 rounded-xl bg-[#8FA28A] px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-[#7D9178] transition-all cursor-pointer"
+                  >
+                    <ArrowRightLeft className="h-3 w-3" /> Pindah Unit
+                  </button>
+                )}
+              </div>
             </div>
             {tenant.currentUnitName ? (
               <div className="flex items-center justify-between rounded-xl bg-[#F7F4ED] p-3 border border-[#C7D3C0]/50">

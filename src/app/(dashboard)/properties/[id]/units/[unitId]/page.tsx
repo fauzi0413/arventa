@@ -22,6 +22,7 @@ import {
   RefreshCw,
   CheckCircle2,
   XCircle,
+  FileText,
 } from 'lucide-react';
 import { Unit } from '@/app/(dashboard)/units/_types';
 import { Property, InventoryItem, InventoryCondition } from '@/app/(dashboard)/properties/_types';
@@ -174,10 +175,6 @@ export default function PropertyUnitDetailPage() {
             let unitInventory = (uData.inventories && uData.inventories.length > 0)
               ? uData.inventories
               : loadedInventory.filter((item) => item.unitId === unitId);
-
-            if (unitInventory.length === 0) {
-              unitInventory = DEFAULT_INVENTORIES(propertyId, unitId, uData.name);
-            }
 
             setInventories(unitInventory);
             setLoading(false);
@@ -706,7 +703,7 @@ export default function PropertyUnitDetailPage() {
 
           {/* TENANT WIDGET (Matching SS 2 & SS 3 + Assign Tenant Action) */}
           <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-4">
-            {unit.status === 'Occupied' && unit.tenantName ? (
+            {(unit.status === 'Occupied' || (unit.status as string) === 'OCCUPIED') && unit.tenantName ? (
               /* MATCHING SS 2: PENYEWA AKTIF */
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
@@ -723,7 +720,10 @@ export default function PropertyUnitDetailPage() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setIsAssignTenantOpen(true)}
+                    onClick={() => {
+                      const targetParam = (unit as any).tenantId || (unit as any).leases?.[0]?.tenantId || unit.tenantName;
+                      router.push(`/tenants?editTenantId=${encodeURIComponent(targetParam || '')}`);
+                    }}
                     className="px-3 py-1.5 rounded-xl border border-border bg-muted/30 hover:bg-muted text-xs font-bold text-foreground flex items-center gap-1 transition-colors min-h-[36px]"
                   >
                     Edit Penyewa
@@ -754,6 +754,57 @@ export default function PropertyUnitDetailPage() {
                       </strong>
                     </div>
                   )}
+                </div>
+
+                {/* Highlight Information Kontrak Sewa Aktif */}
+                <div className="p-3.5 rounded-xl bg-[#8FA28A]/10 border border-[#8FA28A]/30 space-y-2.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase text-[#8FA28A] tracking-wider flex items-center gap-1">
+                      <FileText className="h-3.5 w-3.5" /> Highlight Kontrak Sewa
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 font-extrabold text-[10px]">
+                      {(unit as any).activeLease?.status || 'AKTIF'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 pt-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Nomor Kontrak:</span>
+                      <strong className="font-mono text-foreground font-bold">
+                        {(unit as any).activeLease?.contractNumber || `KTR/ARV/${unit.id.slice(0, 6).toUpperCase()}`}
+                      </strong>
+                    </div>
+
+                    {(unit as any).activeLease?.endDate && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Masa Berakhir:</span>
+                        <strong className="text-foreground font-semibold">
+                          {new Date((unit as any).activeLease.endDate).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </strong>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Tarif Sewa Pokok:</span>
+                      <strong className="text-foreground font-bold">
+                        Rp {((unit as any).activeLease?.rentPrice || unit.pricing?.monthly || 0).toLocaleString('id-ID')} / bln
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="pt-1.5 border-t border-[#8FA28A]/20 text-center">
+                    <Link
+                      href={`/tenant-contract?search=${encodeURIComponent((unit as any).activeLease?.contractNumber || unit.tenantName)}&autoPreview=true`}
+                      className="text-[11px] font-extrabold text-[#8FA28A] hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Lihat Rincian Kontrak Penyewa</span>
+                      <ArrowLeft className="h-3 w-3 rotate-180" />
+                    </Link>
+                  </div>
                 </div>
               </div>
             ) : (

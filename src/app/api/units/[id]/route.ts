@@ -47,16 +47,35 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return ApiResponse.notFound(`Unit with ID '${id}' not found`);
     }
 
+    const basePrice = body.basePrice !== undefined ? Number(body.basePrice) : body.pricing?.monthly !== undefined ? Number(body.pricing.monthly) : undefined;
+    const transitPrice = body.transitPrice !== undefined ? Number(body.transitPrice) : body.pricing?.daily !== undefined ? (body.pricing.daily ? Number(body.pricing.daily) : undefined) : undefined;
+    const deposit = body.deposit !== undefined ? Number(body.deposit) : body.pricing?.deposit !== undefined ? (body.pricing.deposit ? Number(body.pricing.deposit) : undefined) : undefined;
+    const capacity = body.capacity !== undefined ? (typeof body.capacity === 'object' ? Number(body.capacity.maxPersons) : Number(body.capacity)) : undefined;
+    const dimensions = body.dimensions !== undefined ? body.dimensions : body.capacity?.dimensions;
+
+    const statusMap: Record<string, any> = {
+      Available: 'AVAILABLE',
+      Occupied: 'OCCUPIED',
+      'Need Cleaning': 'CLEANING',
+      Maintenance: 'MAINTENANCE',
+      Reserved: 'RESERVED',
+      AVAILABLE: 'AVAILABLE',
+      OCCUPIED: 'OCCUPIED',
+      CLEANING: 'CLEANING',
+      MAINTENANCE: 'MAINTENANCE',
+      RESERVED: 'RESERVED',
+    };
+
     const updated = await UnitService.updateUnit(id, {
       name: body.name,
       floor: body.floor !== undefined ? Number(body.floor) : undefined,
-      status: body.status,
+      status: body.status ? statusMap[body.status] || body.status : undefined,
       allowedPeriod: body.allowedPeriod,
-      basePrice: body.basePrice !== undefined ? Number(body.basePrice) : undefined,
-      transitPrice: body.transitPrice !== undefined ? Number(body.transitPrice) : undefined,
-      deposit: body.deposit !== undefined ? Number(body.deposit) : undefined,
-      capacity: body.capacity !== undefined ? Number(body.capacity) : undefined,
-      dimensions: body.dimensions,
+      basePrice,
+      transitPrice,
+      deposit,
+      capacity,
+      dimensions,
       facilities: body.facilities,
       description: body.description,
       imageUrl: body.imageUrl,

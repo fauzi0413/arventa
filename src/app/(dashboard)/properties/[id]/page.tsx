@@ -3,9 +3,10 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package, Plus, Sparkles, ArrowRight, Check } from 'lucide-react';
+import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package, Plus, Sparkles, ArrowRight, Check, FileText, Settings } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import PropertyFormModal from '../_components/PropertyFormModal';
+import PropertyContractTemplateModal from '../_components/PropertyContractTemplateModal';
 import InventoryManager from '../_components/InventoryManager';
 import { Unit, UnitStatus } from '../../units/_types';
 import UnitStatusBadgeDropdown from '../../units/_components/UnitStatusBadgeDropdown';
@@ -25,6 +26,28 @@ export default function PropertyDetailPage() {
   const [statuses, setStatuses] = useState<PropertyStatus[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Contract template state
+  const [contractTemplate, setContractTemplate] = useState<{
+    id?: string | null;
+    templateName?: string;
+    customClauses?: string[];
+    rules?: string;
+    notes?: string;
+  } | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+
+  const fetchContractTemplate = async () => {
+    try {
+      const res = await fetch(`/api/properties/${id}/contract-template`);
+      if (res.ok) {
+        const json = await res.json();
+        setContractTemplate(json.data);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch property contract template');
+    }
+  };
 
   // Units state
   const [units, setUnits] = useState<Unit[]>([]);
@@ -64,6 +87,9 @@ export default function PropertyDetailPage() {
             imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
             hasCleaningService: p.hasCleaningService ?? true,
             createdAt: p.createdAt || new Date().toISOString(),
+            ownerName: p.owner?.fullName || p.ownerName,
+            ownerPhone: p.owner?.phoneNumber || p.ownerPhone,
+            ownerEmail: p.owner?.email || p.ownerEmail,
           };
 
           const statusMap: Record<string, UnitStatus> = {
@@ -75,17 +101,32 @@ export default function PropertyDetailPage() {
             RESERVED: 'Reserved',
           };
 
-          const mappedUnits: Unit[] = (p.units || []).map((u: any) => ({
-            id: u.id,
-            propertyId: p.id,
-            name: u.unitNumber,
-            status: statusMap[u.status] || 'Available',
-            facilities: u.facilities || ['AC', 'WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed'],
-            capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
-            pricing: { monthly: Number(u.basePrice) || 1500000 },
-            description: `Lantai ${u.floor || 1}`,
-            createdAt: u.createdAt || new Date().toISOString(),
-          }));
+          const mappedUnits: Unit[] = (p.units || []).map((u: any) => {
+            const activeLease = u.leases?.[0];
+            const tenant = activeLease?.tenant;
+            return {
+              id: u.id,
+              propertyId: p.id,
+              name: u.unitNumber,
+              status: statusMap[u.status] || 'Available',
+              facilities: Array.isArray(u.facilities) ? u.facilities : ['AC', 'WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed'],
+              capacity: {
+                maxPersons: u.capacity || 1,
+                dimensions: u.dimensions || (u.floor ? `Lantai ${u.floor}` : '3x4 m'),
+              },
+              pricing: {
+                monthly: Number(u.basePrice) || 0,
+                daily: u.transitPrice ? Number(u.transitPrice) : (u.dailyPrice ? Number(u.dailyPrice) : undefined),
+                deposit: u.deposit !== undefined && u.deposit !== null ? Number(u.deposit) : 0,
+                utilities: u.utilities || '',
+              },
+              description: u.description || (u.floor ? `Lantai ${u.floor}` : ''),
+              tenantName: tenant?.fullName || tenant?.user?.fullName || u.tenantName || '',
+              tenantPhone: tenant?.phoneNumber || tenant?.user?.phoneNumber || u.tenantPhone || '',
+              checkInDate: activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : new Date(activeLease.startDate).toISOString().split('T')[0]) : (u.checkInDate || ''),
+              createdAt: u.createdAt || new Date().toISOString(),
+            };
+          });
 
           setProperty(mappedProp);
           setUnits(mappedUnits);
@@ -118,7 +159,12 @@ export default function PropertyDetailPage() {
     setCategories(currentCats);
     setStatuses(currentStats);
     if (found) {
-      setProperty(found);
+      setProperty({
+        ...found,
+        ownerName: found.ownerName || 'Bpk. Hendra Pratama',
+        ownerPhone: found.ownerPhone || '081222222222',
+        ownerEmail: found.ownerEmail || 'owner@arventa.id',
+      });
     }
     setUnits(propUnits);
     setLoading(false);
@@ -126,6 +172,7 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     loadData();
+    fetchContractTemplate();
   }, [id]);
 
   const saveAllUnits = (allUnits: Unit[]) => {
@@ -140,7 +187,18 @@ export default function PropertyDetailPage() {
     if (editingUnit) {
       const updated = allUnits.map((u) => (u.id === editingUnit.id ? { ...u, ...data } : u));
       saveAllUnits(updated);
+
+      try {
+        await fetch(`/api/units/${editingUnit.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+      } catch (e) {
+        console.error('Failed to update unit in database:', e);
+      }
       setEditingUnit(null);
+      await loadData();
     } else {
       const newUnit: Unit = {
         ...data,
@@ -173,6 +231,7 @@ export default function PropertyDetailPage() {
       } catch (e) {
         console.error('Failed to create unit in database:', e);
       }
+      await loadData();
     }
   };
 
@@ -224,8 +283,8 @@ export default function PropertyDetailPage() {
       customTargetIds && customTargetIds.length > 0
         ? customTargetIds
         : selectedUnitIds.length > 0
-        ? selectedUnitIds
-        : units.map((u) => u.id);
+          ? selectedUnitIds
+          : units.map((u) => u.id);
 
     if (payload.actionType === 'delete') {
       updated = updated.filter((u) => !targetIds.includes(u.id));
@@ -537,22 +596,20 @@ export default function PropertyDetailPage() {
           <div className="flex gap-4 border-b border-[#C7D3C0]/40 pb-2">
             <button
               onClick={() => setActiveTab('units')}
-              className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${
-                activeTab === 'units'
-                  ? 'border-[#8FA28A] text-[#8FA28A]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'units'
+                ? 'border-[#8FA28A] text-[#8FA28A]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               <Home className="h-4 w-4" />
               Kamar / Unit ({units.length})
             </button>
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${
-                activeTab === 'inventory'
-                  ? 'border-[#8FA28A] text-[#8FA28A]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'inventory'
+                ? 'border-[#8FA28A] text-[#8FA28A]'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               <Package className="h-4 w-4" />
               Inventaris Barang
@@ -583,7 +640,7 @@ export default function PropertyDetailPage() {
                     className="min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-black transition-all shadow-sm"
                   >
                     <Plus className="h-4 w-4" />
-                    + Tambah Unit
+                    Tambah Unit
                   </button>
                   <button
                     type="button"
@@ -613,7 +670,7 @@ export default function PropertyDetailPage() {
                       }}
                       className="text-xs font-bold text-[#8FA28A] hover:underline"
                     >
-                      + Tambah Unit Kamar
+                      Tambah Unit Kamar
                     </button>
                   </div>
                 </div>
@@ -624,11 +681,10 @@ export default function PropertyDetailPage() {
                     return (
                       <div
                         key={unit.id}
-                        className={`group flex flex-col justify-between rounded-xl border p-4 transition-all hover:shadow-md ${
-                          isRoomOccupied
-                            ? 'border-blue-200 bg-blue-50/20'
-                            : 'border-gray-200 bg-white hover:border-[#8FA28A]/50'
-                        }`}
+                        className={`group flex flex-col justify-between rounded-xl border p-4 transition-all hover:shadow-md ${isRoomOccupied
+                          ? 'border-blue-200 bg-blue-50/20'
+                          : 'border-gray-200 bg-white hover:border-[#8FA28A]/50'
+                          }`}
                       >
                         <div className="space-y-2">
                           <div className="flex items-start justify-between gap-2">
@@ -666,7 +722,7 @@ export default function PropertyDetailPage() {
                                     const all: Unit[] = JSON.parse(storedUnits);
                                     const updatedAll = all.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
                                     localStorage.setItem('arventa_units', JSON.stringify(updatedAll));
-                                  } catch (e) {}
+                                  } catch (e) { }
                                 }
 
                                 const storedProps = localStorage.getItem('arventa_properties');
@@ -686,7 +742,7 @@ export default function PropertyDetailPage() {
                                       return p;
                                     });
                                     localStorage.setItem('arventa_properties', JSON.stringify(updatedProps));
-                                  } catch (e) {}
+                                  } catch (e) { }
                                 }
 
                                 if (typeof window !== 'undefined') {
@@ -848,6 +904,49 @@ export default function PropertyDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Property Contract Template Card */}
+          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4">
+            <div className="border-b border-gray-100 pb-3">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-[#8FA28A]" />
+                Template Kontrak Properti
+              </h3>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <span className="font-bold text-gray-800 text-sm block">
+                  {contractTemplate?.templateName || `Template Kontrak ${property.name}`}
+                </span>
+                <span className="text-[11px] font-medium text-gray-500 mt-0.5 block">
+                  {contractTemplate?.customClauses?.length || 0} Klausul Khusus Terkonfigurasi
+                </span>
+              </div>
+
+              {contractTemplate?.customClauses && contractTemplate.customClauses.length > 0 && (
+                <div className="p-3 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 space-y-1.5">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Klausul Khusus Bawaan:</span>
+                  <ul className="list-disc list-inside text-gray-700 space-y-1 text-[11px] font-medium">
+                    {contractTemplate.customClauses.slice(0, 3).map((clause, idx) => (
+                      <li key={idx} className="truncate">{clause}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={async () => {
+                  await fetchContractTemplate();
+                  setIsTemplateModalOpen(true);
+                }}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#8FA28A]/10 hover:bg-[#8FA28A]/20 text-[#8FA28A] font-bold text-xs transition-colors flex items-center justify-center gap-2"
+              >
+                <Settings className="h-4 w-4" /> Kelola Template Kontrak
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -893,6 +992,19 @@ export default function PropertyDetailPage() {
           />
         )}
       </Suspense>
+      {/* Property Contract Template Modal */}
+      <PropertyContractTemplateModal
+        isOpen={isTemplateModalOpen}
+        onClose={() => setIsTemplateModalOpen(false)}
+        propertyId={property.id}
+        propertyName={property.name}
+        propertyAddress={property.address}
+        ownerName={(property as any).ownerName}
+        ownerPhone={(property as any).ownerPhone}
+        ownerEmail={(property as any).ownerEmail}
+        initialData={contractTemplate}
+        onSaved={() => fetchContractTemplate()}
+      />
     </div>
   );
 }

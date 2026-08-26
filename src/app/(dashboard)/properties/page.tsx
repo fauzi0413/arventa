@@ -22,44 +22,7 @@ const DEFAULT_STATUSES: PropertyStatus[] = [
   { id: 'st-4', name: 'Penuh', color: '#FFB74D' },
 ];
 
-const DEFAULT_PROPERTIES: Property[] = [
-  {
-    id: 'prop-1',
-    name: 'Kost Griya Melati',
-    address: 'Jl. Diponegoro No. 45, Coblong, Bandung',
-    categoryId: 'cat-1',
-    statusId: 'st-1',
-    totalUnits: 12,
-    occupiedUnits: 9,
-    description: 'Kos putri eksklusif dekat kampus ITB dengan fasilitas lengkap AC, Wi-Fi, kamar mandi dalam, dan keamanan 24 jam.',
-    imageUrl: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'prop-2',
-    name: 'Signature Suite Apartemen',
-    address: 'Apartment tower B, Jl. Jend. Sudirman Kav 21, Jakarta Pusat',
-    categoryId: 'cat-2',
-    statusId: 'st-4',
-    totalUnits: 20,
-    occupiedUnits: 20,
-    description: 'Apartemen fully-furnished dengan akses langsung ke pusat perbelanjaan dan transportasi umum MRT.',
-    imageUrl: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=600',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'prop-3',
-    name: 'Ruko Permata Hijau',
-    address: 'Ruko Blok B/12, Jl. Soekarno Hatta, Surabaya',
-    categoryId: 'cat-4',
-    statusId: 'st-3',
-    totalUnits: 5,
-    occupiedUnits: 2,
-    description: 'Ruko 3 lantai sangat strategis untuk perkantoran, kafe, atau retail di kawasan bisnis Surabaya Timur.',
-    imageUrl: 'https://images.unsplash.com/photo-1582037928769-181f2644ecb7?auto=format&fit=crop&q=80&w=600',
-    createdAt: new Date().toISOString(),
-  },
-];
+const DEFAULT_PROPERTIES: Property[] = [];
 
 function mapApiPropertyToFrontend(p: any): Property {
   const typeToCat: Record<string, string> = {
@@ -87,6 +50,9 @@ function mapApiPropertyToFrontend(p: any): Property {
     imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
     hasCleaningService: p.hasCleaningService ?? true,
     createdAt: p.createdAt || new Date().toISOString(),
+    ownerName: p.owner?.fullName || p.ownerName,
+    ownerPhone: p.owner?.phoneNumber || p.ownerPhone,
+    ownerEmail: p.owner?.email || p.ownerEmail,
   };
 }
 
@@ -113,7 +79,7 @@ export default function PropertiesPage() {
       const res = await fetch('/api/properties?limit=50');
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json.data) && json.data.length > 0) {
+        if (Array.isArray(json.data)) {
           const mapped = json.data.map(mapApiPropertyToFrontend);
           setProperties(mapped);
           localStorage.setItem('arventa_properties', JSON.stringify(mapped));
@@ -125,9 +91,9 @@ export default function PropertiesPage() {
       console.warn('API fetch properties notice: using local storage cache', err);
     }
 
-    // Fallback local storage
+    // Fallback local storage only if network error occurred
     const storedProps = localStorage.getItem('arventa_properties');
-    const props = storedProps ? JSON.parse(storedProps) : DEFAULT_PROPERTIES;
+    const props = storedProps ? JSON.parse(storedProps) : [];
     setProperties(props);
     setLoading(false);
   };

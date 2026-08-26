@@ -18,8 +18,11 @@ export async function POST(request: NextRequest) {
       message: "Berhasil keluar dari sistem",
     });
 
+    response.cookies.set("arventa_access_token", "", { path: "/", maxAge: 0 });
+    response.cookies.set("arventa_refresh_token", "", { path: "/", maxAge: 0 });
     response.cookies.set("arventa_session", "", { path: "/", maxAge: 0 });
     response.cookies.set("arventa_demo_role", "", { path: "/", maxAge: 0 });
+    response.cookies.set("arventa_user_email", "", { path: "/", maxAge: 0 });
 
     return response;
   } catch (error: any) {

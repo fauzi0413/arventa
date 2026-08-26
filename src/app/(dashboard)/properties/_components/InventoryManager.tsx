@@ -56,7 +56,7 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
         if (res.ok) {
           const json = await res.json();
           const p = json.data;
-          if (p && Array.isArray(p.units)) {
+          if (p) {
             const dbItems: InventoryItem[] = [];
             const dbUnits: Unit[] = [];
 
@@ -67,37 +67,55 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
               CLEANING: 'Need Cleaning',
             };
 
-            p.units.forEach((u: any) => {
-              dbUnits.push({
-                id: u.id,
-                propertyId: p.id,
-                name: u.unitNumber,
-                status: statusMap[u.status] || 'Available',
-                facilities: u.facilities || [],
-                capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
-                pricing: { monthly: Number(u.basePrice) || 1500000, deposit: 500000 },
-                description: `Lantai ${u.floor || 1}`,
-                createdAt: u.createdAt || new Date().toISOString(),
-              });
-
-              if (Array.isArray(u.inventories) && u.inventories.length > 0) {
-                u.inventories.forEach((inv: any) => {
-                  dbItems.push({
-                    id: inv.id,
-                    propertyId: p.id,
-                    unitId: u.id,
-                    unitName: u.unitNumber,
-                    name: inv.itemName,
-                    condition: (inv.condition as InventoryCondition) || 'Baik',
-                    imageUrl: inv.imageUrl || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
-                    lastUpdated: inv.updatedAt || new Date().toISOString(),
-                  });
+            // 1. Property Inventories (Area Umum)
+            const propInvs = p.inventories || p.propertyInventories || [];
+            if (Array.isArray(propInvs)) {
+              propInvs.forEach((inv: any) => {
+                dbItems.push({
+                  id: inv.id,
+                  propertyId: p.id,
+                  name: inv.itemName,
+                  condition: (inv.condition as InventoryCondition) || 'Baik',
+                  imageUrl: inv.imageUrl || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
+                  lastUpdated: inv.updatedAt || new Date().toISOString(),
                 });
-              }
-            });
+              });
+            }
+
+            // 2. Unit Inventories & Units
+            if (Array.isArray(p.units)) {
+              p.units.forEach((u: any) => {
+                dbUnits.push({
+                  id: u.id,
+                  propertyId: p.id,
+                  name: u.unitNumber,
+                  status: statusMap[u.status] || 'Available',
+                  facilities: u.facilities || [],
+                  capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
+                  pricing: { monthly: Number(u.basePrice) || 1500000, deposit: 500000 },
+                  description: `Lantai ${u.floor || 1}`,
+                  createdAt: u.createdAt || new Date().toISOString(),
+                });
+
+                const unitInvs = u.inventoryItems || u.inventories || [];
+                if (Array.isArray(unitInvs) && unitInvs.length > 0) {
+                  unitInvs.forEach((inv: any) => {
+                    dbItems.push({
+                      id: inv.id,
+                      propertyId: p.id,
+                      unitId: u.id,
+                      unitName: u.unitNumber,
+                      name: inv.itemName,
+                      condition: (inv.condition as InventoryCondition) || 'Baik',
+                      imageUrl: inv.imageUrl || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
+                      lastUpdated: inv.updatedAt || new Date().toISOString(),
+                    });
+                  });
+                }
+              });
+            }
 
             setUnits(dbUnits);
-
             if (dbItems.length > 0) {
               setItems(dbItems);
               setLoading(false);
@@ -194,12 +212,28 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
     localStorage.setItem('arventa_inventory', JSON.stringify(merged));
   };
 
-  const handleAddOrEdit = (e: React.FormEvent) => {
+  const handleAddOrEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     const itemName = name === 'Lainnya' ? customName.trim() : name;
     if (!itemName) return;
 
     const assignedUnit = units.find((u) => u.id === unitId);
+
+    // Save to DB via API
+    try {
+      await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          unitId: unitId || undefined,
+          itemName,
+          condition,
+        }),
+      });
+    } catch (err) {
+      console.warn('API post inventory notice:', err);
+    }
 
     if (editingId) {
       // Edit

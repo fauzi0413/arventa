@@ -4,8 +4,6 @@ import { Property, User } from "../../generated/prisma/client";
 interface SeedCommunityProps {
   kosGrahaAsri: Property;
   owner: User;
-  tenantSiti: User;
-  tenantRizky: User;
 }
 
 /**
@@ -14,8 +12,6 @@ interface SeedCommunityProps {
 export async function seedCommunity({
   kosGrahaAsri,
   owner,
-  tenantSiti,
-  tenantRizky,
 }: SeedCommunityProps) {
   console.log("\n📢 Seeding Community Announcements & Forum Threads (Idempotent)...");
 
@@ -49,13 +45,13 @@ export async function seedCommunity({
     forumPost = await prisma.forumPost.create({
       data: {
         propertyId: kosGrahaAsri.id,
-        authorId: tenantSiti.id,
+        authorId: owner.id,
         title: "Rekomendasi Tempat Laundry Terdekat",
         content: "Halo teman-teman penghuni Kos Graha Asri, ada rekomendasi laundry kilat 1 hari selesai sekitaran Dago?",
         comments: {
           create: [
             {
-              authorId: tenantRizky.id,
+              authorId: owner.id,
               content: "Di seberang gerbang ITB ada Laundry Express jam 7 malam sudah selesai kak!",
             },
           ],

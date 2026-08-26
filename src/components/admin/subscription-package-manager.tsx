@@ -649,7 +649,7 @@ export function SubscriptionPackageManager() {
               {/* Nama Paket SaaS */}
               <div className="space-y-1.5">
                 <label className="block font-bold text-gray-300">
-                  Nama Paket SaaS <span className="text-[#8FA28A]">*</span>
+                  Nama Paket SaaS <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -665,7 +665,7 @@ export function SubscriptionPackageManager() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <label className="block font-bold text-gray-300">
-                    Harga (IDR / bln) <span className="text-[#8FA28A]">*</span>
+                    Harga (IDR / bln) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -679,7 +679,7 @@ export function SubscriptionPackageManager() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block font-bold text-gray-300">Batas Kamar (Units) <span className="text-[#8FA28A]">*</span></label>
+                  <label className="block font-bold text-gray-300">Batas Kamar (Units) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     min="0"
@@ -699,7 +699,7 @@ export function SubscriptionPackageManager() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block font-bold text-gray-300">Batas Properti <span className="text-[#8FA28A]">*</span></label>
+                  <label className="block font-bold text-gray-300">Batas Properti <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     min="0"

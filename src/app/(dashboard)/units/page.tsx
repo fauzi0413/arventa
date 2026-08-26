@@ -92,7 +92,7 @@ function UnitsPageContent() {
       const res = await fetch('/api/properties?limit=50');
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json.data) && json.data.length > 0) {
+        if (Array.isArray(json.data)) {
           const typeToCat: Record<string, string> = {
             KOS: 'cat-1',
             APARTEMEN: 'cat-2',
@@ -124,15 +124,28 @@ function UnitsPageContent() {
           json.data.forEach((p: any) => {
             if (Array.isArray(p.units)) {
               p.units.forEach((u: any) => {
+                const activeLease = u.leases?.[0];
+                const tenant = activeLease?.tenant;
                 allMappedUnits.push({
                   id: u.id,
                   propertyId: p.id,
                   name: u.unitNumber,
                   status: statusMap[u.status] || 'Available',
-                  facilities: u.facilities || ['AC', 'WiFi', 'Kamar Mandi Dalam'],
-                  capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
-                  pricing: { monthly: Number(u.basePrice) || 1500000, deposit: 500000 },
-                  description: `Lantai ${u.floor || 1}`,
+                  facilities: Array.isArray(u.facilities) ? u.facilities : ['AC', 'WiFi', 'Kamar Mandi Dalam'],
+                  capacity: {
+                    maxPersons: u.capacity || 1,
+                    dimensions: u.dimensions || (u.floor ? `Lantai ${u.floor}` : '3x4 m'),
+                  },
+                  pricing: {
+                    monthly: Number(u.basePrice) || 0,
+                    daily: u.transitPrice ? Number(u.transitPrice) : undefined,
+                    deposit: u.deposit !== undefined && u.deposit !== null ? Number(u.deposit) : 0,
+                    utilities: u.utilities || '',
+                  },
+                  description: u.description || (u.floor ? `Lantai ${u.floor}` : ''),
+                  tenantName: tenant?.fullName || tenant?.user?.fullName || u.tenantName || '',
+                  tenantPhone: tenant?.phoneNumber || tenant?.user?.phoneNumber || u.tenantPhone || '',
+                  checkInDate: activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : new Date(activeLease.startDate).toISOString().split('T')[0]) : (u.checkInDate || ''),
                   createdAt: u.createdAt || new Date().toISOString(),
                 });
               });

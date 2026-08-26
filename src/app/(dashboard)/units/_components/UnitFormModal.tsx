@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Loader2, Plus, Layers, Sparkles } from 'lucide-react';
 import { Unit, UnitStatus, UnitPricing, UnitCapacity } from '../_types';
 import FacilitySelector from './FacilitySelector';
@@ -58,16 +58,50 @@ export default function UnitFormModal({
   const [maxPersons, setMaxPersons] = useState<number>(initialData?.capacity?.maxPersons || 1);
   const [dimensions, setDimensions] = useState(initialData?.capacity?.dimensions || '3x4 m');
 
-  // Pricing states
-  const [priceMonthly, setPriceMonthly] = useState<number>(initialData?.pricing?.monthly || 1500000);
-  const [priceDaily, setPriceDaily] = useState<number>(initialData?.pricing?.daily || 0);
-  const [priceDeposit, setPriceDeposit] = useState<number>(initialData?.pricing?.deposit || 500000);
+  // Pricing states (blank by default when adding a new unit)
+  const [priceMonthly, setPriceMonthly] = useState<number | ''>(initialData?.pricing?.monthly ?? '');
+  const [priceDaily, setPriceDaily] = useState<number | ''>(initialData?.pricing?.daily ?? '');
+  const [priceDeposit, setPriceDeposit] = useState<number | ''>(initialData?.pricing?.deposit ?? '');
   const [utilities, setUtilities] = useState(initialData?.pricing?.utilities || '');
 
   // Tenant states (only active when Occupied in single mode)
   const [tenantName, setTenantName] = useState(initialData?.tenantName || '');
   const [tenantPhone, setTenantPhone] = useState(initialData?.tenantPhone || '');
   const [checkInDate, setCheckInDate] = useState(initialData?.checkInDate || '');
+
+  useEffect(() => {
+    if (initialData) {
+      setPropertyId(initialData.propertyId || initialPropertyId || properties[0]?.id || '');
+      setName(initialData.name || '');
+      setStatus(initialData.status || 'Available');
+      setFacilities(initialData.facilities || []);
+      setDescription(initialData.description || '');
+      setMaxPersons(initialData.capacity?.maxPersons || 1);
+      setDimensions(initialData.capacity?.dimensions || '3x4 m');
+      setPriceMonthly(initialData.pricing?.monthly ?? '');
+      setPriceDaily(initialData.pricing?.daily ?? '');
+      setPriceDeposit(initialData.pricing?.deposit ?? '');
+      setUtilities(initialData.pricing?.utilities || '');
+      setTenantName(initialData.tenantName || '');
+      setTenantPhone(initialData.tenantPhone || '');
+      setCheckInDate(initialData.checkInDate ? initialData.checkInDate.split('T')[0] : '');
+    } else {
+      setPropertyId(initialPropertyId || properties[0]?.id || '');
+      setName('');
+      setStatus('Available');
+      setFacilities([]);
+      setDescription('');
+      setMaxPersons(1);
+      setDimensions('3x4 m');
+      setPriceMonthly('');
+      setPriceDaily('');
+      setPriceDeposit('');
+      setUtilities('');
+      setTenantName('');
+      setTenantPhone('');
+      setCheckInDate('');
+    }
+  }, [initialData, isOpen, initialPropertyId, properties]);
 
   if (!isOpen) return null;
 
@@ -375,36 +409,46 @@ export default function UnitFormModal({
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Harga per Bulan (Rp) *</label>
               <input
-                type="number"
-                min="0"
+                type="text"
+                inputMode="numeric"
                 required
-                value={priceMonthly}
-                onChange={(e) => setPriceMonthly(Math.max(0, Number(e.target.value)))}
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                value={priceMonthly !== '' && priceMonthly !== undefined && priceMonthly !== null ? new Intl.NumberFormat('id-ID').format(Number(priceMonthly)) : ''}
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/\D/g, '');
+                  setPriceMonthly(clean ? Number(clean) : '');
+                }}
+                placeholder="Contoh: 1.500.000"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Harga Harian (Rp) (Opsional)</label>
               <input
-                type="number"
-                min="0"
-                value={priceDaily}
-                onChange={(e) => setPriceDaily(Math.max(0, Number(e.target.value)))}
-                placeholder="Misal: 150000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                type="text"
+                inputMode="numeric"
+                value={priceDaily !== '' && priceDaily !== undefined && priceDaily !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDaily)) : ''}
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/\D/g, '');
+                  setPriceDaily(clean ? Number(clean) : '');
+                }}
+                placeholder="Contoh: 150.000"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
               />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Deposit / Jaminan (Rp)</label>
               <input
-                type="number"
-                min="0"
-                value={priceDeposit}
-                onChange={(e) => setPriceDeposit(Math.max(0, Number(e.target.value)))}
-                placeholder="Misal: 500000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                type="text"
+                inputMode="numeric"
+                value={priceDeposit !== '' && priceDeposit !== undefined && priceDeposit !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDeposit)) : ''}
+                onChange={(e) => {
+                  const clean = e.target.value.replace(/\D/g, '');
+                  setPriceDeposit(clean ? Number(clean) : '');
+                }}
+                placeholder="Contoh: 500.000"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
               />
             </div>
           </div>
@@ -422,24 +466,31 @@ export default function UnitFormModal({
 
           {/* Facilities Selector */}
           <FacilitySelector
+            propertyId={propertyId}
+            unitId={initialData?.id}
+            unitName={name || initialData?.name}
             selectedFacilities={facilities}
             onChange={setFacilities}
           />
 
-          {/* Active Tenant assignment (only in single mode if Occupied) */}
-          {creationMode === 'single' && status === 'Occupied' && (
+          {/* Active Tenant assignment (read-only/disabled view for Occupied units) */}
+          {creationMode === 'single' && (status === 'Occupied' || (status as string) === 'OCCUPIED') && (
             <div className="rounded-xl border border-dashed border-[#C8A96B]/50 bg-[#C8A96B]/5 p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
-              <h4 className="text-xs font-bold text-[#C8A96B] uppercase tracking-wider">Informasi Penyewa Aktif</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-[#C8A96B] uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🔒</span> Informasi Penyewa Aktif
+                </h4>
+                <span className="text-[10px] text-muted-foreground font-medium">Terkunci via Kontrak Sewa</span>
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Nama Penyewa</label>
                   <input
                     type="text"
-                    required
-                    value={tenantName}
-                    onChange={(e) => setTenantName(e.target.value)}
-                    placeholder="Nama lengkap penyewa"
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    readOnly
+                    disabled
+                    value={tenantName || '-'}
+                    className="w-full min-h-[44px] rounded-xl border border-gray-200 bg-gray-100/80 text-gray-700 px-3 py-1.5 text-xs font-bold cursor-not-allowed select-none opacity-90"
                   />
                 </div>
 
@@ -447,10 +498,10 @@ export default function UnitFormModal({
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">No. Handphone</label>
                   <input
                     type="text"
-                    value={tenantPhone}
-                    onChange={(e) => setTenantPhone(e.target.value)}
-                    placeholder="Contoh: 0812XXXXXXXX"
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    readOnly
+                    disabled
+                    value={tenantPhone || '-'}
+                    className="w-full min-h-[44px] rounded-xl border border-gray-200 bg-gray-100/80 text-gray-700 px-3 py-1.5 text-xs font-bold cursor-not-allowed select-none opacity-90"
                   />
                 </div>
 
@@ -458,10 +509,10 @@ export default function UnitFormModal({
                   <label className="block text-[11px] font-bold text-gray-700 mb-1">Tanggal Check-In</label>
                   <input
                     type="date"
-                    required
-                    value={checkInDate}
-                    onChange={(e) => setCheckInDate(e.target.value)}
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    readOnly
+                    disabled
+                    value={checkInDate || ''}
+                    className="w-full min-h-[44px] rounded-xl border border-gray-200 bg-gray-100/80 text-gray-700 px-3 py-1.5 text-xs font-bold cursor-not-allowed select-none opacity-90"
                   />
                 </div>
               </div>

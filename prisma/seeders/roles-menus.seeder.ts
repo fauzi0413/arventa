@@ -12,7 +12,7 @@ export async function seedRolesAndMenus() {
     { name: "Platform Admin", code: "PLATFORM_ADMIN", isSystem: true, description: "Super Admin Platform ARVENTA" },
     { name: "Owner Properti", code: "OWNER", isSystem: true, description: "Pemilik Kos & Apartemen" },
     { name: "Housekeeping", code: "HOUSEKEEPING", isSystem: true, description: "Staf Lapangan Operasional" },
-    { name: "Penyewa Kamar", code: "USER", isSystem: true, description: "Akun Terikat di Kamar" },
+    { name: "Penyewa Kamar", code: "TENANT", isSystem: true, description: "Akun Terikat di Kamar" },
   ];
 
   const roleMap: Record<string, string> = {};
@@ -142,7 +142,9 @@ export async function seedRolesAndMenus() {
       { title: "Dashboard Utama", path: "/owner/dashboard", icon: "IconHome", group: "UTAMA", order: 1, roles: ["OWNER"] },
       { title: "Properti & Manajemen Unit", path: "/properties", icon: "IconBuilding", group: "PROPERTI & OPERASIONAL", order: 2, roles: ["OWNER"] },
       { title: "Tim Operasional & Housekeeping", path: "/operations/housekeeping-team", icon: "IconSparkles", group: "PROPERTI & OPERASIONAL", order: 5, roles: ["OWNER"] },
-      { title: "Penyewa & Kontrak", path: "/tenants", icon: "IconUsers", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"] },
+      { title: "Penyewa & Kontrak", path: "/tenant-&-contract", icon: "IconUsers", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"] },
+      { title: "Kontrak Penyewa", path: "/tenant-contract", icon: "IconFileText", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
+      { title: "Manajemen Penyewa", path: "/tenants", icon: "IconId", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
       { title: "Keuangan & Penagihan", path: "/finance", icon: "IconCash", group: "PENYEWA & KEUANGAN", order: 9, roles: ["OWNER"] },
       { title: "Pengeluaran Operasional (OpEx)", path: "/finance/expenses", icon: "IconReceipt", group: "PENYEWA & KEUANGAN", order: 10, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
       { title: "Laporan & Analytics", path: "/reports", icon: "IconChartBar", group: "PENYEWA & KEUANGAN", order: 11, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
