@@ -18,7 +18,7 @@ export const createHousekeepingSchema = z.object({
     .min(6, "Password minimal 6 karakter")
     .optional(),
   propertyIds: z
-    .array(z.string().uuid("ID properti tidak valid"))
+    .array(z.string().min(1, "ID properti tidak valid"))
     .min(1, "Pilih minimal 1 properti untuk penugasan housekeeping"),
   isActive: z.boolean().default(true),
 });
@@ -36,7 +36,7 @@ export const updateHousekeepingSchema = z.object({
     .optional(),
   isActive: z.boolean().optional(),
   propertyIds: z
-    .array(z.string().uuid("ID properti tidak valid"))
+    .array(z.string().min(1, "ID properti tidak valid"))
     .optional(),
 });
 

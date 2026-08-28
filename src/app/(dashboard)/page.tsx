@@ -77,6 +77,7 @@ export default function DashboardPage() {
     case UserRole.HOUSEKEEPING:
       return <HousekeepingDashboard data={statsData} />;
     case UserRole.USER:
+    case UserRole.TENANT:
       return <TenantDashboard data={statsData} />;
     default:
       return <OwnerDashboard data={statsData} />;

@@ -69,7 +69,7 @@ export function Header() {
           } else if (savedRole === UserRole.HOUSEKEEPING) {
             fullName = "Agus (Housekeeping)";
             email = "agus.hk@arventra.id";
-          } else if (savedRole === UserRole.USER) {
+          } else if (savedRole === UserRole.USER || savedRole === UserRole.TENANT) {
             fullName = "Siti Rahma (Penghuni)";
             email = "siti.rahma@gmail.com";
           }
@@ -115,6 +115,7 @@ export function Header() {
       case UserRole.HOUSEKEEPING:
         return "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800 font-bold";
       case UserRole.USER:
+      case UserRole.TENANT:
         return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800 font-bold";
       default:
         return "bg-muted text-muted-foreground";

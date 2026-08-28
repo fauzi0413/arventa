@@ -156,26 +156,69 @@ export class PropertyService {
    * Create a new property
    */
   static async createProperty(data: CreatePropertyInput) {
-    return prisma.property.create({
-      data: {
-        ownerId: data.ownerId,
-        name: data.name,
-        type: data.type as PropertyType,
-        address: data.address,
-        city: data.city,
-        description: data.description,
-        coverImage: data.coverImage,
-        hasCleaningService: data.hasCleaningService ?? true,
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
+    if (!data.ownerId) {
+      throw new Error("Owner ID wajib diisi untuk membuat properti");
+    }
+
+    const totalUnitsCount = Math.max(0, Number(data.totalUnits) || 0);
+
+    return prisma.$transaction(async (tx) => {
+      const newProperty = await tx.property.create({
+        data: {
+          ownerId: data.ownerId!,
+          name: data.name,
+          type: data.type as PropertyType,
+          address: data.address,
+          city: data.city || "Jakarta",
+          description: data.description || "",
+          coverImage: data.coverImage || "",
+          hasCleaningService: data.hasCleaningService ?? true,
+        },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+            },
           },
         },
-      },
+      });
+
+      // If totalUnits specified, automatically create initial room units in database
+      if (totalUnitsCount > 0) {
+        const unitsToCreate = Array.from({ length: totalUnitsCount }).map((_, idx) => {
+          const roomNum = idx + 1;
+          const formattedNumber =
+            data.type === "APARTEMEN"
+              ? `Unit ${roomNum < 10 ? "0" + roomNum : roomNum}`
+              : data.type === "RUKO"
+              ? `Ruko Blok ${String.fromCharCode(65 + Math.floor(idx / 10))}-${(idx % 10) + 1}`
+              : `Kamar ${100 + roomNum}`;
+
+          return {
+            propertyId: newProperty.id,
+            unitNumber: formattedNumber,
+            floor: Math.floor(idx / 10) + 1,
+            status:
+              data.occupiedUnits && idx < data.occupiedUnits
+                ? ("OCCUPIED" as const)
+                : ("AVAILABLE" as const),
+            basePrice: 1500000,
+            deposit: 0,
+            capacity: 1,
+            dimensions: "3x4 m",
+            facilities: ["WiFi", "Kasur", "Lemari", "Kamar Mandi Dalam"],
+            description: `${newProperty.name} - ${formattedNumber}`,
+          };
+        });
+
+        await tx.unit.createMany({
+          data: unitsToCreate,
+        });
+      }
+
+      return newProperty;
     });
   }
 

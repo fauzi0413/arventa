@@ -425,7 +425,7 @@ export async function GET(request: NextRequest) {
     // -------------------------------------------------------------------------
     // 4. USER (TENANT) STATS
     // -------------------------------------------------------------------------
-    if (dbUser.role === UserRole.USER) {
+    if (dbUser.role === UserRole.USER || dbUser.role === UserRole.TENANT) {
       const tenantProfile = await prisma.tenantProfile.findUnique({
         where: { userId: dbUser.id },
       });
@@ -486,7 +486,7 @@ export async function GET(request: NextRequest) {
       return ApiResponse.success({
         message: "Stats tenant berhasil dimuat",
         data: {
-          role: UserRole.USER,
+          role: dbUser.role,
           user: {
             fullName: dbUser.fullName,
             email: dbUser.email,

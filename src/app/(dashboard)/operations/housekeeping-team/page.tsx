@@ -85,7 +85,7 @@ export default function HousekeepingTeamPage() {
       const res = await fetch('/api/properties?limit=50');
       if (res.ok) {
         const json = await res.json();
-        if (Array.isArray(json.data) && json.data.length > 0) {
+        if (Array.isArray(json.data)) {
           const props: PropertyOption[] = json.data.map((p: any) => ({
             id: p.id,
             name: p.name,

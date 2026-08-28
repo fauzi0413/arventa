@@ -222,6 +222,7 @@ function getTemplateItemsForRole(r: UserRole): NavItem[] {
     case UserRole.HOUSEKEEPING:
       return housekeepingNavItems;
     case UserRole.USER:
+    case UserRole.TENANT:
       return userNavItems;
     default:
       return ownerNavItems;
@@ -377,6 +378,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
       case UserRole.HOUSEKEEPING:
         return "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800";
       case UserRole.USER:
+      case UserRole.TENANT:
         return "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800";
       default:
         return "bg-muted text-muted-foreground border-border";

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
           select: { propertyId: true },
         });
         propertyIds = assignments.map((a) => a.propertyId);
-      } else if (authUser.role === UserRole.USER) {
+      } else if (authUser.role === UserRole.USER || authUser.role === UserRole.TENANT) {
         const tenantUnits = await prisma.unit.findMany({
           where: {
             OR: [
@@ -80,30 +80,49 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const authUser = await getAuthenticatedUser(request);
 
-    if (authUser && (!body.ownerId || body.ownerId === "demo-user-id")) {
-      body.ownerId = authUser.id;
+    let ownerId = authUser?.id;
+
+    if (!ownerId || body.ownerId === "demo-user-id" || body.ownerId === "owner-head-1" || !body.ownerId) {
+      if (authUser && (authUser.role === UserRole.OWNER || authUser.role === UserRole.PLATFORM_ADMIN)) {
+        ownerId = authUser.id;
+      } else {
+        const firstOwner = await prisma.user.findFirst({
+          where: { role: UserRole.OWNER },
+          select: { id: true },
+        });
+        ownerId = firstOwner?.id || authUser?.id;
+      }
     }
+
+    if (!ownerId) {
+      const anyUser = await prisma.user.findFirst({ select: { id: true } });
+      ownerId = anyUser?.id;
+    }
+
+    body.ownerId = ownerId;
 
     // Validate request payload with Zod
     const validationResult = createPropertySchema.safeParse(body);
     if (!validationResult.success) {
       return ApiResponse.badRequest(
-        "Validation failed",
+        "Validasi data properti gagal",
         validationResult.error.flatten().fieldErrors
       );
     }
 
-    const newProperty = await PropertyService.createProperty(validationResult.data);
+    const newProperty = await PropertyService.createProperty(validationResult.data as any);
 
     return ApiResponse.success({
-      message: "Property created successfully",
+      message: `Properti '${newProperty.name}' berhasil ditambahkan ke database`,
       data: newProperty,
       status: 201,
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error("POST /api/properties error:", error);
     return ApiResponse.error({
-      message: "Failed to create property",
-      error,
+      message: error?.message || "Gagal membuat properti di database",
+      error: error?.message || error,
+      status: 500,
     });
   }
 }

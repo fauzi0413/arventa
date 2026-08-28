@@ -225,6 +225,49 @@ export class HousekeepingService {
       throw new Error(`Email '${data.email}' sudah terdaftar dalam sistem.`);
     }
 
+    const staffPassword = data.password || "Housekeeping123!";
+    let supabaseAuthId: string | null = null;
+
+    // Provision user in Supabase Auth so staff can immediately log in
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      try {
+        const { createClient: createSupabaseAdmin } = await import("@supabase/supabase-js");
+        const supabaseAdmin = createSupabaseAdmin(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          supabaseServiceRoleKey,
+          { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const existingAuthUser = listData?.users?.find(
+          (u) => u.email === data.email.toLowerCase().trim()
+        );
+
+        if (existingAuthUser) {
+          supabaseAuthId = existingAuthUser.id;
+          await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
+            password: staffPassword,
+            email_confirm: true,
+            user_metadata: { full_name: data.fullName, role: UserRole.HOUSEKEEPING },
+          });
+        } else {
+          const { data: createData, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+            email: data.email.toLowerCase().trim(),
+            password: staffPassword,
+            email_confirm: true,
+            user_metadata: { full_name: data.fullName, role: UserRole.HOUSEKEEPING },
+          });
+
+          if (createData?.user) {
+            supabaseAuthId = createData.user.id;
+          }
+        }
+      } catch (authErr) {
+        console.warn("Supabase Auth provisioning warning for housekeeping:", authErr);
+      }
+    }
+
     // 3. Create user & assignments within atomic transaction
     return prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
@@ -234,6 +277,7 @@ export class HousekeepingService {
           phoneNumber: data.phoneNumber.trim(),
           role: UserRole.HOUSEKEEPING,
           isActive: data.isActive ?? true,
+          supabaseAuthId,
         },
       });
 
@@ -411,8 +455,61 @@ export class HousekeepingService {
       throw new Error("Staf housekeeping tidak ditemukan.");
     }
 
-    // In a production system, we sync with Supabase Auth or hash the password.
-    // We log the action and generate a secure reset event.
+    const resetPass = newPassword || "Housekeeping123!";
+
+    // Sync with Supabase Auth
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+      try {
+        const { createClient: createSupabaseAdmin } = await import("@supabase/supabase-js");
+        const supabaseAdmin = createSupabaseAdmin(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          supabaseServiceRoleKey,
+          { auth: { autoRefreshToken: false, persistSession: false } }
+        );
+
+        if (staff.supabaseAuthId) {
+          await supabaseAdmin.auth.admin.updateUserById(staff.supabaseAuthId, {
+            password: resetPass,
+            email_confirm: true,
+          });
+        } else {
+          const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+          const target = listData?.users?.find(
+            (u) => u.email === staff.email.toLowerCase().trim()
+          );
+
+          if (target) {
+            await supabaseAdmin.auth.admin.updateUserById(target.id, {
+              password: resetPass,
+              email_confirm: true,
+            });
+            await prisma.user.update({
+              where: { id: staff.id },
+              data: { supabaseAuthId: target.id },
+            });
+          } else {
+            const { data: createData } = await supabaseAdmin.auth.admin.createUser({
+              email: staff.email.toLowerCase().trim(),
+              password: resetPass,
+              email_confirm: true,
+              user_metadata: { full_name: staff.fullName, role: staff.role },
+            });
+
+            if (createData?.user) {
+              await prisma.user.update({
+                where: { id: staff.id },
+                data: { supabaseAuthId: createData.user.id },
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to reset password in Supabase Auth:", e);
+      }
+    }
+
+    // Audit Log
     await prisma.auditLog.create({
       data: {
         userId: ownerId,
@@ -428,7 +525,7 @@ export class HousekeepingService {
 
     return {
       success: true,
-      message: `Password akun staf '${staff.fullName}' (${staff.email}) berhasil di-reset.`,
+      message: `Password akun staf '${staff.fullName}' (${staff.email}) berhasil di-reset. Password baru siap digunakan untuk login.`,
     };
   }
 
@@ -526,6 +623,10 @@ export class HousekeepingService {
       filters.type === "ALL" || filters.type === "CHECKIN_CHECKOUT"
         ? prisma.leaseLog.findMany({
             where: {
+              OR: [
+                { unit: { propertyId: { in: propertyIds } } },
+                { propertyName: { in: ownerProperties.map((p) => p.name) } },
+              ],
               ...(hasDateFilter ? { createdAt: dateFilter } : {}),
             },
             take: limit * 2,
@@ -564,11 +665,11 @@ export class HousekeepingService {
         id: `status-${log.id}`,
         type: "ROOM_STATUS",
         typeLabel: "Update Status Kamar",
-        performerName: log.changedBy.fullName,
-        performerRole: log.changedBy.role,
-        propertyName: log.unit.property.name,
-        propertyId: log.unit.propertyId,
-        unitNumber: log.unit.unitNumber,
+        performerName: log.changedBy?.fullName || "Staf",
+        performerRole: log.changedBy?.role || "HOUSEKEEPING",
+        propertyName: log.unit?.property?.name || "Properti",
+        propertyId: log.unit?.propertyId || "",
+        unitNumber: log.unit?.unitNumber || "-",
         activity: `Status kamar diubah dari ${log.previousStatus} ke ${log.newStatus}`,
         previousStatus: log.previousStatus,
         newStatus: log.newStatus,
@@ -583,9 +684,9 @@ export class HousekeepingService {
         id: `expense-${exp.id}`,
         type: "EXPENSE",
         typeLabel: "Pengeluaran Operasional",
-        performerName: exp.createdBy.fullName,
-        performerRole: exp.createdBy.role,
-        propertyName: exp.property.name,
+        performerName: exp.createdBy?.fullName || "Staf",
+        performerRole: exp.createdBy?.role || "HOUSEKEEPING",
+        propertyName: exp.property?.name || "Properti",
         propertyId: exp.propertyId,
         unitNumber: exp.unit?.unitNumber || "Gedung",
         activity: `Pencatatan pengeluaran: ${exp.title} (Rp ${Number(exp.amount).toLocaleString("id-ID")})`,
@@ -601,7 +702,7 @@ export class HousekeepingService {
     leaseLogs.forEach((lLog) => {
       const pName = lLog.propertyName || lLog.unit?.property?.name || "Properti";
       const uName = lLog.unitName || lLog.unit?.unitNumber || "-";
-      const tenantName = lLog.tenant.fullName || lLog.tenant.user?.fullName || "Penyewa";
+      const tenantName = lLog.tenant?.fullName || lLog.tenant?.user?.fullName || "Penyewa";
 
       unifiedActivities.push({
         id: `lease-${lLog.id}`,

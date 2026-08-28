@@ -28,7 +28,86 @@ export default function HousekeepingRoomGridPage() {
     loadData();
   }, []);
 
-  const loadData = () => {
+  const loadData = async () => {
+    try {
+      const [propsRes, unitsRes] = await Promise.all([
+        fetch('/api/properties?limit=50'),
+        fetch('/api/units?limit=100'),
+      ]);
+
+      let loadedProps: Property[] = [];
+      let loadedUnits: Unit[] = [];
+
+      if (propsRes.ok) {
+        const pJson = await propsRes.json();
+        if (Array.isArray(pJson.data)) {
+          loadedProps = pJson.data.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            categoryId:
+              p.type === 'APARTEMEN'
+                ? 'cat-2'
+                : p.type === 'KONTRAKAN'
+                ? 'cat-3'
+                : p.type === 'RUKO'
+                ? 'cat-4'
+                : 'cat-1',
+            statusId: 'st-1',
+            totalUnits: p._count?.units || p.units?.length || 0,
+            occupiedUnits:
+              p.units?.filter((u: any) => u.status === 'OCCUPIED' || u.status === 'Occupied')
+                .length || 0,
+            description: p.description || '',
+            imageUrl: p.coverImage || '',
+            createdAt: p.createdAt || new Date().toISOString(),
+          }));
+        }
+      }
+
+      if (unitsRes.ok) {
+        const uJson = await unitsRes.json();
+        if (Array.isArray(uJson.data)) {
+          const statusMap: Record<string, UnitStatus> = {
+            AVAILABLE: 'Available',
+            OCCUPIED: 'Occupied',
+            MAINTENANCE: 'Maintenance',
+            CLEANING: 'Need Cleaning',
+            NEED_CLEANING: 'Need Cleaning',
+          };
+          loadedUnits = uJson.data.map((u: any) => ({
+            id: u.id,
+            propertyId: u.propertyId,
+            name: u.unitNumber || u.name,
+            status: statusMap[u.status] || (u.status as UnitStatus) || 'Available',
+            pricing: {
+              monthly: Number(u.basePrice) || 0,
+              daily: Number(u.transitPrice) || 0,
+              deposit: Number(u.deposit) || 0,
+            },
+            facilities: u.facilities || [],
+            tenantName:
+              u.leases?.[0]?.tenant?.user?.fullName || u.leases?.[0]?.tenant?.fullName || '',
+            tenantPhone:
+              u.leases?.[0]?.tenant?.user?.phoneNumber || u.leases?.[0]?.tenant?.phoneNumber || '',
+            checkInDate: u.leases?.[0]?.startDate
+              ? new Date(u.leases[0].startDate).toISOString().split('T')[0]
+              : '',
+            createdAt: u.createdAt || new Date().toISOString(),
+          }));
+        }
+      }
+
+      if (loadedProps.length > 0 || loadedUnits.length > 0) {
+        setProperties(loadedProps);
+        setUnits(loadedUnits);
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('Failed to load from API in room grid, using local storage cache', e);
+    }
+
     const storedProps = localStorage.getItem('arventa_properties');
     const storedUnits = localStorage.getItem('arventa_units');
 
@@ -53,7 +132,7 @@ export default function HousekeepingRoomGridPage() {
   };
 
   // Fast Clean handler
-  const handleFastClean = (unitId: string) => {
+  const handleFastClean = async (unitId: string) => {
     const updated = units.map((u) => {
       if (u.id === unitId) {
         return { ...u, status: 'Available' as UnitStatus };
@@ -61,9 +140,23 @@ export default function HousekeepingRoomGridPage() {
       return u;
     });
     saveUnits(updated);
+
+    try {
+      await fetch('/api/operations/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitId,
+          newStatus: 'AVAILABLE',
+          notes: 'Kamar selesai dibersihkan (Fast Clean). Status diperbarui ke Available.',
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to log fast clean status in database:', err);
+    }
   };
 
-  const handleUpdateStatus = (unitId: string, newStatus: UnitStatus) => {
+  const handleUpdateStatus = async (unitId: string, newStatus: UnitStatus) => {
     const updated = units.map((u) => {
       if (u.id === unitId) {
         return { ...u, status: newStatus };
@@ -73,6 +166,27 @@ export default function HousekeepingRoomGridPage() {
     saveUnits(updated);
     setIsUpdateOpen(false);
     setSelectedUnit(null);
+
+    const dbStatusMap: Record<string, string> = {
+      Available: 'AVAILABLE',
+      Occupied: 'OCCUPIED',
+      Maintenance: 'MAINTENANCE',
+      'Need Cleaning': 'CLEANING',
+    };
+
+    try {
+      await fetch('/api/operations/update-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unitId,
+          newStatus: dbStatusMap[newStatus] || newStatus.toUpperCase(),
+          notes: `Status kamar diperbarui menjadi ${newStatus}.`,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to update status in database:', err);
+    }
   };
 
   const handleCheckout = (unitId: string) => {

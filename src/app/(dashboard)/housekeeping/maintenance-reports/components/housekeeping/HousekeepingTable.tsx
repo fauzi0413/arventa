@@ -106,7 +106,7 @@ export default function HousekeepingTable({
                 <td className="px-4 py-3.5">
                   <span className="font-bold text-gray-800 block">{report.reportedBy?.name || 'Penyewa'}</span>
                   <span className="text-[10px] text-gray-500 font-semibold bg-gray-100 px-1.5 py-0.5 rounded inline-block mt-0.5">
-                    PIC: {report.housekeeper?.name || 'Agus Lapangan'}
+                    PIC: {report.housekeeper?.name || 'Staf Housekeeping'}
                   </span>
                 </td>
 

@@ -11,6 +11,7 @@ export enum UserRole {
   OWNER = "OWNER",
   HOUSEKEEPING = "HOUSEKEEPING",
   USER = "USER",
+  TENANT = "TENANT",
   CUSTOM = "CUSTOM",
 }
 

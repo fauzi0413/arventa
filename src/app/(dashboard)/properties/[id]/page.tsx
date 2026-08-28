@@ -401,46 +401,75 @@ export default function PropertyDetailPage() {
     setIsUnitFormOpen(true);
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center bg-[#F7F4ED]">
-        <div className="text-center space-y-2">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
-          <p className="text-sm font-semibold text-gray-500">Memuat detail properti...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleEditProperty = async (data: Omit<Property, 'id' | 'createdAt'>) => {
+    const catToType: Record<string, string> = {
+      'cat-1': 'KOS',
+      'cat-2': 'APARTEMEN',
+      'cat-3': 'KONTRAKAN',
+      'cat-4': 'RUKO',
+    };
 
-  if (!property) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center rounded-2xl border border-[#C7D3C0]/40 bg-[#F7F4ED] p-8 text-center">
-        <ShieldAlert className="h-12 w-12 text-[#C8A96B] mb-3" />
-        <h2 className="text-lg font-bold text-gray-800">Properti Tidak Ditemukan</h2>
-        <p className="text-sm text-gray-500 mt-1 max-w-sm">
-          Properti yang Anda cari tidak terdaftar atau telah dihapus oleh pengguna.
-        </p>
-        <button
-          type="button"
-          onClick={handleSafeBack}
-          className="mt-4 min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Kembali ke Daftar Properti
-        </button>
-      </div>
-    );
-  }
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          address: data.address,
+          type: catToType[data.categoryId] || 'KOS',
+          description: data.description,
+          coverImage: data.imageUrl,
+          hasCleaningService: data.hasCleaningService,
+        }),
+      });
 
-  const category = categories.find((c) => c.id === property.categoryId);
-  const status = statuses.find((s) => s.id === property.statusId);
+      if (res.ok) {
+        await loadData();
+        setIsFormOpen(false);
+        return;
+      } else {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.message || 'Gagal memperbarui properti');
+      }
+    } catch (e: any) {
+      console.error('Failed to update property in database:', e);
+      throw e;
+    }
+  };
 
-  const total = units.length;
-  const occupied = units.filter((u) => u.status === 'Occupied').length;
-  const vacant = Math.max(0, total - occupied);
-  const rate = total > 0 ? Math.round((occupied / total) * 100) : 0;
+  const handleDeleteProperty = async () => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus properti ini beserta seluruh unit di dalamnya?')) {
+      try {
+        const res = await fetch(`/api/properties/${property?.id || id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          router.push('/properties');
+          return;
+        }
+      } catch (err) {
+        console.error('Failed to delete property in database:', err);
+      }
 
-  // Premium image handling with reliable Unsplash fallback based on category
+      const storedProps = localStorage.getItem('arventa_properties');
+      if (storedProps) {
+        const allProps: Property[] = JSON.parse(storedProps);
+        const updated = allProps.filter((p) => p.id !== (property?.id || id));
+        localStorage.setItem('arventa_properties', JSON.stringify(updated));
+      }
+      router.push('/properties');
+    }
+  };
+
+  const formatRupiah = (val: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
+
+  // Fallback image helper
   const getFallbackImage = (catName?: string) => {
     switch (catName?.toLowerCase()) {
       case 'kos':
@@ -456,40 +485,6 @@ export default function PropertyDetailPage() {
     }
   };
 
-  const displayImage = property.imageUrl || getFallbackImage(category?.name);
-
-  const handleEditProperty = (data: Omit<Property, 'id' | 'createdAt'>) => {
-    const storedProps = localStorage.getItem('arventa_properties');
-    if (storedProps) {
-      const allProps: Property[] = JSON.parse(storedProps);
-      const updated = allProps.map((p) =>
-        p.id === property.id ? { ...p, ...data } : p
-      );
-      localStorage.setItem('arventa_properties', JSON.stringify(updated));
-      setProperty({ ...property, ...data });
-    }
-  };
-
-  const handleDeleteProperty = () => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus properti ini?')) {
-      const storedProps = localStorage.getItem('arventa_properties');
-      if (storedProps) {
-        const allProps: Property[] = JSON.parse(storedProps);
-        const updated = allProps.filter((p) => p.id !== property.id);
-        localStorage.setItem('arventa_properties', JSON.stringify(updated));
-        router.push('/properties');
-      }
-    }
-  };
-
-  const formatRupiah = (val: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
-
   if (loading) {
     return (
       <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED] rounded-2xl border border-[#C7D3C0]/40 p-6">
@@ -500,6 +495,35 @@ export default function PropertyDetailPage() {
       </div>
     );
   }
+
+  if (!property) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center rounded-2xl border border-[#C7D3C0]/40 bg-[#F7F4ED] p-8 text-center">
+        <ShieldAlert className="h-12 w-12 text-[#C8A96B] mb-3" />
+        <h2 className="text-lg font-bold text-gray-800">Properti Tidak Ditemukan</h2>
+        <p className="text-sm text-gray-500 mt-1 max-w-sm">
+          Properti yang Anda cari tidak terdaftar atau telah dihapus dari database.
+        </p>
+        <button
+          type="button"
+          onClick={handleSafeBack}
+          className="mt-4 min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Kembali ke Daftar Properti
+        </button>
+      </div>
+    );
+  }
+
+  const category = categories.find((c) => c.id === property.categoryId);
+  const status = statuses.find((s) => s.id === property.statusId);
+  const displayImage = property.imageUrl || getFallbackImage(category?.name);
+
+  const total = units.length;
+  const occupied = units.filter((u) => u.status === 'Occupied').length;
+  const vacant = Math.max(0, total - occupied);
+  const rate = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
   return (
     <div className="space-y-6 bg-[#F7F4ED] min-h-[90vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">

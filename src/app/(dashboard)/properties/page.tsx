@@ -140,7 +140,7 @@ export default function PropertiesPage() {
     };
 
     if (editingProperty) {
-      // Update API
+      // Update API in PostgreSQL
       try {
         const res = await fetch(`/api/properties/${editingProperty.id}`, {
           method: 'PATCH',
@@ -159,25 +159,21 @@ export default function PropertiesPage() {
           await fetchProperties();
           setEditingProperty(null);
           return;
+        } else {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.message || 'Gagal memperbarui properti di database');
         }
-      } catch (err) {
-        console.warn('API update property error, updating locally', err);
+      } catch (err: any) {
+        console.error('API update property error:', err);
+        throw err;
       }
-
-      // Local fallback
-      const updated = properties.map((p) =>
-        p.id === editingProperty.id ? { ...p, ...data } : p
-      );
-      saveProperties(updated);
-      setEditingProperty(null);
     } else {
-      // Create API
+      // Create API directly in PostgreSQL
       try {
         const res = await fetch('/api/properties', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ownerId: 'owner-head-1',
             name: data.name,
             address: data.address,
             city: 'Bandung',
@@ -185,24 +181,22 @@ export default function PropertiesPage() {
             description: data.description,
             coverImage: data.imageUrl,
             hasCleaningService: data.hasCleaningService ?? true,
+            totalUnits: data.totalUnits,
+            occupiedUnits: data.occupiedUnits,
           }),
         });
 
         if (res.ok) {
           await fetchProperties();
           return;
+        } else {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.message || 'Gagal menambahkan properti ke database');
         }
-      } catch (err) {
-        console.warn('API create property error, saving locally', err);
+      } catch (err: any) {
+        console.error('API create property error:', err);
+        throw err;
       }
-
-      // Local fallback
-      const newProperty: Property = {
-        ...data,
-        id: `prop-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-      };
-      saveProperties([...properties, newProperty]);
     }
   };
 

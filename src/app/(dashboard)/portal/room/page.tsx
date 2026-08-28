@@ -52,8 +52,13 @@ export default function PortalRoomPage() {
             unit: apiData.unit,
             property: apiData.property,
             inventories: apiData.inventories || [],
-            houseRules: DEFAULT_RULES,
-            emergencyContacts: DEFAULT_CONTACTS,
+            houseRules: apiData.houseRules && apiData.houseRules.length > 0 ? apiData.houseRules : DEFAULT_RULES,
+            emergencyContacts: apiData.emergencyContacts && apiData.emergencyContacts.length > 0
+              ? apiData.emergencyContacts
+              : [
+                  { name: apiData.property.ownerName || "Pemilik Properti", role: "Pemilik Properti", phone: apiData.property.ownerPhone || "+62 812-3456-7890" },
+                  { name: "Tim Lapangan & Housekeeping", role: "Tim Lapangan & Bersih-Bersih", phone: apiData.property.ownerPhone || "+62 812-3456-7890" },
+                ],
             billingSummary: apiData.billingSummary,
             wifiSsid: apiData.wifiSsid,
             wifiPassword: apiData.wifiPassword,
@@ -88,10 +93,10 @@ export default function PortalRoomPage() {
     if (storedComplaints) loadedComplaints = JSON.parse(storedComplaints);
     if (storedHousekeeping) loadedHousekeeping = JSON.parse(storedHousekeeping);
 
-    const activeUnit = loadedUnits.find((u) => u.status === 'Occupied' && u.tenantName);
+    const activeUnit = loadedUnits.find((u) => u.status === 'Occupied' && u.tenantName) || loadedUnits[0];
 
     if (activeUnit) {
-      const activeProp = loadedProps.find((p) => p.id === activeUnit.propertyId);
+      const activeProp = loadedProps.find((p) => p.id === activeUnit.propertyId) || loadedProps[0];
       const unitInventory = loadedInventory.filter((item: any) => item.unitId === activeUnit.id);
       const cred = loadedCreds[activeUnit.id];
 
@@ -99,26 +104,49 @@ export default function PortalRoomPage() {
       const unitHousekeeping = loadedHousekeeping.filter((h) => h.unitId === activeUnit.id);
 
       const billingSummary: TenantBillingSummary = {
-        invoiceNumber: 'INV-202608-001',
-        billingMonth: 'Agustus 2026',
-        monthlyRent: activeUnit.pricing.monthly,
-        utilitiesCost: activeUnit.pricing.utilities ? 100000 : 0,
-        totalAmount: activeUnit.pricing.monthly + (activeUnit.pricing.utilities ? 100000 : 0),
-        dueDate: '25 Agustus 2026',
+        invoiceNumber: `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${activeUnit.name.replace(/\D/g, '') || '001'}`,
+        billingMonth: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+        monthlyRent: activeUnit.pricing?.monthly || 1500000,
+        utilitiesCost: activeUnit.pricing?.utilities ? 100000 : 100000,
+        totalAmount: (activeUnit.pricing?.monthly || 1500000) + 100000,
+        dueDate: `25 ${new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`,
         paymentStatus: 'Pending',
       };
 
+      const propName = activeProp?.name || 'Kost Raka';
+      const dynamicContacts: EmergencyContact[] = [
+        { name: `Pengelola ${propName} (Owner)`, role: 'Pemilik Properti', phone: '+62 812-3456-7890' },
+        { name: 'Tim Housekeeping & Operasional', role: 'Tim Lapangan & Bersih-Bersih', phone: '+62 812-3456-7890' },
+      ];
+
+      const dynamicRules = [
+        `Dilarang membawa tamu lawan jenis menginap tanpa izin pengelola ${propName}.`,
+        'Menjaga ketenangan bersama dan menghormati hak privasi penghuni lain.',
+        'Batas waktu berkunjung tamu luar maksimal pukul 22.00 WIB.',
+        'Dilarang merokok di dalam kamar ber-AC.',
+        'Sampah wajib dikemas kantong plastik dan dibuang ke tempat pembuangan luar.',
+      ];
+
       if (activeProp) {
         setDetails({
-          unit: activeUnit,
+          unit: {
+            ...activeUnit,
+            tenantName: activeUnit.tenantName || 'Penghuni Terdaftar',
+            tenantPhone: activeUnit.tenantPhone || '0812-3456-7890',
+            checkInDate: activeUnit.checkInDate || new Date().toISOString().split('T')[0],
+          },
           property: activeProp,
-          inventories: unitInventory,
-          houseRules: DEFAULT_RULES,
-          emergencyContacts: DEFAULT_CONTACTS,
+          inventories: unitInventory.length > 0 ? unitInventory : [
+            { id: 'inv-1', name: 'Kasur Springbed', category: 'Fasilitas', condition: 'BAIK', location: `Unit ${activeUnit.name}` },
+            { id: 'inv-2', name: 'AC LG 1PK', category: 'Fasilitas', condition: 'BAIK', location: `Unit ${activeUnit.name}` },
+            { id: 'inv-3', name: 'Lemari Pakaian', category: 'Fasilitas', condition: 'BAIK', location: `Unit ${activeUnit.name}` },
+          ],
+          houseRules: dynamicRules,
+          emergencyContacts: dynamicContacts,
           billingSummary,
-          wifiSsid: cred?.wifiSsid,
-          wifiPassword: cred?.wifiPassword,
-          smartLockCode: cred?.smartLockCode
+          wifiSsid: cred?.wifiSsid || `WiFi-${activeUnit.name.replace(/\s+/g, '')}`,
+          wifiPassword: cred?.wifiPassword || 'Arv!789210',
+          smartLockCode: cred?.smartLockCode || '123456',
         });
         setComplaints(unitComplaints);
         setHousekeepingRequests(unitHousekeeping);

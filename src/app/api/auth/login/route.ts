@@ -51,7 +51,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Ensure user in Supabase Auth is confirmed so password verification works
+    // 3. Ensure user in Supabase Auth is confirmed/provisioned so password verification works
+    let isAutoProvisioned = false;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
       try {
@@ -72,15 +73,32 @@ export async function POST(request: NextRequest) {
               where: { id: user.id },
               data: { supabaseAuthId: target.id },
             });
+          } else {
+            // User exists in PostgreSQL DB (e.g. Housekeeping / Tenant account registered by owner) but not yet in Supabase Auth.
+            // Automatically provision them in Supabase Auth using the submitted password.
+            const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+              email: cleanEmail,
+              password: password,
+              email_confirm: true,
+              user_metadata: { full_name: user.fullName, role: user.role },
+            });
+
+            if (createData?.user) {
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { supabaseAuthId: createData.user.id },
+              });
+              isAutoProvisioned = true;
+            }
           }
         }
       } catch (e) {
-        console.warn("⚠️ Failed to auto-confirm user in Supabase Auth:", e);
+        console.warn("⚠️ Failed to auto-confirm/provision user in Supabase Auth:", e);
       }
     }
 
-    // 4. Verify password against Supabase Auth
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    // 4. Verify password against Supabase Auth (skip if just freshly provisioned with this password)
+    if (!isAutoProvisioned && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
       const supabase = createSupabaseClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL,

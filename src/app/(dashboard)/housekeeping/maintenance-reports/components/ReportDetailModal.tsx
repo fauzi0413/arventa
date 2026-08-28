@@ -94,8 +94,8 @@ export default function ReportDetailModal({
               <span className="text-[10px] font-bold text-gray-400 uppercase block">Petugas PIC</span>
               <span className="font-bold text-gray-800">
                 {isHousekeeping
-                  ? hkReport?.housekeeper?.name || 'Agus Lapangan'
-                  : mntReport?.assignedStaff?.name || 'Mas Rudi (Teknisi)'}
+                  ? hkReport?.housekeeper?.name || 'Staf Housekeeping'
+                  : mntReport?.assignedStaff?.name || 'Staf Teknisi'}
               </span>
             </div>
 

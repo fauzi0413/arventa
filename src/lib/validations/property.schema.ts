@@ -8,14 +8,16 @@ export const PropertyTypeEnum = z.enum([
 ]);
 
 export const createPropertySchema = z.object({
-  ownerId: z.string().uuid("Invalid Owner ID format"),
-  name: z.string().min(3, "Property name must be at least 3 characters"),
+  ownerId: z.string().min(1, "Invalid Owner ID format").optional(),
+  name: z.string().min(3, "Nama properti minimal 3 karakter"),
   type: PropertyTypeEnum,
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  city: z.string().min(2, "City name is required"),
-  description: z.string().optional(),
-  coverImage: z.string().url("Invalid image URL").optional().or(z.literal("")),
-  hasCleaningService: z.boolean().optional(),
+  address: z.string().min(5, "Alamat minimal 5 karakter"),
+  city: z.string().min(2, "Nama kota minimal 2 karakter").optional().default("Jakarta"),
+  description: z.string().optional().or(z.literal("")),
+  coverImage: z.string().optional().or(z.literal("")),
+  hasCleaningService: z.boolean().optional().default(true),
+  totalUnits: z.number().int().min(0).optional(),
+  occupiedUnits: z.number().int().min(0).optional(),
 });
 
 export const updatePropertySchema = createPropertySchema.partial();

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
           select: { propertyId: true },
         });
         propertyIds = assignments.map((a) => a.propertyId);
-      } else if (authUser.role === UserRole.USER) {
+      } else if (authUser.role === UserRole.USER || authUser.role === UserRole.TENANT) {
         const tenantUnits = await prisma.unit.findMany({
           where: {
             OR: [

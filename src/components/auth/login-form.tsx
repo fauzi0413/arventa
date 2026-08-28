@@ -38,6 +38,7 @@ export function LoginForm() {
       case UserRole.HOUSEKEEPING:
         return "/housekeeping/room-grid";
       case UserRole.USER:
+      case UserRole.TENANT:
         return "/portal/room";
       case UserRole.OWNER:
       default:
