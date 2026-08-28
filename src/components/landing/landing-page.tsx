@@ -127,7 +127,7 @@ export function LandingPage() {
             </div>
             <div>
               <span className="text-lg font-black tracking-tight text-[#2F332E] block leading-none">
-                ARVENTRA
+                ARVENTA
               </span>
               <span className="text-[11px] text-gray-500 font-medium">
                 Kelola Aset dalam Genggaman
@@ -200,7 +200,7 @@ export function LandingPage() {
 
         {/* Description Paragraph */}
         <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
-          ARVENTRA membantu pemilik properti mengelola unit, penyewa, OpEx, pengeluaran, tagihan, housekeeping, dan analisis keuangan secara terpusat.
+          ARVENTA membantu pemilik properti mengelola unit, penyewa, OpEx, pengeluaran, tagihan, housekeeping, dan analisis keuangan secara terpusat.
         </p>
 
         {/* CTA Buttons */}
@@ -344,10 +344,10 @@ export function LandingPage() {
       <section id="metrik-platform" className="py-20 px-4 max-w-7xl mx-auto space-y-12">
         <div className="text-center space-y-3">
           <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
-            Ringkasan Platform ARVENTRA
+            Ringkasan Platform ARVENTA
           </span>
           <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
-            ARVENTRA dalam Angka
+            ARVENTA dalam Angka
           </h2>
           <p className="text-xs md:text-sm text-gray-500 max-w-xl mx-auto">
             Kepercayaan ribuan pemilik properti dan penyewa di berbagai daerah.
@@ -576,7 +576,7 @@ export function LandingPage() {
             Kelola Semua Properti dalam Satu Platform
           </h2>
           <p className="text-xs md:text-sm text-gray-300 max-w-xl mx-auto leading-relaxed">
-            Gunakan ARVENTRA sekarang untuk efisiensi operasional kos, apartemen, kontrakan, dan ruko Anda.
+            Gunakan ARVENTA sekarang untuk efisiensi operasional kos, apartemen, kontrakan, dan ruko Anda.
           </p>
           <div className="pt-2">
             <Link
@@ -600,7 +600,7 @@ export function LandingPage() {
             </div>
             <div>
               <span className="font-black text-white text-sm block leading-none">
-                ARVENTRA
+                ARVENTA
               </span>
               <span className="text-[11px] text-gray-400">
                 Kelola Aset dalam Genggaman
@@ -629,7 +629,7 @@ export function LandingPage() {
 
           {/* Right Copyright */}
           <p className="text-gray-400 text-xs">
-            © 2026 ARVENTRA v{packageJson.version}. All rights reserved.
+            © 2026 ARVENTA v{packageJson.version}. All rights reserved.
           </p>
         </div>
       </footer>

@@ -115,7 +115,7 @@ function ResetPasswordFormContent() {
             Buat Password Baru
           </h2>
           <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-xs mx-auto">
-            Masukkan password baru Anda untuk mengamankan akun ARVENTRA Anda.
+            Masukkan password baru Anda untuk mengamankan akun ARVENTA Anda.
           </p>
         </div>
 

@@ -1,12 +1,12 @@
 /**
- * ARVENTRA Transactional Email Service (Resend REST API)
+ * ARVENTA Transactional Email Service (Resend REST API)
  * Zero external package dependency — 100% Vercel & Next.js Serverless compatible!
  */
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 function getSender() {
-  return process.env.EMAIL_FROM || "ARVENTRA Platform <onboarding@resend.dev>";
+  return process.env.EMAIL_FROM || "ARVENTA Platform <onboarding@resend.dev>";
 }
 
 function getApiKey() {
@@ -14,7 +14,7 @@ function getApiKey() {
 }
 
 /**
- * Base email layout wrapper with ARVENTRA branding
+ * Base email layout wrapper with ARVENTA branding
  */
 function createEmailWrapper(contentHtml: string, previewText: string = "") {
   return `
@@ -23,7 +23,7 @@ function createEmailWrapper(contentHtml: string, previewText: string = "") {
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>ARVENTRA</title>
+        <title>ARVENTA</title>
       </head>
       <body style="margin: 0; padding: 20px; background-color: #F7F9F6; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
         ${previewText ? `<div style="display: none; max-height: 0; overflow: hidden;">${previewText}</div>` : ""}
@@ -34,7 +34,7 @@ function createEmailWrapper(contentHtml: string, previewText: string = "") {
             <div style="display: inline-block; width: 44px; height: 44px; background-color: #5B7555; color: #ffffff; border-radius: 12px; font-weight: 900; font-size: 22px; line-height: 44px; text-align: center; margin-bottom: 8px;">
               A
             </div>
-            <h1 style="margin: 4px 0 0 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; color: #2F332E;">ARVENTRA</h1>
+            <h1 style="margin: 4px 0 0 0; font-size: 20px; font-weight: 900; letter-spacing: -0.5px; color: #2F332E;">ARVENTA</h1>
             <p style="margin: 2px 0 0 0; font-size: 11px; font-weight: 700; color: #6B8065; text-transform: uppercase; letter-spacing: 1px;">Platform Manajemen Properti &amp; SaaS</p>
           </div>
 
@@ -43,7 +43,7 @@ function createEmailWrapper(contentHtml: string, previewText: string = "") {
 
           <!-- Footer -->
           <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #F0F5EF; text-align: center; color: #888888; font-size: 11px; line-height: 1.5;">
-            <p style="margin: 0 0 4px 0;">&copy; ${new Date().getFullYear()} ARVENTRA Property Management Platform. All rights reserved.</p>
+            <p style="margin: 0 0 4px 0;">&copy; ${new Date().getFullYear()} ARVENTA Property Management Platform. All rights reserved.</p>
             <p style="margin: 0;">Email ini dikirim secara otomatis. Mohon tidak membalas langsung email ini.</p>
           </div>
 
@@ -116,7 +116,7 @@ export async function sendVerificationEmail({
     <h2 style="font-size: 18px; font-weight: 800; color: #2F332E; margin: 0 0 12px 0;">Verifikasi Alamat Email Anda</h2>
     <p style="font-size: 14px; color: #4A5049; margin: 0 0 16px 0;">Halo <strong>${fullName}</strong>,</p>
     <p style="font-size: 14px; color: #4A5049; line-height: 1.6; margin: 0 0 24px 0;">
-      Terima kasih telah mendaftar di ARVENTRA. Silakan klik tombol di bawah ini untuk memverifikasi alamat email Anda dan mengaktifkan akun Anda:
+      Terima kasih telah mendaftar di ARVENTA. Silakan klik tombol di bawah ini untuk memverifikasi alamat email Anda dan mengaktifkan akun Anda:
     </p>
 
     <div style="text-align: center; margin: 28px 0;">
@@ -134,8 +134,8 @@ export async function sendVerificationEmail({
 
   return dispatchEmail({
     to,
-    subject: "Verifikasi Email Akun ARVENTRA Anda",
-    html: createEmailWrapper(htmlContent, "Konfirmasi alamat email Anda untuk mengaktifkan akun ARVENTRA."),
+    subject: "Verifikasi Email Akun ARVENTA Anda",
+    html: createEmailWrapper(htmlContent, "Konfirmasi alamat email Anda untuk mengaktifkan akun ARVENTA."),
   });
 }
 
@@ -155,7 +155,7 @@ export async function sendPasswordResetEmail({
     <h2 style="font-size: 18px; font-weight: 800; color: #2F332E; margin: 0 0 12px 0;">Permintaan Atur Ulang Password</h2>
     <p style="font-size: 14px; color: #4A5049; margin: 0 0 16px 0;">Halo <strong>${fullName}</strong>,</p>
     <p style="font-size: 14px; color: #4A5049; line-height: 1.6; margin: 0 0 24px 0;">
-      Kami menerima permintaan untuk mengatur ulang kata sandi (password) akun ARVENTRA Anda. Klik tombol di bawah ini untuk membuat password baru:
+      Kami menerima permintaan untuk mengatur ulang kata sandi (password) akun ARVENTA Anda. Klik tombol di bawah ini untuk membuat password baru:
     </p>
 
     <div style="text-align: center; margin: 28px 0;">
@@ -172,8 +172,8 @@ export async function sendPasswordResetEmail({
 
   return dispatchEmail({
     to,
-    subject: "Instruksi Atur Ulang Password ARVENTRA",
-    html: createEmailWrapper(htmlContent, "Petunjuk mengatur ulang kata sandi akun ARVENTRA Anda."),
+    subject: "Instruksi Atur Ulang Password ARVENTA",
+    html: createEmailWrapper(htmlContent, "Petunjuk mengatur ulang kata sandi akun ARVENTA Anda."),
   });
 }
 
@@ -239,7 +239,7 @@ export async function sendInvoicePaymentEmail({
 
   return dispatchEmail({
     to,
-    subject: `[Tagihan ARVENTRA] Invoice ${invoiceNumber} Unit ${unitNumber}`,
+    subject: `[Tagihan ARVENTA] Invoice ${invoiceNumber} Unit ${unitNumber}`,
     html: createEmailWrapper(htmlContent, `Tagihan pembayaran sewa sebesar ${amount} untuk Unit ${unitNumber}.`),
   });
 }
@@ -324,10 +324,10 @@ export async function sendUserInvitationEmail({
   inviteLink: string;
 }) {
   const htmlContent = `
-    <h2 style="font-size: 18px; font-weight: 800; color: #2F332E; margin: 0 0 12px 0;">Undangan Bergabung di ARVENTRA</h2>
+    <h2 style="font-size: 18px; font-weight: 800; color: #2F332E; margin: 0 0 12px 0;">Undangan Bergabung di ARVENTA</h2>
     <p style="font-size: 14px; color: #4A5049; margin: 0 0 16px 0;">Halo,</p>
     <p style="font-size: 14px; color: #4A5049; line-height: 1.6; margin: 0 0 24px 0;">
-      <strong>${inviterName}</strong> mengundang Anda untuk bergabung ke dalam platform ARVENTRA sebagai <strong>${roleName}</strong>. Klik tombol di bawah ini untuk menerima undangan dan mengatur sandi akun Anda:
+      <strong>${inviterName}</strong> mengundang Anda untuk bergabung ke dalam platform ARVENTA sebagai <strong>${roleName}</strong>. Klik tombol di bawah ini untuk menerima undangan dan mengatur sandi akun Anda:
     </p>
 
     <div style="text-align: center; margin: 28px 0;">
@@ -343,7 +343,7 @@ export async function sendUserInvitationEmail({
 
   return dispatchEmail({
     to,
-    subject: `Undangan Bergabung sebagai ${roleName} di ARVENTRA`,
-    html: createEmailWrapper(htmlContent, `${inviterName} mengundang Anda bergabung sebagai ${roleName} di platform ARVENTRA.`),
+    subject: `Undangan Bergabung sebagai ${roleName} di ARVENTA`,
+    html: createEmailWrapper(htmlContent, `${inviterName} mengundang Anda bergabung sebagai ${roleName} di platform ARVENTA.`),
   });
 }

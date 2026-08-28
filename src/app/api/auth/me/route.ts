@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
       if (userEmailCookie) {
         authUserEmail = userEmailCookie;
       } else if (sessionCookie === "true" || request.headers.get("cookie")?.includes("arventa_session=true")) {
-        if (demoRoleCookie === UserRole.PLATFORM_ADMIN) authUserEmail = "admin@arventra.id";
-        else if (demoRoleCookie === UserRole.HOUSEKEEPING) authUserEmail = "agus.hk@arventra.id";
+        if (demoRoleCookie === UserRole.PLATFORM_ADMIN) authUserEmail = "admin@arventa.id";
+        else if (demoRoleCookie === UserRole.HOUSEKEEPING) authUserEmail = "agus.hk@arventa.id";
         else if (demoRoleCookie === UserRole.USER) authUserEmail = "apt12b01@arventa.id";
         else authUserEmail = "budi@kostsejahtera.com";
       } else {

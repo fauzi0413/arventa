@@ -656,7 +656,7 @@ export function DynamicMenuManager() {
 
   return (
     <div className="space-y-6">
-      {/* Header Banner (ARVENTRA Brand Theme) */}
+      {/* Header Banner (ARVENTA Brand Theme) */}
       <div className="relative overflow-hidden rounded-3xl bg-[#242823] border border-[#383E36] p-6 sm:p-8 text-white shadow-xl">
         <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-[#8FA28A]/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">

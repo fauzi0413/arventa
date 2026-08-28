@@ -130,7 +130,7 @@ export default function HousekeepingTeamPage() {
       {
         id: 'hk-1',
         fullName: 'Agus Prasetyo',
-        email: 'agus.hk@arventra.id',
+        email: 'agus.hk@arventa.id',
         phoneNumber: '081234567890',
         role: 'HOUSEKEEPING',
         isActive: true,

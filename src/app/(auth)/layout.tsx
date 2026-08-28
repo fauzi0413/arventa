@@ -25,7 +25,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               </div>
               <div>
                 <h1 className="text-2xl font-black tracking-widest text-[#2F332E] uppercase">
-                  ARVENTRA
+                  ARVENTA
                 </h1>
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7555]">
                   &quot;KELOLA ASET DALAM GENGGAMAN&quot;
@@ -93,7 +93,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div className="flex items-center gap-1.5 font-black text-[#A88748]">
               <Sparkles className="w-4 h-4" />
-              <span>ARVENTRA v{packageJson.version}</span>
+              <span>ARVENTA v{packageJson.version}</span>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             </div>
           </Link>
           <h1 className="text-xl font-black tracking-widest text-[#2F332E] uppercase">
-            ARVENTRA
+            ARVENTA
           </h1>
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7555]">
             &quot;KELOLA ASET DALAM GENGGAMAN&quot;

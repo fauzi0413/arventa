@@ -181,7 +181,7 @@ export function LoginForm() {
       {/* Card Title & Subtitle */}
       <div className="text-center space-y-1.5">
         <h2 className="text-xl sm:text-2xl font-black text-[#2F332E] tracking-tight">
-          Masuk ke Account ARVENTRA
+          Masuk ke Account ARVENTA
         </h2>
         <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-xs mx-auto">
           Gunakan akun Google atau email terdaftar untuk mengakses dashboard
@@ -361,7 +361,7 @@ export function LoginForm() {
 
         {/* Prominently Highlighted Link to Register Page */}
         <div className="rounded-2xl bg-[#F0F5EF] border border-[#D5E2D3] p-3.5 text-center text-xs font-bold text-gray-700 flex flex-col sm:flex-row items-center justify-center gap-2 shadow-xs">
-          <span>Belum memiliki akun ARVENTRA?</span>
+          <span>Belum memiliki akun ARVENTA?</span>
           <Link
             href="/register"
             className="font-black text-white bg-[#5B7555] hover:bg-[#445840] transition-all px-3.5 py-1.5 rounded-xl shadow-xs text-xs gap-1.5 inline-flex items-center"

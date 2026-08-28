@@ -109,7 +109,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header Hero Banner (ARVENTRA Brand Dark Sage & Gold) */}
+      {/* Header Hero Banner (ARVENTA Brand Dark Sage & Gold) */}
       <div className="relative overflow-hidden rounded-3xl bg-[#242823] border border-[#383E36] p-6 sm:p-8 text-white shadow-xl">
         <div className="absolute right-0 top-0 -mr-16 -mt-16 size-64 rounded-full bg-[#8FA28A]/10 blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -123,13 +123,13 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
               Platform Executive Hub — {data.user.fullName}
             </h1>
             <p className="mt-1.5 text-xs sm:text-sm text-gray-300">
-              Kelola ekosistem SaaS ARVENTRA, data owner, paket langganan, permission matrix, dan integrasi API.
+              Kelola ekosistem SaaS ARVENTA, data owner, paket langganan, permission matrix, dan integrasi API.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Module Tabs Bar (ARVENTRA Sage Theme) */}
+      {/* Module Tabs Bar (ARVENTA Sage Theme) */}
       <div className="flex flex-wrap gap-2 border-b border-[#C7D3C0]/40 pb-3">
         {[
           { id: "overview", label: "Executive Dashboard", icon: IconActivity },

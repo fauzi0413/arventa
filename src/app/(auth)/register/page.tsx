@@ -11,7 +11,7 @@ export default function RegisterPage() {
     <div className="rounded-3xl border border-[#E1ECE0] bg-white p-6 sm:p-8 space-y-6 shadow-xl text-[#2F332E]">
       <div className="text-center space-y-1.5">
         <h2 className="text-xl sm:text-2xl font-black text-[#2F332E] tracking-tight">
-          Daftar Akun Baru ARVENTRA
+          Daftar Akun Baru ARVENTA
         </h2>
         <p className="text-xs text-gray-500 font-medium leading-relaxed max-w-xs mx-auto">
           Daftarkan akun baru untuk mengelola properti, unit, dan operasional Anda

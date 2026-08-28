@@ -247,7 +247,7 @@ export function SubscriptionPackageManager() {
     if (n.includes("basic")) return "Target: Pemilik kos kecil atau satu bangunan.";
     if (n.includes("business")) return "Target: Pemilik properti menengah.";
     if (n.includes("pro")) return "Target: Pengelola properti skala besar.";
-    return "Target: Pengelola properti SaaS ARVENTRA.";
+    return "Target: Pengelola properti SaaS ARVENTA.";
   };
 
   const getRoomLimitText = (maxUnits: number) => {
@@ -281,7 +281,7 @@ export function SubscriptionPackageManager() {
               Subscription Packages
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              Kelola paket langganan SaaS dan batas fitur untuk owner ARVENTRA.
+              Kelola paket langganan SaaS dan batas fitur untuk owner ARVENTA.
             </p>
           </div>
           <Button

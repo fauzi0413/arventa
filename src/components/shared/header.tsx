@@ -65,10 +65,10 @@ export function Header() {
           let email = "budi@kostsejahtera.com";
           if (savedRole === UserRole.PLATFORM_ADMIN) {
             fullName = "Super Admin Platform";
-            email = "admin@arventra.id";
+            email = "admin@arventa.id";
           } else if (savedRole === UserRole.HOUSEKEEPING) {
             fullName = "Agus (Housekeeping)";
-            email = "agus.hk@arventra.id";
+            email = "agus.hk@arventa.id";
           } else if (savedRole === UserRole.USER || savedRole === UserRole.TENANT) {
             fullName = "Siti Rahma (Penghuni)";
             email = "siti.rahma@gmail.com";

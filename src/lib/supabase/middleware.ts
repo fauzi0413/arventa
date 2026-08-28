@@ -52,7 +52,7 @@ export async function updateSession(request: NextRequest) {
     if (sessionCookie === "true") {
       user = {
         id: "demo-user-id",
-        email: `demo.${demoRole.toLowerCase()}@arventra.id`,
+        email: `demo.${demoRole.toLowerCase()}@arventa.id`,
         user_metadata: { role: demoRole },
         app_metadata: { role: demoRole },
         role: "authenticated",
