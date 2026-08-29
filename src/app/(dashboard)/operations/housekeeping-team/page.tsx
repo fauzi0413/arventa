@@ -33,6 +33,7 @@ import HousekeepingFormModal from './_components/HousekeepingFormModal';
 import ResetPasswordModal from './_components/ResetPasswordModal';
 import HousekeepingDetailModal from './_components/HousekeepingDetailModal';
 import ActivityTimeline from './_components/ActivityTimeline';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 export default function HousekeepingTeamPage() {
   // Navigation Tabs
@@ -65,6 +66,8 @@ export default function HousekeepingTeamPage() {
   const [resetTargetStaff, setResetTargetStaff] = useState<HousekeepingMember | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [detailTargetStaff, setDetailTargetStaff] = useState<HousekeepingMember | null>(null);
+  const [statusConfirmStaff, setStatusConfirmStaff] = useState<HousekeepingMember | null>(null);
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   // Alert/Toast State
   const [toastMessage, setToastMessage] = useState<{
@@ -323,27 +326,39 @@ export default function HousekeepingTeamPage() {
     setEditingStaff(null);
   };
 
-  const handleToggleStaffStatus = async (staff: HousekeepingMember) => {
-    const nextStatus = !staff.isActive;
+  const handleToggleStaffStatus = (staff: HousekeepingMember) => {
+    setStatusConfirmStaff(staff);
+  };
+
+  const confirmToggleStaffStatus = async () => {
+    if (!statusConfirmStaff) return;
+
+    const nextStatus = !statusConfirmStaff.isActive;
     const actionName = nextStatus ? 'mengaktifkan' : 'menonaktifkan';
 
-    if (window.confirm(`Apakah Anda yakin ingin ${actionName} akun staf '${staff.fullName}'?`)) {
-      try {
-        const res = await fetch(`/api/operations/housekeeping/${staff.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ isActive: nextStatus }),
-        });
+    try {
+      setIsTogglingStatus(true);
+      const res = await fetch(`/api/operations/housekeeping/${statusConfirmStaff.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: nextStatus }),
+      });
 
-        if (res.ok) {
-          showToast(`Akun '${staff.fullName}' berhasil ${nextStatus ? 'diaktifkan' : 'dinonaktifkan'}!`);
-          await fetchHousekeepingTeam();
-        } else {
-          showToast(`Gagal ${actionName} staf`, 'error');
-        }
-      } catch (err) {
+      if (res.ok) {
+        showToast(
+          `Akun '${statusConfirmStaff.fullName}' berhasil ${
+            nextStatus ? 'diaktifkan' : 'dinonaktifkan'
+          }!`
+        );
+        await fetchHousekeepingTeam();
+      } else {
         showToast(`Gagal ${actionName} staf`, 'error');
       }
+    } catch (err) {
+      showToast(`Gagal ${actionName} staf`, 'error');
+    } finally {
+      setIsTogglingStatus(false);
+      setStatusConfirmStaff(null);
     }
   };
 
@@ -831,6 +846,38 @@ export default function HousekeepingTeamPage() {
           setResetTargetStaff(staff);
           setIsResetPasswordOpen(true);
         }}
+      />
+
+      {/* Confirm Toggle Status Modal */}
+      <ConfirmModal
+        isOpen={!!statusConfirmStaff}
+        onClose={() => setStatusConfirmStaff(null)}
+        onConfirm={confirmToggleStaffStatus}
+        isLoading={isTogglingStatus}
+        title={
+          statusConfirmStaff?.isActive
+            ? 'Nonaktifkan Akun Staf?'
+            : 'Aktifkan Akun Staf?'
+        }
+        description={
+          <>
+            Apakah Anda yakin ingin{' '}
+            <strong className="text-gray-900 font-bold">
+              {statusConfirmStaff?.isActive ? 'menonaktifkan' : 'mengaktifkan'}
+            </strong>{' '}
+            akses akun staf ini? Staf dapat login kembali setelah akun diaktifkan.
+          </>
+        }
+        targetName={
+          statusConfirmStaff
+            ? `${statusConfirmStaff.fullName} • ${statusConfirmStaff.email}`
+            : undefined
+        }
+        confirmText={
+          statusConfirmStaff?.isActive ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan'
+        }
+        cancelText="Batal"
+        variant={statusConfirmStaff?.isActive ? 'warning' : 'info'}
       />
     </div>
   );

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X, UserPlus, User, Phone, Calendar, Check, LogOut, Loader2 } from 'lucide-react';
 import { Unit } from '../_types';
+import ConfirmModal from '@/components/ui/ConfirmModal';
 
 interface AssignTenantModalProps {
   isOpen: boolean;
@@ -25,22 +26,16 @@ export default function AssignTenantModal({
     unit.checkInDate || new Date().toISOString().split('T')[0]
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showConfirmCheckout, setShowConfirmCheckout] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!tenantName.trim()) {
-      alert('Nama penyewa wajib diisi');
-      return;
-    }
+    if (!tenantName.trim()) return;
     setIsSubmitting(true);
     try {
-      onSaveTenant({
-        tenantName: tenantName.trim(),
-        tenantPhone: tenantPhone.trim(),
-        checkInDate,
-      });
+      await onSaveTenant({ tenantName, tenantPhone, checkInDate });
       onClose();
     } catch (err) {
       console.error(err);
@@ -49,11 +44,10 @@ export default function AssignTenantModal({
     }
   };
 
-  const handleCheckout = () => {
-    if (window.confirm(`Apakah Anda yakin penyewa ${unit.tenantName} telah keluar (check-out)? Status kamar akan otomatis disesuaikan.`)) {
-      if (onCheckoutTenant) onCheckoutTenant();
-      onClose();
-    }
+  const handleCheckoutConfirm = () => {
+    if (onCheckoutTenant) onCheckoutTenant();
+    setShowConfirmCheckout(false);
+    onClose();
   };
 
   return (
@@ -126,7 +120,7 @@ export default function AssignTenantModal({
             {unit.tenantName && onCheckoutTenant && (
               <button
                 type="button"
-                onClick={handleCheckout}
+                onClick={() => setShowConfirmCheckout(true)}
                 className="min-h-[44px] px-3.5 py-2 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-100 flex items-center gap-1.5 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
@@ -154,6 +148,19 @@ export default function AssignTenantModal({
           </div>
         </form>
       </div>
+
+      {/* Confirm Checkout Modal */}
+      <ConfirmModal
+        isOpen={showConfirmCheckout}
+        onClose={() => setShowConfirmCheckout(false)}
+        onConfirm={handleCheckoutConfirm}
+        title="Konfirmasi Check-Out Penyewa"
+        description="Apakah Anda yakin penyewa ini telah keluar (check-out)? Status kamar akan otomatis disesuaikan."
+        targetName={unit.tenantName || undefined}
+        confirmText="Ya, Check-Out"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   );
 }

@@ -146,47 +146,42 @@ export async function seedUsers() {
     }
   }
 
-
-  // 4. Tenant Profile Siti Rahmawati
+  // 4. Tenant Profile: Siti Rahmawati
   let tenantSitiProfile = await prisma.tenantProfile.findFirst({
-    where: { email: "tenant.siti@gmail.com" },
+    where: { email: "siti.rahmawati@gmail.com" },
   });
   if (!tenantSitiProfile) {
     tenantSitiProfile = await prisma.tenantProfile.create({
       data: {
         fullName: "Siti Rahmawati",
-        email: "tenant.siti@gmail.com",
-        phoneNumber: "081444444444",
-        nik: "3273012345670001",
-        ktpImageUrl:
-          "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/siti_ktp.jpg",
+        email: "siti.rahmawati@gmail.com",
+        phoneNumber: "081234567890",
+        nik: "3201011508920001",
         occupation: "Software Engineer",
-        emergencyName: "Ibu Ratna (Ibu Kandung)",
-        emergencyPhone: "081234567890",
       },
     });
-    console.log(`✅ Created TenantProfile: ${tenantSitiProfile.fullName}`);
+    console.log(`✅ Created Tenant Profile: ${tenantSitiProfile.fullName}`);
+  } else {
+    console.log(`ℹ️ Existing Tenant Profile found: ${tenantSitiProfile.fullName}`);
   }
 
-  // 5. Tenant Profile Rizky Pratama
+  // 5. Tenant Profile: Rizky Pratama
   let tenantRizkyProfile = await prisma.tenantProfile.findFirst({
-    where: { email: "tenant.rizky@gmail.com" },
+    where: { email: "rizky.pratama@gmail.com" },
   });
   if (!tenantRizkyProfile) {
     tenantRizkyProfile = await prisma.tenantProfile.create({
       data: {
         fullName: "Rizky Pratama",
-        email: "tenant.rizky@gmail.com",
-        phoneNumber: "081555555555",
-        nik: "3273012345670002",
-        ktpImageUrl:
-          "https://xyzstorage.supabase.co/storage/v1/object/public/ktp/rizky_ktp.jpg",
+        email: "rizky.pratama@gmail.com",
+        phoneNumber: "085712345678",
+        nik: "3201024409950003",
         occupation: "Account Executive",
-        emergencyName: "Bpk. Bambang (Ayah Kandung)",
-        emergencyPhone: "081987654321",
       },
     });
-    console.log(`✅ Created TenantProfile: ${tenantRizkyProfile.fullName}`);
+    console.log(`✅ Created Tenant Profile: ${tenantRizkyProfile.fullName}`);
+  } else {
+    console.log(`ℹ️ Existing Tenant Profile found: ${tenantRizkyProfile.fullName}`);
   }
 
   return {
