@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { ApiResponse } from "@/lib/api-response";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
-import { getOwnerSaaSStatus } from "@/lib/saas-features";
+import { getOwnerQuotaMetrics } from "@/lib/saas-features";
 
 /**
  * GET /api/owner/saas-status
- * Returns current authenticated owner's SaaS subscription status, feature gating codes, and quota limits
+ * Returns current authenticated owner's SaaS subscription status, feature gating codes, quota limits, and quota exceeded status
  */
 export async function GET(req: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       return ApiResponse.unauthorized("Belum terautentikasi");
     }
 
-    const saasStatus = await getOwnerSaaSStatus(authUser.id);
+    const saasStatus = await getOwnerQuotaMetrics(authUser.id);
 
     return ApiResponse.success({
       message: "Berhasil mengambil status langganan SaaS",
@@ -29,3 +29,4 @@ export async function GET(req: NextRequest) {
     });
   }
 }
+

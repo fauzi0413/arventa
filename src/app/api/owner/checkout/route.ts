@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApiResponse } from "@/lib/api-response";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { calculateUnusedSubscriptionCredit } from "@/lib/saas-features";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ function generateInvoiceCode(): string {
 
 /**
  * POST /api/owner/checkout
- * Converts active cart into a formal SaaSInvoice with accurate duration pricing (1, 3, 6, 12 months)
+ * Converts active cart into a formal SaaSInvoice with accurate duration pricing & prorated upgrade/downgrade calculation
  */
 export async function POST(req: NextRequest) {
   try {
@@ -95,14 +96,51 @@ export async function POST(req: NextRequest) {
     };
 
     if (selectedPlan && selectedPlan.id !== subscription.planId) {
-      const price = getPlanPrice(selectedPlan, durationMonths);
-      invoiceItemsData.push({
-        itemType: "PLAN",
-        itemTitle: `Upgrade Paket ${selectedPlan.name} (${getDurationLabel(durationMonths)})`,
-        unitPrice: price,
-        quantity: 1,
-      });
-      totalAmount += price;
+      const newPlanPrice = getPlanPrice(selectedPlan, durationMonths);
+      const currentMonthlyPrice = Number(subscription.plan?.priceMonthly || 0);
+      const targetMonthlyPrice = Number(selectedPlan.priceMonthly || 0);
+
+      if (targetMonthlyPrice >= currentMonthlyPrice) {
+        // UPGRADE SCENARIO: Prorate Credit Calculation
+        const { remainingDays, unusedCredit } = calculateUnusedSubscriptionCredit(subscription);
+        const proratedDiscount = Math.min(unusedCredit, newPlanPrice);
+        const netUpgradePrice = Math.max(0, newPlanPrice - proratedDiscount);
+
+        invoiceItemsData.push({
+          itemType: "PLAN",
+          itemTitle: `Upgrade Paket ${selectedPlan.name} (${getDurationLabel(durationMonths)})`,
+          unitPrice: newPlanPrice,
+          quantity: 1,
+        });
+
+        if (proratedDiscount > 0) {
+          invoiceItemsData.push({
+            itemType: "PLAN_DISCOUNT",
+            itemTitle: `Potongan Sisa Langganan ${subscription.plan.name} (${remainingDays} Hari)`,
+            unitPrice: -proratedDiscount,
+            quantity: 1,
+          });
+        }
+
+        totalAmount += netUpgradePrice;
+      } else {
+        // DOWNGRADE SCENARIO: Paket Baru Lebih Murah -> Rp 0
+        invoiceItemsData.push({
+          itemType: "PLAN",
+          itemTitle: `Downgrade Paket ${selectedPlan.name} (${getDurationLabel(durationMonths)}) - Rp 0`,
+          unitPrice: 0,
+          quantity: 1,
+        });
+
+        invoiceItemsData.push({
+          itemType: "PLAN_INFO",
+          itemTitle: `Informasi: Penyesuaian ke paket lebih murah (Rp 0). Data unit berlebih akan digembok.`,
+          unitPrice: 0,
+          quantity: 1,
+        });
+
+        totalAmount += 0;
+      }
     }
 
     if (Array.isArray(addOnIds) && addOnIds.length > 0) {
@@ -121,6 +159,7 @@ export async function POST(req: NextRequest) {
         totalAmount += price;
       }
     }
+
 
     if (invoiceItemsData.length === 0) {
       return ApiResponse.badRequest("Keranjang belanja kosong. Silakan pilih paket atau Add-On.");
@@ -142,13 +181,17 @@ export async function POST(req: NextRequest) {
 
     // 4. Create SaaSInvoice and SaaSInvoiceItems in DB Transaction
     const dueDate = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days due
+    const isAutoFree = totalAmount <= 0;
+    const invoiceStatus = isAutoFree ? "PAID" : "PENDING";
+    const paidAtDate = isAutoFree ? new Date() : null;
 
     const invoice = await prisma.saaSInvoice.create({
       data: {
         subscriptionId: subscription.id,
         invoiceNumber,
         amount: totalAmount,
-        status: "PENDING",
+        status: invoiceStatus,
+        paidAt: paidAtDate,
         dueDate,
         items: {
           create: invoiceItemsData,
@@ -158,6 +201,18 @@ export async function POST(req: NextRequest) {
         items: true,
       },
     });
+
+    // If invoice is Rp 0 (e.g. downgrade adjustment), apply new plan immediately
+    if (isAutoFree && selectedPlan) {
+      await prisma.ownerSubscription.update({
+        where: { id: subscription.id },
+        data: {
+          planId: selectedPlan.id,
+          status: "ACTIVE",
+        },
+      });
+    }
+
 
     // 5. Clear Owner's SaaSCart Items and selected plan after order creation
     const cart = await prisma.saaSCart.findUnique({ where: { ownerId: authUser.id } });
@@ -184,6 +239,7 @@ export async function POST(req: NextRequest) {
         id: it.id,
         itemTitle: it.itemTitle,
         amount: Number(it.unitPrice),
+        unitPrice: Number(it.unitPrice),
         itemType: it.itemType,
       })),
     };

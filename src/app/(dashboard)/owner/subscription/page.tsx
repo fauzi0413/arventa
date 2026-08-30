@@ -31,6 +31,8 @@ import {
   IconEye,
   IconZoomIn,
   IconPrinter,
+  IconLock,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +113,63 @@ export default function OwnerSubscriptionPage() {
 
   const [paymentMethod, setPaymentMethod] = useState<"bca" | "qris" | "wa">("bca");
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
+  // Cancel Invoice Modal State
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
+  const [cancelReasonOption, setCancelReasonOption] = useState("Ingin mengganti metode pembayaran / bank transfer");
+  const [cancelReasonDetails, setCancelReasonDetails] = useState("");
+  const [isCancellingInvoice, setIsCancellingInvoice] = useState(false);
+  const [cancelSuccessToast, setCancelSuccessToast] = useState<string | null>(null);
+  const [cancelErrorToast, setCancelErrorToast] = useState<string | null>(null);
+
+  const handleConfirmCancelInvoice = async () => {
+    if (!createdInvoice) return;
+
+    try {
+      setIsCancellingInvoice(true);
+      setCancelErrorToast(null);
+
+      const res = await fetch(`/api/owner/invoices/${createdInvoice.id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reasonOption: cancelReasonOption,
+          reasonDetails: cancelReasonDetails,
+        }),
+      });
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        // Restore local cart state
+        if (json.data.restoredPlanId) {
+          const matchedPlan = plans.find((p) => p.id === json.data.restoredPlanId);
+          if (matchedPlan) setSelectedPlanForUpgrade(matchedPlan);
+        }
+        if (Array.isArray(json.data.restoredAddOnIds)) {
+          const matchedAddOns = addOns.filter((a) => json.data.restoredAddOnIds.includes(a.id));
+          setSelectedAddOns(matchedAddOns);
+        }
+
+        setShowCancelConfirmModal(false);
+        setShowCheckoutModal(false);
+        setCreatedInvoice(null);
+        setProofFile(null);
+        setProofPreview(null);
+        setIsReuploadingProof(false);
+
+        // Open Cart Details Modal with restored items and set toast banner
+        setCancelSuccessToast(json.message || "Invoice tagihan berhasil dibatalkan. Item pesanan telah dikembalikan ke Keranjang Belanja Anda.");
+        setShowCartDetailsModal(true);
+      } else {
+        setCancelErrorToast(json.message || "Gagal membatalkan invoice tagihan");
+      }
+    } catch (err: any) {
+      console.error("Cancel invoice error:", err);
+      setCancelErrorToast(err?.message || "Terjadi kesalahan sistem saat membatalkan invoice.");
+    } finally {
+      setIsCancellingInvoice(false);
+    }
+  };
 
   // Transaction History Modal Pagination & Detail State
   const [ownerInvoices, setOwnerInvoices] = useState<any[]>([]);
@@ -524,12 +583,35 @@ export default function OwnerSubscriptionPage() {
 
   // Final Net Duration-Based Calculation
   const calculateDurationPrice = (m: number) => {
-    let planCost = 0;
+    let rawPlanCost = 0;
+    let unusedCredit = 0;
+    let proratedDiscount = 0;
+    let isUpgrade = false;
+    let isDowngrade = false;
+
     if (selectedPlanForUpgrade) {
       const monthly = Number(selectedPlanForUpgrade.priceMonthly);
       const yearly = Number(selectedPlanForUpgrade.priceYearly);
-      if (m === 12) planCost = yearly > 0 ? yearly : monthly * 12;
-      else planCost = Math.round(monthly * m);
+      if (m === 12) rawPlanCost = yearly > 0 ? yearly : monthly * 12;
+      else rawPlanCost = Math.round(monthly * m);
+
+      const currentMonthly = Number(ownerStatus?.planPriceMonthly || 0);
+      if (monthly < currentMonthly) {
+        isDowngrade = true;
+        rawPlanCost = 0;
+      } else {
+        isUpgrade = true;
+        if (ownerStatus?.endDate && currentMonthly > 0) {
+          const end = new Date(ownerStatus.endDate).getTime();
+          const now = new Date().getTime();
+          const diffMs = end - now;
+          if (diffMs > 0) {
+            const remDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            unusedCredit = Math.min(Math.floor((currentMonthly / 30) * remDays), currentMonthly);
+            proratedDiscount = Math.min(unusedCredit, rawPlanCost);
+          }
+        }
+      }
     }
 
     let addOnsCost = 0;
@@ -540,10 +622,17 @@ export default function OwnerSubscriptionPage() {
       else addOnsCost += Math.round(monthly * m);
     });
 
+    const netPlanCost = isDowngrade ? 0 : Math.max(0, rawPlanCost - proratedDiscount);
+
     return {
-      planCost,
+      rawPlanCost,
+      netPlanCost,
+      unusedCredit,
+      proratedDiscount,
+      isUpgrade,
+      isDowngrade,
       addOnsCost,
-      totalCost: planCost + addOnsCost,
+      totalCost: netPlanCost + addOnsCost,
     };
   };
 
@@ -877,6 +966,35 @@ export default function OwnerSubscriptionPage() {
           </div>
         </div>
       )}
+
+      {/* QUOTA EXCEEDED / GEMBOK DATA WARNING BANNER */}
+      {ownerStatus?.isQuotaExceeded && (
+        <div className="p-5 rounded-3xl bg-amber-500/10 border-2 border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-in fade-in">
+          <div className="flex items-start gap-3.5">
+            <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0">
+              <IconLock className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-black flex items-center gap-2">
+                <span>Peringatan Kuota Melampaui Limit (Akses Data Tergembok 🔒)</span>
+              </h4>
+              <p className="text-xs text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+                Jumlah data aktif Anda saat ini ({ownerStatus.unitsCount || 0} Unit / {ownerStatus.propertiesCount || 0} Properti) melebihi limit Paket Aktif saat ini ({ownerStatus.maxUnits} Unit / {ownerStatus.maxProperties} Properti). Akses data unit berlebih digembok sementara. Silakan <strong>Upgrade Paket</strong> untuk membuka kembali akses full data.
+              </p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              window.scrollTo({ top: 450, behavior: 'smooth' });
+            }}
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 cursor-pointer shadow-sm rounded-xl px-4 py-2"
+          >
+            <span>Aktifkan / Upgrade Paket →</span>
+          </Button>
+        </div>
+      )}
+
 
       {/* --------------------------------------------------------------------- */}
       {/* PLANS CARDS GRID (Base Monthly Pricing) */}
@@ -1252,6 +1370,28 @@ export default function OwnerSubscriptionPage() {
               </p>
             </div>
 
+            {/* Cancel Success Toast Banner */}
+            {cancelSuccessToast && (
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-xs font-bold text-emerald-800 dark:text-emerald-300 flex items-start gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="p-1 rounded-xl bg-emerald-500/20 text-emerald-600 shrink-0 mt-0.5">
+                  <IconCheck className="h-4 w-4 stroke-[3]" />
+                </div>
+                <div className="flex-1 space-y-0.5">
+                  <p className="font-black text-emerald-950 dark:text-emerald-100 text-xs">Pembatalan Tagihan Berhasil</p>
+                  <p className="text-[11px] font-medium text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                    {cancelSuccessToast}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCancelSuccessToast(null)}
+                  className="p-1 rounded-lg text-emerald-600 hover:text-emerald-800 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                >
+                  <IconX className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Duration Selector Dropdown */}
             <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
               <label className="text-xs font-extrabold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
@@ -1287,32 +1427,55 @@ export default function OwnerSubscriptionPage() {
 
               {/* Selected Plan */}
               {selectedPlanForUpgrade ? (
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-bold text-foreground">
-                      Paket {selectedPlanForUpgrade.name}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground block">
-                      Lisensi Utama ({durationMonths} Bulan)
-                    </span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-bold text-foreground">
+                        Paket {selectedPlanForUpgrade.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground block">
+                        Lisensi Utama ({durationMonths} Bulan)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-foreground">
+                        {durationPriceSummary.isDowngrade
+                          ? "Rp 0"
+                          : formatRupiah(durationPriceSummary.rawPlanCost)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectPlan(null)}
+                        className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                        title="Batal pilih paket"
+                      >
+                        <IconTrash className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-foreground">
-                      {formatRupiah(
-                        durationMonths === 12
-                          ? stdPriceSummary.stdPlanCost
-                          : durationPriceSummary.planCost
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectPlan(null)}
-                      className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                      title="Batal pilih paket"
-                    >
-                      <IconTrash className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+
+                  {/* Prorated Discount Line for Upgrade */}
+                  {durationPriceSummary.proratedDiscount > 0 && (
+                    <div className="flex justify-between items-center text-emerald-700 dark:text-emerald-300 font-medium pl-2 border-l-2 border-emerald-500/50 text-[11px]">
+                      <span>Potongan Sisa Langganan Paket ({ownerStatus?.planName})</span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        -{formatRupiah(durationPriceSummary.proratedDiscount)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Downgrade Rp 0 Warning Note */}
+                  {durationPriceSummary.isDowngrade && (
+                    <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-300 text-xs space-y-1">
+                      <div className="font-extrabold flex items-center gap-1.5">
+                        <IconInfoCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                        <span>Penyesuaian Paket (Downgrade): Rp 0</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed opacity-90">
+                        Paket baru bernilai lebih murah dari paket aktif. Penyesuaian bernominal Rp 0. Akses ke data unit/properti yang melebihi limit paket baru akan digembok.
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex justify-between items-center text-muted-foreground">
@@ -1471,19 +1634,26 @@ export default function OwnerSubscriptionPage() {
                   </div>
 
                   {Array.isArray(createdInvoice.items) && createdInvoice.items.length > 0 ? (
-                    createdInvoice.items.map((item: any) => (
-                      <div key={item.id} className="flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-foreground">{item.itemTitle}</span>
-                          <span className="text-[10px] text-muted-foreground block">
-                            {item.itemType === "PLAN" ? "Lisensi Utama" : "Add-On Ekstra"}
+                    createdInvoice.items.map((item: any) => {
+                      const itemVal = Number(item.unitPrice ?? item.amount ?? 0);
+                      const isDiscount = itemVal < 0 || item.itemType === "PLAN_DISCOUNT";
+
+                      return (
+                        <div key={item.id} className="flex justify-between items-center">
+                          <div>
+                            <span className={`font-bold ${isDiscount ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}`}>
+                              {item.itemTitle}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block">
+                              {isDiscount ? "Potongan Prorate Sisa Paket" : item.itemType === "PLAN" ? "Lisensi Utama" : "Add-On Ekstra"}
+                            </span>
+                          </div>
+                          <span className={`font-mono font-bold ${isDiscount ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-foreground"}`}>
+                            {isDiscount ? `-${formatRupiah(Math.abs(itemVal))}` : formatRupiah(itemVal)}
                           </span>
                         </div>
-                        <span className="font-mono font-bold text-foreground">
-                          {formatRupiah(Number(item.unitPrice))}
-                        </span>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-foreground">Tagihan Lisensi SaaS</span>
@@ -1650,19 +1820,26 @@ export default function OwnerSubscriptionPage() {
 
                   {/* Render items from DB invoice */}
                   {Array.isArray(createdInvoice.items) && createdInvoice.items.length > 0 ? (
-                    createdInvoice.items.map((item: any) => (
-                      <div key={item.id} className="flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-foreground">{item.itemTitle}</span>
-                          <span className="text-[10px] text-muted-foreground block">
-                            {item.itemType === "PLAN" ? "Lisensi Utama" : "Add-On Ekstra"}
+                    createdInvoice.items.map((item: any) => {
+                      const itemVal = Number(item.unitPrice ?? item.amount ?? 0);
+                      const isDiscount = itemVal < 0 || item.itemType === "PLAN_DISCOUNT";
+
+                      return (
+                        <div key={item.id} className="flex justify-between items-center">
+                          <div>
+                            <span className={`font-bold ${isDiscount ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}`}>
+                              {item.itemTitle}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block">
+                              {isDiscount ? "Potongan Prorate Sisa Paket" : item.itemType === "PLAN" ? "Lisensi Utama" : "Add-On Ekstra"}
+                            </span>
+                          </div>
+                          <span className={`font-mono font-bold ${isDiscount ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-foreground"}`}>
+                            {isDiscount ? `-${formatRupiah(Math.abs(itemVal))}` : formatRupiah(itemVal)}
                           </span>
                         </div>
-                        <span className="font-mono font-bold text-foreground">
-                          {formatRupiah(Number(item.unitPrice))}
-                        </span>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-foreground">Tagihan Lisensi SaaS</span>
@@ -1867,24 +2044,177 @@ export default function OwnerSubscriptionPage() {
                 </div>
 
                 {/* Modal Actions */}
-                <div className="flex items-center gap-2 pt-2">
+                <div className="flex flex-col gap-2 pt-2 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCheckoutModal(false)}
+                      className="flex-1 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      Nanti Saja
+                    </Button>
+                    <Button
+                      onClick={handleUploadPaymentProof}
+                      disabled={!proofFile || isUploadingProof}
+                      className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
+                    >
+                      {isUploadingProof ? "Mengunggah..." : "Konfirmasi Pembayaran"}
+                    </Button>
+                  </div>
+
                   <Button
                     variant="outline"
-                    onClick={() => setShowCheckoutModal(false)}
-                    className="flex-1 py-2 rounded-xl text-xs font-bold cursor-pointer"
+                    size="sm"
+                    onClick={() => setShowCancelConfirmModal(true)}
+                    className="w-full border-rose-500/30 text-rose-700 dark:text-rose-300 hover:bg-rose-500/10 text-xs font-bold gap-1.5 py-2 cursor-pointer rounded-xl"
                   >
-                    Nanti Saja
-                  </Button>
-                  <Button
-                    onClick={handleUploadPaymentProof}
-                    disabled={!proofFile || isUploadingProof}
-                    className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"
-                  >
-                    {isUploadingProof ? "Mengunggah..." : "Konfirmasi Pembayaran"}
+                    <IconX className="h-4 w-4 text-rose-500" />
+                    <span>Batalkan Pesanan Ini (Kembalikan ke Keranjang)</span>
                   </Button>
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* CANCEL INVOICE CONFIRMATION MODAL */}
+      {/* --------------------------------------------------------------------- */}
+      {showCancelConfirmModal && createdInvoice && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg max-h-[88vh] overflow-y-auto rounded-3xl bg-card border border-border p-6 sm:p-7 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-border/60 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600 border border-rose-500/20 shrink-0">
+                  <IconX className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-foreground">Batalkan Pesanan SaaS</h3>
+                  <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                    Billing #{createdInvoice.invoiceNumber}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCancelConfirmModal(false)}
+                className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+              >
+                <IconX className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="space-y-4 text-xs">
+              {/* Cancel Error Toast Banner */}
+              {cancelErrorToast && (
+                <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs font-bold text-rose-800 dark:text-rose-300 flex items-start gap-2.5 animate-in fade-in duration-200">
+                  <IconInfoCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-extrabold text-rose-950 dark:text-rose-100 text-xs">Gagal Membatalkan</p>
+                    <p className="text-[11px] font-medium text-rose-800 dark:text-rose-300 mt-0.5">{cancelErrorToast}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCancelErrorToast(null)}
+                    className="p-1 rounded-lg text-rose-600 hover:bg-rose-500/20 transition-colors"
+                  >
+                    <IconX className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
+
+              <label className="block text-xs font-bold text-foreground">
+                Pilih Alasan Pembatalan Pesanan:
+              </label>
+
+              {/* Radio List Cards (Full Natural Height inside Scrollable Modal) */}
+              <div className="space-y-2.5">
+                {[
+                  "Ingin mengganti metode pembayaran / bank transfer",
+                  "Salah memilih paket / ingin memilih paket lain",
+                  "Ingin menambah / mengubah Add-On ekstra terlebih dahulu",
+                  "Menunda pembayaran saat ini / pertimbangan anggaran",
+                  "Alasan lainnya",
+                ].map((opt, idx) => {
+                  const isSelected = cancelReasonOption === opt;
+                  return (
+                    <label
+                      key={idx}
+                      onClick={() => setCancelReasonOption(opt)}
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-rose-500/50 bg-rose-500/5 dark:bg-rose-500/10 text-rose-950 dark:text-rose-100 shadow-xs"
+                          : "border-border/70 bg-background hover:bg-muted/40 hover:border-border text-foreground"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="cancelReasonOption"
+                        value={opt}
+                        checked={isSelected}
+                        onChange={() => setCancelReasonOption(opt)}
+                        className="mt-0.5 accent-rose-600 cursor-pointer shrink-0"
+                      />
+                      <span className="text-xs font-medium leading-relaxed">{opt}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Optional Textarea */}
+              {cancelReasonOption === "Alasan lainnya" && (
+                <div className="pt-2">
+                  <textarea
+                    value={cancelReasonDetails}
+                    onChange={(e) => setCancelReasonDetails(e.target.value)}
+                    placeholder="Tuliskan catatan tambahan alasan pembatalan..."
+                    className="w-full rounded-2xl border border-border bg-background p-3.5 text-xs text-foreground font-medium h-24 focus:outline-none focus:ring-2 focus:ring-rose-500/30 transition-all"
+                  />
+                </div>
+              )}
+
+              {/* Clean Info Callout Box */}
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-300 leading-relaxed flex items-start gap-3 mt-3">
+                <IconInfoCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block text-amber-950 dark:text-amber-200">Informasi Pengembalian:</span>
+                  <span>
+                    Setelah dibatalkan, status invoice berubah menjadi <strong>CANCELLED</strong> dan item pesanan akan otomatis dikembalikan ke Keranjang Belanja Anda.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCancelConfirmModal(false)}
+                disabled={isCancellingInvoice}
+                className="py-2.5 px-4 rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Kembali (Jangan Batal)
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmCancelInvoice}
+                disabled={isCancellingInvoice}
+                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {isCancellingInvoice ? (
+                  <IconLoader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <IconX className="h-4 w-4" />
+                    <span>Ya, Batalkan Invoice</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -2133,7 +2463,7 @@ export default function OwnerSubscriptionPage() {
                       <Badge className="bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2 py-0.5">MENUNGGU VERIFIKASI</Badge>
                     )}
                     {["CANCELLED", "EXPIRED"].includes(selectedHistoryDetailItem.status) && (
-                      <Badge variant="outline" className="text-muted-foreground text-[10px] font-semibold px-2 py-0.5">DIBATALKAN</Badge>
+                      <Badge variant="outline" className="border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300 font-bold text-[10px] px-2 py-0.5">DIBATALKAN</Badge>
                     )}
                   </div>
                 </div>
@@ -2171,17 +2501,39 @@ export default function OwnerSubscriptionPage() {
                 </div>
               </div>
 
+              {/* Cancellation Reason Callout Box */}
+              {selectedHistoryDetailItem.status === "CANCELLED" && (
+                <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs space-y-1.5 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-1.5 font-extrabold text-rose-800 dark:text-rose-300">
+                    <IconAlertTriangle className="size-4 text-rose-600 shrink-0" />
+                    <span>Alasan Pembatalan Tagihan:</span>
+                  </div>
+                  <p className="text-rose-950 dark:text-rose-100 font-semibold leading-relaxed pl-5">
+                    {selectedHistoryDetailItem.cancelReason || "Dibatalkan oleh owner/sistem"}
+                  </p>
+                </div>
+              )}
+
               {/* Items Table */}
               <div>
                 <p className="font-bold text-xs mb-2">Rincian Paket & Add-On:</p>
                 <div className="divide-y rounded-2xl border bg-muted/20 overflow-hidden">
                   {selectedHistoryDetailItem.items && selectedHistoryDetailItem.items.length > 0 ? (
-                    selectedHistoryDetailItem.items.map((it: any) => (
-                      <div key={it.id} className="p-3 flex items-center justify-between gap-2">
-                        <span className="font-semibold text-foreground">{it.itemTitle}</span>
-                        <span className="font-bold font-mono text-amber-600 dark:text-amber-400">{formatRupiah(it.amount)}</span>
-                      </div>
-                    ))
+                    selectedHistoryDetailItem.items.map((it: any) => {
+                      const itemVal = Number(it.unitPrice ?? it.amount ?? 0);
+                      const isDiscount = itemVal < 0 || it.itemType === "PLAN_DISCOUNT";
+
+                      return (
+                        <div key={it.id} className="p-3 flex items-center justify-between gap-2">
+                          <span className={`font-semibold ${isDiscount ? "text-emerald-700 dark:text-emerald-300 font-bold" : "text-foreground"}`}>
+                            {it.itemTitle}
+                          </span>
+                          <span className={`font-bold font-mono ${isDiscount ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-600 dark:text-amber-400"}`}>
+                            {isDiscount ? `-${formatRupiah(Math.abs(itemVal))}` : formatRupiah(itemVal)}
+                          </span>
+                        </div>
+                      );
+                    })
                   ) : (
                     <div className="p-3 font-semibold text-foreground">Tagihan Langganan SaaS Properti</div>
                   )}

@@ -27,6 +27,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+interface TransactionSubItem {
+  id: string;
+  itemTitle: string;
+  amount: number;
+  unitPrice?: number;
+  itemType: string;
+}
+
 interface TransactionItem {
   id: string;
   invoiceNumber: string;
@@ -40,8 +48,11 @@ interface TransactionItem {
   status: "PAID" | "PENDING" | "CANCELLED";
   paidAt: string | null;
   createdAt: string;
+  updatedAt?: string | null;
   approvedBy?: string;
   ipAddress?: string;
+  cancelReason?: string | null;
+  items?: TransactionSubItem[];
 }
 
 const FALLBACK_TRANSACTIONS: TransactionItem[] = [
@@ -173,10 +184,19 @@ export function TransactionHistoryManager() {
             refCode: `TRX-${inv.invoiceNumber.slice(-6)}`,
             amount: inv.amount,
             status: inv.status,
+            cancelReason: inv.cancelReason || null,
             paidAt: inv.paidAt,
             createdAt: inv.createdAt,
+            updatedAt: inv.updatedAt,
             approvedBy: inv.status === "PAID" ? "Platform Admin" : "-",
             ipAddress: "127.0.0.1",
+            items: inv.items?.map((it: any) => ({
+              id: it.id,
+              itemTitle: it.itemTitle,
+              amount: Number(it.unitPrice ?? it.amount ?? 0),
+              unitPrice: Number(it.unitPrice ?? it.amount ?? 0),
+              itemType: it.itemType,
+            })) || [],
           }))
         );
       } else {
@@ -556,6 +576,20 @@ export function TransactionHistoryManager() {
                     <span className="text-emerald-600 dark:text-emerald-400 font-bold">{formatDate(selectedTxDetail.paidAt)}</span>
                   </div>
                 )}
+                {selectedTxDetail.status === "CANCELLED" && (
+                  <div className="flex justify-between text-rose-600 dark:text-rose-400 font-semibold">
+                    <span>Tgl Dibatalkan:</span>
+                    <span>{formatDate(selectedTxDetail.updatedAt)}</span>
+                  </div>
+                )}
+                {(selectedTxDetail.cancelReason || selectedTxDetail.status === "CANCELLED") && (
+                  <div className="pt-2 border-t border-border/60 space-y-1">
+                    <span className="text-rose-600 dark:text-rose-400 font-bold block">Alasan Pembatalan:</span>
+                    <span className="text-foreground font-semibold leading-relaxed block">
+                      {selectedTxDetail.cancelReason || "Dibatalkan oleh owner/sistem"}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end pt-2">
@@ -633,34 +667,84 @@ export function TransactionHistoryManager() {
                   <thead>
                     <tr className="bg-muted/60 text-muted-foreground text-[11px] font-bold uppercase border-b">
                       <th className="p-3">Item Layanan SaaS</th>
-                      <th className="p-3 text-right">Kategori</th>
+                      <th className="p-3 text-right">Kategori / Tipe</th>
                       <th className="p-3 text-right">Total Nominal</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y font-mono">
-                    <tr>
-                      <td className="p-3 font-semibold text-foreground">
-                        {receiptTxItem.planName}
-                      </td>
-                      <td className="p-3 text-right">{receiptTxItem.category}</td>
-                      <td className="p-3 text-right font-bold text-amber-600 dark:text-amber-400">
-                        {formatIDR(receiptTxItem.amount)}
-                      </td>
-                    </tr>
+                    {Array.isArray(receiptTxItem.items) && receiptTxItem.items.length > 0 ? (
+                      receiptTxItem.items.map((it: any) => {
+                        const val = Number(it.unitPrice ?? it.amount ?? 0);
+                        const isDiscount = val < 0 || it.itemType === "PLAN_DISCOUNT";
+                        return (
+                          <tr key={it.id}>
+                            <td className={`p-3 font-semibold ${isDiscount ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}`}>
+                              {it.itemTitle}
+                            </td>
+                            <td className="p-3 text-right text-xs text-muted-foreground">
+                              {isDiscount ? "Prorate" : it.itemType === "PLAN" ? "Lisensi SaaS" : "Add-On"}
+                            </td>
+                            <td className={`p-3 text-right font-bold ${isDiscount ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-600 dark:text-amber-400"}`}>
+                              {isDiscount ? `-${formatIDR(Math.abs(val))}` : formatIDR(val)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td className="p-3 font-semibold text-foreground">
+                          {receiptTxItem.planName}
+                        </td>
+                        <td className="p-3 text-right">{receiptTxItem.category}</td>
+                        <td className="p-3 text-right font-bold text-amber-600 dark:text-amber-400">
+                          {formatIDR(receiptTxItem.amount)}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
+              {/* Subtotal & Breakdown */}
               <div className="flex justify-end pt-2">
-                <div className="w-full sm:w-64 space-y-1.5 font-mono text-right border-t pt-3">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal:</span>
-                    <span>{formatIDR(receiptTxItem.amount)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-black text-foreground pt-1 border-t">
-                    <span>Total Lunas:</span>
-                    <span className="text-amber-600 dark:text-amber-400">{formatIDR(receiptTxItem.amount)}</span>
-                  </div>
+                <div className="w-full sm:w-72 space-y-1.5 font-mono text-right border-t pt-3">
+                  {(() => {
+                    const hasItems = Array.isArray(receiptTxItem.items) && receiptTxItem.items.length > 0;
+                    const grossSubtotal = hasItems
+                      ? receiptTxItem.items!.reduce((acc: number, it: any) => {
+                          const val = Number(it.unitPrice ?? it.amount ?? 0);
+                          return val > 0 ? acc + val : acc;
+                        }, 0)
+                      : receiptTxItem.amount;
+
+                    const totalDiscount = hasItems
+                      ? receiptTxItem.items!.reduce((acc: number, it: any) => {
+                          const val = Number(it.unitPrice ?? it.amount ?? 0);
+                          return val < 0 ? acc + Math.abs(val) : acc;
+                        }, 0)
+                      : 0;
+
+                    return (
+                      <>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Subtotal Paket:</span>
+                          <span>{formatIDR(grossSubtotal)}</span>
+                        </div>
+
+                        {totalDiscount > 0 && (
+                          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                            <span>Potongan Prorate:</span>
+                            <span>-{formatIDR(totalDiscount)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between text-sm font-black text-foreground pt-1.5 border-t">
+                          <span>Total {receiptTxItem.status === "PAID" ? "Lunas" : "Tagihan"}:</span>
+                          <span className="text-amber-600 dark:text-amber-400">{formatIDR(receiptTxItem.amount)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 

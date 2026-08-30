@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApiResponse } from "@/lib/api-response";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
-import { getOwnerSaaSStatus } from "@/lib/saas-features";
+import { getOwnerQuotaMetrics } from "@/lib/saas-features";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     let invoices: any[] = [];
 
     if (authUser) {
-      ownerStatus = await getOwnerSaaSStatus(authUser.id);
+      ownerStatus = await getOwnerQuotaMetrics(authUser.id);
       const sub = await prisma.ownerSubscription.findFirst({
         where: { ownerId: authUser.id },
       });
@@ -65,25 +65,42 @@ export async function GET(req: NextRequest) {
           },
         });
 
-        invoices = rawInvoices.map((inv) => ({
-          id: inv.id,
-          invoiceNumber: inv.invoiceNumber,
-          amount: Number(inv.amount),
-          status: inv.status,
-          paymentProof: inv.paymentProof,
-          dueDate: inv.dueDate,
-          paidAt: inv.paidAt,
-          createdAt: inv.createdAt,
-          ownerName: authUser.fullName || "Owner Properti",
-          ownerEmail: authUser.email || "-",
-          planName: inv.subscription?.plan?.name || ownerStatus?.planName || "Paket SaaS",
-          items: inv.items.map((it) => ({
-            id: it.id,
-            itemTitle: it.itemTitle,
-            amount: Number(it.unitPrice),
-            itemType: it.itemType,
-          })),
-        }));
+        const cancelledInvoiceIds = rawInvoices.filter((i) => i.status === "CANCELLED").map((i) => i.id);
+        const cancelLogs = cancelledInvoiceIds.length > 0
+          ? await prisma.auditLog.findMany({
+              where: {
+                entityId: { in: cancelledInvoiceIds },
+                action: "CANCEL_SAAS_INVOICE_BY_OWNER",
+              },
+            })
+          : [];
+
+        invoices = rawInvoices.map((inv) => {
+          const cancelLog = cancelLogs.find((l) => l.entityId === inv.id);
+          const detailsObj: any = cancelLog?.details || {};
+
+          return {
+            id: inv.id,
+            invoiceNumber: inv.invoiceNumber,
+            amount: Number(inv.amount),
+            status: inv.status,
+            paymentProof: inv.paymentProof,
+            cancelReason: detailsObj.reason || null,
+            dueDate: inv.dueDate,
+            paidAt: inv.paidAt,
+            createdAt: inv.createdAt,
+            ownerName: authUser.fullName || "Owner Properti",
+            ownerEmail: authUser.email || "-",
+            planName: inv.subscription?.plan?.name || ownerStatus?.planName || "Paket SaaS",
+            items: inv.items.map((it) => ({
+              id: it.id,
+              itemTitle: it.itemTitle,
+              amount: Number(it.unitPrice),
+              unitPrice: Number(it.unitPrice),
+              itemType: it.itemType,
+            })),
+          };
+        });
 
         pendingInvoice = invoices.find((inv) =>
           ["PENDING", "PENDING_VERIFICATION"].includes(inv.status)

@@ -52,6 +52,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         take: 50,
         include: {
+          items: true,
           subscription: {
             include: {
               owner: {
@@ -124,20 +125,44 @@ export async function GET() {
       createdAt: sub.createdAt,
     }));
 
-    const formattedInvoices = invoicesList.map((inv: any) => ({
-      id: inv.id,
-      invoiceNumber: inv.invoiceNumber,
-      subscriptionId: inv.subscriptionId,
-      ownerName: inv.subscription.owner.fullName,
-      ownerEmail: inv.subscription.owner.email,
-      planName: inv.subscription.plan.name,
-      amount: Number(inv.amount),
-      status: inv.status,
-      paymentProof: inv.paymentProof,
-      dueDate: inv.dueDate,
-      paidAt: inv.paidAt,
-      createdAt: inv.createdAt,
-    }));
+    const cancelledInvoiceIds = invoicesList.filter((i: any) => i.status === "CANCELLED").map((i: any) => i.id);
+    const cancelLogs = cancelledInvoiceIds.length > 0
+      ? await prisma.auditLog.findMany({
+          where: {
+            entityId: { in: cancelledInvoiceIds },
+            action: "CANCEL_SAAS_INVOICE_BY_OWNER",
+          },
+        })
+      : [];
+
+    const formattedInvoices = invoicesList.map((inv: any) => {
+      const cancelLog = cancelLogs.find((l: any) => l.entityId === inv.id);
+      const detailsObj: any = cancelLog?.details || {};
+
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        subscriptionId: inv.subscriptionId,
+        ownerName: inv.subscription.owner.fullName,
+        ownerEmail: inv.subscription.owner.email,
+        planName: inv.subscription.plan.name,
+        amount: Number(inv.amount),
+        status: inv.status,
+        paymentProof: inv.paymentProof,
+        cancelReason: detailsObj.reason || null,
+        dueDate: inv.dueDate,
+        paidAt: inv.paidAt,
+        createdAt: inv.createdAt,
+        updatedAt: inv.updatedAt,
+        items: inv.items?.map((it: any) => ({
+          id: it.id,
+          itemTitle: it.itemTitle,
+          amount: Number(it.unitPrice),
+          unitPrice: Number(it.unitPrice),
+          itemType: it.itemType,
+        })) || [],
+      };
+    });
 
     // Compute Most Popular Plan dynamically from active subscriber counts
     const sortedPlansBySubscribers = [...formattedPlans].sort((a: any, b: any) => b.subscriberCount - a.subscriberCount);
@@ -575,6 +600,72 @@ export async function POST(req: Request) {
       return ApiResponse.success({
         message: `Tagihan invoice ${invoiceNumber} berhasil dibuat untuk ${subscription.owner.fullName}`,
         data: newInvoice,
+      });
+    }
+
+    // 6. Delete SaaS Subscription Tier Plan
+    if (action === "DELETE_PLAN") {
+      const { planId } = body;
+      if (!planId) {
+        return ApiResponse.error({
+          message: "planId wajib diisi",
+          status: 400,
+        });
+      }
+
+      const plan = await prisma.saaSPlan.findUnique({
+        where: { id: planId },
+      });
+
+      if (!plan) {
+        return ApiResponse.error({
+          message: "Paket SaaS tidak ditemukan",
+          status: 404,
+        });
+      }
+
+      if (plan.isDefault) {
+        return ApiResponse.error({
+          message: `Paket "${plan.name}" adalah Paket Default Pendaftaran dan tidak dapat dihapus. Silakan set paket lain sebagai Default terlebih dahulu.`,
+          status: 400,
+        });
+      }
+
+      const activeSubscriberCount = await prisma.ownerSubscription.count({
+        where: { planId },
+      });
+
+      if (activeSubscriberCount > 0) {
+        return ApiResponse.error({
+          message: `Paket "${plan.name}" tidak dapat dihapus karena terdapat ${activeSubscriberCount} owner yang sedang berlangganan paket ini.`,
+          status: 400,
+        });
+      }
+
+      // Delete linked plan features pivot rows first
+      await prisma.saaSPlanFeature.deleteMany({
+        where: { planId },
+      });
+
+      // Delete the plan
+      await prisma.saaSPlan.delete({
+        where: { id: planId },
+      });
+
+      // Write Audit Log
+      await prisma.auditLog.create({
+        data: {
+          action: "DELETE_SAAS_PLAN",
+          entityName: "SaaSPlan",
+          entityId: planId,
+          details: { name: plan.name, priceMonthly: Number(plan.priceMonthly) },
+          ipAddress: "127.0.0.1",
+        },
+      });
+
+      return ApiResponse.success({
+        message: `Paket SaaS "${plan.name}" berhasil dihapus`,
+        data: { id: planId, name: plan.name },
       });
     }
 

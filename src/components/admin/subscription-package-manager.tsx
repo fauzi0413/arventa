@@ -107,6 +107,58 @@ export function SubscriptionPackageManager() {
   const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
   const [formCustomFeatures, setFormCustomFeatures] = useState<string[]>([]);
 
+  // 1b. Delete Plan Modal State
+  const [showDeletePlanModal, setShowDeletePlanModal] = useState(false);
+  const [deletingPlan, setDeletingPlan] = useState<SaaSPlanItem | null>(null);
+
+  const openDeletePlanModal = (plan: SaaSPlanItem) => {
+    if (plan.isDefault) {
+      setErrorMsg(`Paket "${plan.name}" ditetapkan sebagai Default Pendaftaran dan tidak dapat dihapus.`);
+      setTimeout(() => setErrorMsg(null), 4000);
+      return;
+    }
+    if ((plan.subscriberCount || 0) > 0) {
+      setErrorMsg(`Paket "${plan.name}" tidak dapat dihapus karena terdapat ${plan.subscriberCount} owner yang sedang berlangganan.`);
+      setTimeout(() => setErrorMsg(null), 4000);
+      return;
+    }
+    setDeletingPlan(plan);
+    setShowDeletePlanModal(true);
+  };
+
+  const handleConfirmDeletePlan = async () => {
+    if (!deletingPlan) return;
+
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE_PLAN",
+          planId: deletingPlan.id,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menghapus paket SaaS");
+      }
+
+      setSuccessMsg(`Paket langganan "${deletingPlan.name}" berhasil dihapus!`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      setShowDeletePlanModal(false);
+      setDeletingPlan(null);
+      await fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Gagal menghapus paket");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // 2. Master Feature Modal State
   const [showFeatureModal, setShowFeatureModal] = useState(false);
   const [editingFeature, setEditingFeature] = useState<MasterFeatureItem | null>(null);
@@ -722,20 +774,20 @@ export function SubscriptionPackageManager() {
                       </div>
 
                       {/* Card Actions */}
-                      <div className="mt-6 pt-4 border-t border-border flex items-center gap-2">
+                      <div className="mt-6 pt-4 border-t border-border flex items-center gap-2 flex-wrap">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => openEditPlanModal(plan)}
-                          className="flex-1 rounded-xl font-bold text-xs gap-1.5 cursor-pointer"
+                          className="flex-1 rounded-xl font-bold text-xs gap-1.5 cursor-pointer min-w-[80px]"
                         >
                           <IconPencil className="h-3.5 w-3.5" />
-                          <span>Edit Paket</span>
+                          <span>Edit</span>
                         </Button>
 
                         {plan.isDefault ? (
                           <Badge className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px] gap-1 px-3 py-1.5 shrink-0">
-                            <IconStar className="h-3.5 w-3.5 fill-amber-500 text-amber-600" /> Default Pendaftaran
+                            <IconStar className="h-3.5 w-3.5 fill-amber-500 text-amber-600" /> Default
                           </Badge>
                         ) : (
                           <Button
@@ -750,6 +802,28 @@ export function SubscriptionPackageManager() {
                             <span>Set Default</span>
                           </Button>
                         )}
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openDeletePlanModal(plan)}
+                          disabled={isSubmitting || plan.isDefault || (plan.subscriberCount || 0) > 0}
+                          className={`rounded-xl font-bold text-xs gap-1.5 cursor-pointer ${
+                            plan.isDefault || (plan.subscriberCount || 0) > 0
+                              ? "opacity-50 cursor-not-allowed text-muted-foreground border-border bg-muted/20"
+                              : "border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                          }`}
+                          title={
+                            plan.isDefault
+                              ? "Tidak dapat dihapus: Paket Default Pendaftaran"
+                              : (plan.subscriberCount || 0) > 0
+                              ? `Tidak dapat dihapus: Memiliki ${plan.subscriberCount} Owner Aktif`
+                              : "Hapus paket langganan ini"
+                          }
+                        >
+                          <IconTrash className="h-3.5 w-3.5 text-rose-500" />
+                          <span>Hapus</span>
+                        </Button>
                       </div>
                     </div>
                   );
@@ -815,15 +889,38 @@ export function SubscriptionPackageManager() {
                               </span>
                             </td>
                             <td className="py-3.5 px-4 text-right">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEditPlanModal(p)}
-                                className="rounded-xl text-xs font-bold gap-1 cursor-pointer"
-                              >
-                                <IconPencil className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                              </Button>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEditPlanModal(p)}
+                                  className="rounded-xl text-xs font-bold gap-1 cursor-pointer"
+                                >
+                                  <IconPencil className="h-3.5 w-3.5" />
+                                  <span>Edit</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openDeletePlanModal(p)}
+                                  disabled={isSubmitting || p.isDefault || (p.subscriberCount || 0) > 0}
+                                  className={`rounded-xl text-xs font-bold gap-1 cursor-pointer ${
+                                    p.isDefault || (p.subscriberCount || 0) > 0
+                                      ? "opacity-50 cursor-not-allowed text-muted-foreground border-border bg-muted/20"
+                                      : "border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-800 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                                  }`}
+                                  title={
+                                    p.isDefault
+                                      ? "Tidak dapat dihapus: Paket Default Pendaftaran"
+                                      : (p.subscriberCount || 0) > 0
+                                      ? `Tidak dapat dihapus: Memiliki ${p.subscriberCount} Owner Aktif`
+                                      : "Hapus paket langganan ini"
+                                  }
+                                >
+                                  <IconTrash className="h-3.5 w-3.5 text-rose-500" />
+                                  <span>Hapus</span>
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1439,6 +1536,64 @@ export function SubscriptionPackageManager() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* DELETE PLAN CONFIRMATION MODAL */}
+      {/* --------------------------------------------------------------------- */}
+      {showDeletePlanModal && deletingPlan && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl bg-card border border-border p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-rose-500/10 text-rose-600 border border-rose-500/20 shrink-0">
+                <IconTrash className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-foreground">Hapus Paket SaaS</h3>
+                <p className="text-xs text-muted-foreground">Konfirmasi penghapusan paket langganan</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs space-y-2">
+              <p className="text-foreground font-medium">
+                Apakah Anda yakin ingin menghapus paket <strong className="font-black text-rose-700 dark:text-rose-300">"{deletingPlan.name}"</strong>?
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Paket ini saat ini memiliki <strong>0 owner aktif</strong> dan dapat dihapus secara permanen dari database. Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowDeletePlanModal(false);
+                  setDeletingPlan(null);
+                }}
+                disabled={isSubmitting}
+                className="rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Batal
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmDeletePlan}
+                disabled={isSubmitting}
+                className="bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs gap-1.5 shadow-md cursor-pointer"
+              >
+                {isSubmitting ? (
+                  <IconLoader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <IconTrash className="h-4 w-4" />
+                    <span>Ya, Hapus Paket</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

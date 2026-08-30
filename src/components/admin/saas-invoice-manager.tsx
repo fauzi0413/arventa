@@ -20,10 +20,19 @@ import {
   IconFilter,
   IconShieldCheck,
   IconSparkles,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+
+interface InvoiceSubItem {
+  id: string;
+  itemTitle: string;
+  amount: number;
+  unitPrice?: number;
+  itemType: string;
+}
 
 interface InvoiceItem {
   id: string;
@@ -35,9 +44,11 @@ interface InvoiceItem {
   amount: number;
   status: "PENDING" | "PENDING_VERIFICATION" | "PAID" | "CANCELLED" | "EXPIRED";
   paymentProof?: string | null;
+  cancelReason?: string | null;
   dueDate: string;
   paidAt?: string | null;
   createdAt: string;
+  items?: InvoiceSubItem[];
 }
 
 interface SubscriptionOption {
@@ -434,24 +445,42 @@ export function SaasInvoiceManager() {
         ? inv.items
         : [{ itemTitle: `Langganan SaaS Platform - ${inv.planName || "Paket SaaS"}`, amount: inv.amount }];
 
+      let grossSubtotal = 0;
+      let totalDiscount = 0;
+
       items.forEach((item: any, idx: number) => {
+        const val = Number(item.unitPrice ?? item.amount ?? 0);
+        const isDiscount = val < 0 || item.itemType === "PLAN_DISCOUNT";
+
+        if (val > 0) grossSubtotal += val;
+        if (val < 0) totalDiscount += Math.abs(val);
+
         doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
         doc.rect(20, currentY, 170, 9, "F");
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8.5);
-        doc.setTextColor(30, 41, 59);
+        if (isDiscount) {
+          doc.setTextColor(21, 128, 61);
+        } else {
+          doc.setTextColor(30, 41, 59);
+        }
         doc.text(item.itemTitle || "Layanan SaaS", 24, currentY + 6);
 
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8.5);
         doc.setTextColor(100, 116, 139);
-        doc.text("1 Bulan", 125, currentY + 6, { align: "center" });
+        doc.text(isDiscount ? "Prorate" : "1 Bulan", 125, currentY + 6, { align: "center" });
 
         doc.setFont("courier", "bold");
         doc.setFontSize(9.5);
-        doc.setTextColor(180, 83, 9);
-        doc.text(formatIDR(item.amount || 0), 186, currentY + 6, { align: "right" });
+        if (isDiscount) {
+          doc.setTextColor(21, 128, 61);
+          doc.text(`-${formatIDR(Math.abs(val))}`, 186, currentY + 6, { align: "right" });
+        } else {
+          doc.setTextColor(180, 83, 9);
+          doc.text(formatIDR(val), 186, currentY + 6, { align: "right" });
+        }
 
         doc.setDrawColor(226, 232, 240);
         doc.setLineWidth(0.3);
@@ -462,17 +491,27 @@ export function SaasInvoiceManager() {
 
       // Summary
       currentY += 8;
-      const sumBoxX = 120;
+      const sumBoxX = 115;
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8.5);
       doc.setTextColor(100, 116, 139);
-      doc.text("Subtotal:", sumBoxX, currentY);
+      doc.text("Subtotal Paket:", sumBoxX, currentY);
       doc.setFont("courier", "normal");
-      doc.text(formatIDR(inv.amount || 0), 190, currentY, { align: "right" });
+      doc.text(formatIDR(grossSubtotal || inv.amount), 190, currentY, { align: "right" });
+
+      if (totalDiscount > 0) {
+        currentY += 6;
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(21, 128, 61);
+        doc.text("Potongan Prorate:", sumBoxX, currentY);
+        doc.setFont("courier", "bold");
+        doc.text(`-${formatIDR(totalDiscount)}`, 190, currentY, { align: "right" });
+      }
 
       currentY += 6;
       doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
       doc.text("Pajak (0% Included):", sumBoxX, currentY);
       doc.setFont("courier", "normal");
       doc.text("Rp 0", 190, currentY, { align: "right" });
@@ -1023,7 +1062,13 @@ export function SaasInvoiceManager() {
                   <span className="text-muted-foreground font-medium">Status Pembayaran:</span>
                   <Badge
                     variant={receiptInvoiceItem.status === "PAID" ? "default" : "outline"}
-                    className={receiptInvoiceItem.status === "PAID" ? "bg-emerald-600 text-white font-bold" : ""}
+                    className={
+                      receiptInvoiceItem.status === "PAID"
+                        ? "bg-emerald-600 text-white font-bold"
+                        : receiptInvoiceItem.status === "CANCELLED"
+                        ? "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30 font-bold"
+                        : ""
+                    }
                   >
                     {receiptInvoiceItem.status}
                   </Badge>
@@ -1033,44 +1078,108 @@ export function SaasInvoiceManager() {
                 </span>
               </div>
 
+              {/* Cancellation Reason Callout Box */}
+              {receiptInvoiceItem.status === "CANCELLED" && (
+                <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs space-y-1.5 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-1.5 font-extrabold text-rose-800 dark:text-rose-300">
+                    <IconAlertTriangle className="size-4 text-rose-600 shrink-0" />
+                    <span>Alasan Pembatalan Tagihan:</span>
+                  </div>
+                  <p className="text-rose-950 dark:text-rose-100 font-semibold leading-relaxed pl-5">
+                    {receiptInvoiceItem.cancelReason || "Dibatalkan oleh owner/sistem"}
+                  </p>
+                </div>
+              )}
+
               {/* Itemized Table */}
               <div className="border rounded-xl overflow-hidden">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-muted/60 text-muted-foreground text-[11px] font-bold uppercase border-b">
                       <th className="p-3">Deskripsi Layanan</th>
-                      <th className="p-3 text-right">Durasi</th>
+                      <th className="p-3 text-right">Durasi / Tipe</th>
                       <th className="p-3 text-right">Total Nominal</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y font-mono">
-                    <tr>
-                      <td className="p-3 font-semibold text-foreground">
-                        Langganan SaaS Platform - {receiptInvoiceItem.planName}
-                      </td>
-                      <td className="p-3 text-right">1 Bulan</td>
-                      <td className="p-3 text-right font-bold text-amber-600 dark:text-amber-400">
-                        {formatIDR(receiptInvoiceItem.amount)}
-                      </td>
-                    </tr>
+                    {Array.isArray(receiptInvoiceItem.items) && receiptInvoiceItem.items.length > 0 ? (
+                      receiptInvoiceItem.items.map((it: any) => {
+                        const val = Number(it.unitPrice ?? it.amount ?? 0);
+                        const isDiscount = val < 0 || it.itemType === "PLAN_DISCOUNT";
+                        return (
+                          <tr key={it.id}>
+                            <td className={`p-3 font-semibold ${isDiscount ? "text-emerald-700 dark:text-emerald-300" : "text-foreground"}`}>
+                              {it.itemTitle}
+                            </td>
+                            <td className="p-3 text-right text-xs text-muted-foreground">
+                              {isDiscount ? "Prorate" : it.itemType === "PLAN" ? "1 Bulan" : "Add-On"}
+                            </td>
+                            <td className={`p-3 text-right font-bold ${isDiscount ? "text-emerald-600 dark:text-emerald-400 font-extrabold" : "text-amber-600 dark:text-amber-400"}`}>
+                              {isDiscount ? `-${formatIDR(Math.abs(val))}` : formatIDR(val)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td className="p-3 font-semibold text-foreground">
+                          Langganan SaaS Platform - {receiptInvoiceItem.planName}
+                        </td>
+                        <td className="p-3 text-right">1 Bulan</td>
+                        <td className="p-3 text-right font-bold text-amber-600 dark:text-amber-400">
+                          {formatIDR(receiptInvoiceItem.amount)}
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
+              {/* Subtotal Breakdown */}
               <div className="flex justify-end pt-2">
-                <div className="w-full sm:w-64 space-y-1.5 font-mono text-right border-t pt-3">
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Subtotal:</span>
-                    <span>{formatIDR(receiptInvoiceItem.amount)}</span>
-                  </div>
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Pajak (0% Included):</span>
-                    <span>Rp 0</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-black text-foreground pt-1 border-t">
-                    <span>Total Pembayaran:</span>
-                    <span className="text-amber-600 dark:text-amber-400">{formatIDR(receiptInvoiceItem.amount)}</span>
-                  </div>
+                <div className="w-full sm:w-72 space-y-1.5 font-mono text-right border-t pt-3">
+                  {(() => {
+                    const hasItems = Array.isArray(receiptInvoiceItem.items) && receiptInvoiceItem.items.length > 0;
+                    const grossSubtotal = hasItems
+                      ? receiptInvoiceItem.items!.reduce((acc: number, it: any) => {
+                          const val = Number(it.unitPrice ?? it.amount ?? 0);
+                          return val > 0 ? acc + val : acc;
+                        }, 0)
+                      : receiptInvoiceItem.amount;
+
+                    const totalDiscount = hasItems
+                      ? receiptInvoiceItem.items!.reduce((acc: number, it: any) => {
+                          const val = Number(it.unitPrice ?? it.amount ?? 0);
+                          return val < 0 ? acc + Math.abs(val) : acc;
+                        }, 0)
+                      : 0;
+
+                    return (
+                      <>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Subtotal Paket:</span>
+                          <span>{formatIDR(grossSubtotal)}</span>
+                        </div>
+
+                        {totalDiscount > 0 && (
+                          <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                            <span>Potongan Prorate:</span>
+                            <span>-{formatIDR(totalDiscount)}</span>
+                          </div>
+                        )}
+
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Pajak (0% Included):</span>
+                          <span>Rp 0</span>
+                        </div>
+
+                        <div className="flex justify-between text-sm font-black text-foreground pt-1.5 border-t">
+                          <span>Total Pembayaran:</span>
+                          <span className="text-amber-600 dark:text-amber-400">{formatIDR(receiptInvoiceItem.amount)}</span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
 

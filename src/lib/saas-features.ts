@@ -171,12 +171,15 @@ export async function getOwnerSaaSStatus(ownerId: string) {
     return {
       hasActiveSubscription: true,
       subscriptionId: subscription.id,
+      planId: subscription.plan.id,
       planName: subscription.plan.name,
+      planPriceMonthly: Number(subscription.plan.priceMonthly),
       maxProperties: subscription.plan.maxProperties + extraProperties,
       maxUnits: subscription.plan.maxUnits + extraUnits,
       maxHousekeeping: subscription.plan.maxHousekeeping + extraHousekeeping,
       enabledFeatureCodes,
       closestPlanMap,
+      startDate: subscription.startDate,
       endDate: subscription.endDate,
     };
   } catch (error) {
@@ -192,3 +195,64 @@ export async function getOwnerSaaSStatus(ownerId: string) {
     };
   }
 }
+
+/**
+ * Calculate unused credit (prorate) of an active subscription based on remaining days
+ */
+export function calculateUnusedSubscriptionCredit(subscription: {
+  plan?: { priceMonthly: any };
+  endDate: Date | string;
+}): { remainingDays: number; unusedCredit: number } {
+  if (!subscription || !subscription.endDate) {
+    return { remainingDays: 0, unusedCredit: 0 };
+  }
+
+  const end = new Date(subscription.endDate).getTime();
+  const now = new Date().getTime();
+  const diffMs = end - now;
+
+  if (diffMs <= 0) {
+    return { remainingDays: 0, unusedCredit: 0 };
+  }
+
+  const remainingDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const monthlyPrice = Number(subscription.plan?.priceMonthly || 0);
+
+  if (monthlyPrice <= 0) {
+    return { remainingDays, unusedCredit: 0 };
+  }
+
+  const dailyRate = monthlyPrice / 30;
+  const unusedCredit = Math.floor(dailyRate * remainingDays);
+
+  return {
+    remainingDays,
+    unusedCredit: Math.min(unusedCredit, monthlyPrice),
+  };
+}
+
+/**
+ * Get detailed usage vs quota metrics for an Owner to determine soft lock status
+ */
+export async function getOwnerQuotaMetrics(ownerId: string) {
+  const saasStatus = await getOwnerSaaSStatus(ownerId);
+
+  const [propertiesCount, unitsCount] = await Promise.all([
+    prisma.property.count({ where: { ownerId } }),
+    prisma.unit.count({ where: { property: { ownerId } } }),
+  ]);
+
+  const excessProperties = Math.max(0, propertiesCount - saasStatus.maxProperties);
+  const excessUnits = Math.max(0, unitsCount - saasStatus.maxUnits);
+  const isQuotaExceeded = excessProperties > 0 || excessUnits > 0;
+
+  return {
+    ...saasStatus,
+    propertiesCount,
+    unitsCount,
+    excessProperties,
+    excessUnits,
+    isQuotaExceeded,
+  };
+}
+

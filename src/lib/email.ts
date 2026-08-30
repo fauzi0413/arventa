@@ -402,7 +402,7 @@ export async function sendSupportPaymentProofNotificationEmail({
     </div>
 
     <p style="font-size: 12px; color: #7A8279; line-height: 1.5; margin: 20px 0 0 0; text-align: center;">
-      Verifikasi dapat dilakukan langsung melalui Admin Dashboard Manajemen Subskripsi &amp; Billing.
+      Verifikasi dapat dilakukan langsung melalui Admin Dashboard Manajemen Subscription &amp; Billing.
     </p>
   `;
 
