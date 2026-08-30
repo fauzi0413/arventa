@@ -195,17 +195,19 @@ const ownerNavItems: NavItem[] = [
   { id: "owner-1", href: "/owner/dashboard", label: "Dashboard Utama", icon: IconHome, group: "UTAMA" },
   { id: "owner-2", href: "/properties", label: "Properti & Manajemen Unit", icon: IconBuilding, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-3", href: "/operations/housekeeping-team", label: "Tim Operasional & Housekeeping", icon: IconSparkles, group: "PROPERTI & OPERASIONAL" },
-  { id: "owner-4", href: "/tenants", label: "Penyewa & Kontrak", icon: IconUsers, group: "PENYEWA & KEUANGAN" },
-  { id: "owner-5", href: "/finance", label: "Keuangan & Penagihan", icon: IconCash, group: "PENYEWA & KEUANGAN" },
-  { id: "owner-6", href: "/owner/faq", label: "FAQ & Bantuan", icon: IconHelpCircle, group: "BANTUAN" },
+  { id: "owner-4", href: "/operations/maintenance-reports", label: "Pusat Laporan & Maintenance", icon: IconTools, group: "PROPERTI & OPERASIONAL" },
+  { id: "owner-5", href: "/tenants", label: "Penyewa & Kontrak", icon: IconUsers, group: "PENYEWA & KEUANGAN" },
+  { id: "owner-6", href: "/finance", label: "Keuangan & Penagihan", icon: IconCash, group: "PENYEWA & KEUANGAN" },
+  { id: "owner-7", href: "/owner/faq", label: "FAQ & Bantuan", icon: IconHelpCircle, group: "BANTUAN" },
 ];
 
 const housekeepingNavItems: NavItem[] = [
   { id: "hk-1", href: "/housekeeping/room-grid", label: "Status Kamar Grid", icon: IconClipboardCheck, group: "LAPANGAN & UNIT" },
-  { id: "hk-2", href: "/housekeeping/tenants", label: "Data Penghuni Lapangan", icon: IconUserCheck, group: "LAPANGAN & UNIT" },
-  { id: "hk-3", href: "/housekeeping/inventories", label: "Kondisi Perabotan & Unit", icon: IconArmchair, group: "LAPANGAN & UNIT" },
-  { id: "hk-4", href: "/housekeeping/unit-expenses", label: "Keuangan & Penagihan Unit", icon: IconCash, group: "KEUANGAN & KOMUNITAS" },
-  { id: "hk-5", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "KEUANGAN & KOMUNITAS" },
+  { id: "hk-2", href: "/housekeeping/maintenance-reports", label: "Laporan & Tugas Lapangan", icon: IconTools, group: "LAPANGAN & UNIT" },
+  { id: "hk-3", href: "/housekeeping/tenants", label: "Data Penghuni Lapangan", icon: IconUserCheck, group: "LAPANGAN & UNIT" },
+  { id: "hk-4", href: "/housekeeping/inventories", label: "Kondisi Perabotan & Unit", icon: IconArmchair, group: "LAPANGAN & UNIT" },
+  { id: "hk-5", href: "/housekeeping/unit-expenses", label: "Keuangan & Penagihan Unit", icon: IconCash, group: "KEUANGAN & KOMUNITAS" },
+  { id: "hk-6", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "KEUANGAN & KOMUNITAS" },
 ];
 
 const userNavItems: NavItem[] = [
@@ -218,6 +220,8 @@ const userNavItems: NavItem[] = [
 const ROUTE_FEATURE_MAP: Record<string, { code: string; label: string }> = {
   "/properties": { code: "PROP_MGMT", label: "Manajemen Properti & Inventory" },
   "/operations/housekeeping-team": { code: "HOUSEKEEPING_MODULE", label: "Modul Tim Operational Housekeeping" },
+  "/operations/maintenance-reports": { code: "HOUSEKEEPING_MODULE", label: "Pusat Laporan & Maintenance" },
+  "/housekeeping/maintenance-reports": { code: "HOUSEKEEPING_MODULE", label: "Laporan & Tugas Lapangan" },
   "/tenant-&-contract": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
   "/tenants": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
   "/tenant-contract": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
@@ -275,7 +279,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
         setClosestPlanMap(json.data.closestPlanMap || {});
       }
     } catch (err) {
-      console.error("Failed to fetch owner SaaS status for sidebar:", err);
+      console.warn("Failed to fetch owner SaaS status for sidebar:", err);
     }
   }, []);
 
@@ -346,7 +350,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
         }
       }
     } catch (err) {
-      console.error("Failed to load dynamic sidebar menus:", err);
+      console.warn("Failed to load dynamic sidebar menus:", err);
     }
   }, []);
 
@@ -365,7 +369,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
             }
           }
         } catch (err) {
-          console.error("Failed to load user role in sidebar:", err);
+          console.warn("Failed to load user role in sidebar:", err);
         }
       }
       loadRole();

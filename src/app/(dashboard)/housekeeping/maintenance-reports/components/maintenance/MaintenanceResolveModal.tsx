@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, CheckCircle2 } from 'lucide-react';
+import { X, CheckCircle2, DollarSign } from 'lucide-react';
 import { MaintenanceReportItem } from '../../types';
 import ImageFileInput from '../common/ImageFileInput';
 
@@ -9,10 +9,17 @@ interface MaintenanceResolveModalProps {
   isOpen: boolean;
   onClose: () => void;
   report: MaintenanceReportItem | null;
-  onSubmitResolution: (
+  onSubmitResolution?: (
     reportId: string,
     resolutionNotes: string,
-    afterPhotos: string[]
+    afterPhotos: string[],
+    actualCost?: number
+  ) => void;
+  onResolve?: (
+    reportId: string,
+    resolutionNotes: string,
+    afterPhotos: string[],
+    actualCost?: number
   ) => void;
 }
 
@@ -21,19 +28,22 @@ export default function MaintenanceResolveModal({
   onClose,
   report,
   onSubmitResolution,
+  onResolve,
 }: MaintenanceResolveModalProps) {
   const [resolutionNotes, setResolutionNotes] = useState('Perbaikan selesai 100%. Fasilitas berfungsi normal kembali.');
   const [afterPhotos, setAfterPhotos] = useState<string[]>([]);
+  const [actualCost, setActualCost] = useState<string>('');
 
   if (!isOpen || !report) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmitResolution(
-      report.id,
-      resolutionNotes,
-      afterPhotos
-    );
+    const costNum = actualCost ? Number(actualCost) : undefined;
+    if (onResolve) {
+      onResolve(report.id, resolutionNotes, afterPhotos, costNum);
+    } else if (onSubmitResolution) {
+      onSubmitResolution(report.id, resolutionNotes, afterPhotos, costNum);
+    }
     onClose();
   };
 
@@ -73,6 +83,20 @@ export default function MaintenanceResolveModal({
               placeholder="Jelaskan tindakan teknisi yang telah dilaksanakan..."
               className="w-full rounded-xl border border-gray-200 p-2.5 text-xs text-gray-800 focus:border-[#8FA28A] focus:outline-none"
               required
+            />
+          </div>
+
+          {/* Actual Cost Input */}
+          <div>
+            <label className="text-xs font-bold text-gray-700 block mb-1 flex items-center gap-1">
+              <DollarSign className="h-3.5 w-3.5 text-[#8FA28A]" /> Realisasi Biaya Perbaikan (Rp - Opsional)
+            </label>
+            <input
+              type="number"
+              value={actualCost}
+              onChange={(e) => setActualCost(e.target.value)}
+              placeholder="Contoh: 150000"
+              className="w-full rounded-xl border border-gray-200 p-2.5 text-xs text-gray-800 focus:border-[#8FA28A] focus:outline-none"
             />
           </div>
 

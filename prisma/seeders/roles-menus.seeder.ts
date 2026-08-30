@@ -142,6 +142,7 @@ export async function seedRolesAndMenus() {
       { title: "Dashboard Utama", path: "/owner/dashboard", icon: "IconHome", group: "UTAMA", order: 1, roles: ["OWNER"] },
       { title: "Properti & Manajemen Unit", path: "/properties", icon: "IconBuilding", group: "PROPERTI & OPERASIONAL", order: 2, roles: ["OWNER"] },
       { title: "Tim Operasional & Housekeeping", path: "/operations/housekeeping-team", icon: "IconSparkles", group: "PROPERTI & OPERASIONAL", order: 5, roles: ["OWNER"] },
+      { title: "Pusat Laporan & Maintenance", path: "/operations/maintenance-reports", icon: "IconTools", group: "PROPERTI & OPERASIONAL", order: 6, roles: ["OWNER"] },
       { title: "Penyewa & Kontrak", path: "/tenant-&-contract", icon: "IconUsers", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"] },
       { title: "Kontrak Penyewa", path: "/tenant-contract", icon: "IconFileText", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
       { title: "Manajemen Penyewa", path: "/tenants", icon: "IconId", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
@@ -152,6 +153,7 @@ export async function seedRolesAndMenus() {
 
       // --- HOUSEKEEPING MENUS ---
       { title: "Status Kamar Grid", path: "/housekeeping/room-grid", icon: "IconClipboardCheck", group: "LAPANGAN & UNIT", order: 1, roles: ["HOUSEKEEPING"] },
+      { title: "Laporan & Tugas Lapangan", path: "/housekeeping/maintenance-reports", icon: "IconTools", group: "LAPANGAN & UNIT", order: 2, roles: ["HOUSEKEEPING"] },
       { title: "Data Penghuni Lapangan", path: "/housekeeping/tenants", icon: "IconUserCheck", group: "LAPANGAN & UNIT", order: 3, roles: ["HOUSEKEEPING"] },
       { title: "Kondisi Perabotan & Unit", path: "/housekeeping/inventories", icon: "IconArmchair", group: "LAPANGAN & UNIT", order: 4, roles: ["HOUSEKEEPING"] },
       { title: "Keuangan & Penagihan Unit", path: "/housekeeping/unit-expenses", icon: "IconCash", group: "KEUANGAN & KOMUNITAS", order: 6, roles: ["HOUSEKEEPING"] },

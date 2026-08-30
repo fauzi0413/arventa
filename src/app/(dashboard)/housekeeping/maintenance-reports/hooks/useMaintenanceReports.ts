@@ -8,19 +8,13 @@ import {
   ReportFilterState,
   ReportsMetrics,
   HousekeepingStatus,
-  HousekeepingServiceType,
   HousekeepingChecklist,
   MaintenanceStatus,
-  ReportPriority,
   RatingData,
   TimelineLog,
 } from '../types';
 import { Property } from '@/app/(dashboard)/properties/_types';
 import { Unit } from '@/app/(dashboard)/units/_types';
-import { TenantComplaint, HousekeepingRequest } from '@/app/(dashboard)/portal/room/_types';
-
-const STORAGE_HK_KEY = 'arventa_housekeeping_reports_v4';
-const STORAGE_MNT_KEY = 'arventa_maintenance_reports_v4';
 
 export function useMaintenanceReports() {
   const router = useRouter();
@@ -37,6 +31,7 @@ export function useMaintenanceReports() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentStaffName, setCurrentStaffName] = useState('Staf Housekeeping');
+  const [currentUserRole, setCurrentUserRole] = useState<'HOUSEKEEPING' | 'OWNER' | 'PLATFORM_ADMIN' | 'USER'>('HOUSEKEEPING');
 
   // Filters State
   const [filters, setFilters] = useState<ReportFilterState>({
@@ -58,21 +53,19 @@ export function useMaintenanceReports() {
     searchParams.get('reportId') || null
   );
 
-  // Load Data directly from PostgreSQL API & local cache
+  // Load Data directly from PostgreSQL API
   const loadData = useCallback(async () => {
     try {
-      // 1. Fetch properties, units, current user, and operational activities from API
-      const [propsRes, unitsRes, meRes, actRes] = await Promise.all([
+      setLoading(true);
+      const [propsRes, unitsRes, meRes, maintRes] = await Promise.all([
         fetch('/api/properties?limit=50').catch(() => null),
         fetch('/api/units?limit=100').catch(() => null),
         fetch('/api/auth/me').catch(() => null),
-        fetch('/api/operations/activities?limit=100').catch(() => null),
+        fetch('/api/maintenance').catch(() => null),
       ]);
 
       let loadedProps: Property[] = [];
       let loadedUnits: Unit[] = [];
-      let activeUser: any = null;
-      let dbActivities: any[] = [];
 
       if (propsRes && propsRes.ok) {
         const pJson = await propsRes.json();
@@ -112,224 +105,26 @@ export function useMaintenanceReports() {
       if (meRes && meRes.ok) {
         const meJson = await meRes.json();
         if (meJson.data?.fullName) {
-          activeUser = meJson.data;
           setCurrentStaffName(meJson.data.fullName);
         }
-      }
-
-      if (actRes && actRes.ok) {
-        const actJson = await actRes.json();
-        if (Array.isArray(actJson.data)) {
-          dbActivities = actJson.data;
+        if (meJson.data?.role) {
+          setCurrentUserRole(meJson.data.role);
         }
-      }
-
-      // Fallback local storage props/units if API returned empty
-      if (loadedProps.length === 0) {
-        const storedProps = localStorage.getItem('arventa_properties');
-        if (storedProps) loadedProps = JSON.parse(storedProps);
-      }
-      if (loadedUnits.length === 0) {
-        const storedUnits = localStorage.getItem('arventa_units');
-        if (storedUnits) loadedUnits = JSON.parse(storedUnits);
       }
 
       setProperties(loadedProps);
       setUnits(loadedUnits);
 
-      const staffName = activeUser?.fullName || localStorage.getItem('arventa_user_name') || 'Staf Housekeeping';
-
-      // 2. Convert database activities (UnitStatusLog) into Housekeeping Reports
-      const dbHousekeepingReports: HousekeepingReport[] = dbActivities
-        .filter((act: any) => act.type === 'ROOM_STATUS')
-        .map((act: any) => {
-          const isCompleted = act.status === 'AVAILABLE' || act.status === 'Available';
-          const performer = act.performerName || staffName;
-
-          return {
-            id: `hk-db-${act.id}`,
-            ticketNumber: `HK-${act.id.slice(-4).toUpperCase()}`,
-            propertyId: act.propertyId || loadedProps[0]?.id || 'prop-1',
-            propertyName: act.propertyName || loadedProps[0]?.name || 'Properti Kost',
-            unitId: act.unitId || 'unit-1',
-            unitNumber: act.unitNumber || 'Kamar',
-            serviceType: 'DAILY_CLEAN' as HousekeepingServiceType,
-            status: (isCompleted ? 'COMPLETED' : 'IN_CLEANING') as HousekeepingStatus,
-            reportedBy: { id: 'sys-sop', name: 'SOP Rutin & Jadwal Kebersihan', role: 'STAFF' as const },
-            housekeeper: { id: act.performerId || 'stf-hk', name: performer, role: 'STAFF' as const },
-            checklist: {
-              bathroom: true,
-              bedLinen: true,
-              floorSweptMopped: true,
-              trashEmptied: true,
-            },
-            notes: act.notes || 'Pembersihan kamar sesuai standar SOP kebersihan.',
-            resolutionNotes: act.notes || 'Kamar telah dibersihkan dan siap digunakan.',
-            photos: { before: [], after: [] },
-            rating: isCompleted ? {
-              score: 5,
-              feedback: 'Kamar bersih, rapi, dan wangi sesuai SOP.',
-              ratedAt: new Date(act.timestamp).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' }),
-              ratedBy: { id: 'usr-penyewa', name: 'Penyewa Kamar' },
-            } : null,
-            timeline: [
-              {
-                id: `hist-db-${act.id}`,
-                reportId: `hk-db-${act.id}`,
-                timestamp: new Date(act.timestamp).toLocaleDateString('id-ID', {
-                  day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-                }),
-                status: (isCompleted ? 'COMPLETED' : 'IN_CLEANING') as HousekeepingStatus,
-                performerName: performer,
-                performerRole: 'Housekeeper',
-                notes: act.notes || 'Status kebersihan kamar tercatat di sistem.',
-              },
-            ],
-            createdAt: act.timestamp || new Date().toISOString(),
-            updatedAt: act.timestamp || new Date().toISOString(),
-          };
-        });
-
-      // 3. Convert Local Storage Housekeeping Requests
-      const storedHousekeepingCalls = localStorage.getItem('arventa_housekeeping_requests');
-      let housekeepingCalls: HousekeepingRequest[] = storedHousekeepingCalls ? JSON.parse(storedHousekeepingCalls) : [];
-
-      const convertedHKCalls: HousekeepingReport[] = housekeepingCalls.map((h) => {
-        const parentUnit = loadedUnits.find((u) => u.id === h.unitId);
-        const parentProp = loadedProps.find((p) => p.id === parentUnit?.propertyId);
-
-        const statusMap: Record<string, HousekeepingStatus> = {
-          Diproses: 'REQUESTED',
-          Terjadwal: 'IN_CLEANING',
-          Selesai: 'COMPLETED',
-        };
-
-        const serviceTypeMap: Record<string, HousekeepingServiceType> = {
-          'Pembersihan Kamar Rutin': 'DAILY_CLEAN',
-          'Deep Cleaning Kamar Mandi': 'DEEP_CLEAN',
-          'Ganti Sprei & Linen': 'LINEN_CHANGE',
-          'Checkout Clean (Selesai Sewa)': 'CHECKOUT_CLEAN',
-        };
-
-        return {
-          id: h.id,
-          ticketNumber: `HK-CALL-${h.id.slice(-4).toUpperCase()}`,
-          propertyId: parentProp?.id || loadedProps[0]?.id || 'prop-1',
-          propertyName: parentProp?.name || loadedProps[0]?.name || 'Properti Kost',
-          unitId: h.unitId,
-          unitNumber: h.unitName,
-          serviceType: serviceTypeMap[h.serviceType] || 'DAILY_CLEAN',
-          status: statusMap[h.status] || 'REQUESTED',
-          reportedBy: { id: `tenant-${h.unitId}`, name: parentUnit?.tenantName || 'Penghuni', role: 'TENANT' as const },
-          housekeeper: { id: 'stf-current', name: staffName, role: 'STAFF' as const },
-          notes: `Jadwal ${h.scheduledDate || ''} ${h.timeSlot || ''}.${h.notes ? ` Catatan: ${h.notes}` : ''}`,
-          resolutionNotes: h.resolutionNotes,
-          photos: { before: [], after: [] },
-          rating: null,
-          timeline: [
-            {
-              id: `hist-hk-${h.id}`,
-              reportId: h.id,
-              timestamp: new Date(h.createdAt).toLocaleDateString('id-ID', {
-                day: '2-digit', month: '2-digit', year: 'numeric',
-              }),
-              status: 'REQUESTED',
-              performerName: parentUnit?.tenantName || 'Penghuni',
-              performerRole: 'Tenant',
-              notes: `Panggilan kebersihan ${h.serviceType} untuk ${h.scheduledDate || 'hari ini'}.`,
-            },
-          ],
-          createdAt: h.createdAt,
-          updatedAt: h.createdAt,
-        };
-      });
-
-      // 4. Convert Complaints to Maintenance Reports
-      const storedComplaints = localStorage.getItem('arventa_tenant_complaints');
-      let tenantComplaints: TenantComplaint[] = storedComplaints ? JSON.parse(storedComplaints) : [];
-
-      const convertedComplaints: MaintenanceReportItem[] = tenantComplaints.map((c) => {
-        const parentUnit = loadedUnits.find((u) => u.id === c.unitId);
-        const parentProp = loadedProps.find((p) => p.id === parentUnit?.propertyId);
-
-        const statusMap: Record<string, MaintenanceStatus> = {
-          Pending: 'REPORTED',
-          'In Progress': 'IN_PROGRESS',
-          Resolved: 'RESOLVED',
-        };
-
-        const priorityMap: Record<string, ReportPriority> = {
-          Biasa: 'LOW',
-          Sedang: 'MEDIUM',
-          Mendesak: 'HIGH',
-        };
-
-        return {
-          id: c.id,
-          ticketNumber: `MNT-${c.id.slice(-4).toUpperCase()}`,
-          propertyId: parentProp?.id || loadedProps[0]?.id || 'prop-1',
-          propertyName: parentProp?.name || loadedProps[0]?.name || 'Properti Kost',
-          unitId: c.unitId,
-          unitNumber: c.unitName,
-          title: c.title,
-          description: c.description,
-          priority: priorityMap[c.priority] || 'MEDIUM',
-          status: statusMap[c.status] || 'REPORTED',
-          reportedBy: { id: `tenant-${c.unitId}`, name: parentUnit?.tenantName || 'Penghuni', role: 'TENANT' as const },
-          assignedStaff: { id: 'stf-tech', name: 'Staf Teknisi', role: 'STAFF' as const },
-          resolutionNotes: c.resolutionNotes,
-          photos: {
-            before: c.photoUrl ? [c.photoUrl] : [],
-            after: [],
-          },
-          rating: null,
-          timeline: [
-            {
-              id: `hist-${c.id}`,
-              reportId: c.id,
-              timestamp: new Date(c.createdAt).toLocaleDateString('id-ID', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-              }),
-              status: 'REPORTED',
-              performerName: parentUnit?.tenantName || 'Penghuni',
-              performerRole: 'Tenant',
-              notes: `Komplain kategori ${c.category} diajukan oleh penghuni.`,
-            },
-          ],
-          createdAt: c.createdAt,
-          updatedAt: c.resolvedAt || c.createdAt,
-        };
-      });
-
-      // Combine cached reports with DB reports
-      const storedHK = localStorage.getItem(STORAGE_HK_KEY);
-      const storedMNT = localStorage.getItem(STORAGE_MNT_KEY);
-      let localHK: HousekeepingReport[] = storedHK ? JSON.parse(storedHK) : [];
-      let localMNT: MaintenanceReportItem[] = storedMNT ? JSON.parse(storedMNT) : [];
-
-      // Filter out old sample Agus Lapangan dummy data from local cache
-      localHK = localHK.filter((h) => h.housekeeper?.name !== 'Agus Lapangan' && h.propertyName !== 'Kost Griya Melati');
-      localMNT = localMNT.filter((m) => m.propertyName !== 'Kost Griya Melati');
-
-      const hkMap = new Map<string, HousekeepingReport>();
-      [...dbHousekeepingReports, ...convertedHKCalls, ...localHK].forEach((item) => hkMap.set(item.id, item));
-      const finalHK = Array.from(hkMap.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-
-      const mntMap = new Map<string, MaintenanceReportItem>();
-      [...convertedComplaints, ...localMNT].forEach((item) => mntMap.set(item.id, item));
-      const finalMNT = Array.from(mntMap.values()).sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-
-      setHousekeepingList(finalHK);
-      setMaintenanceList(finalMNT);
-      localStorage.setItem(STORAGE_HK_KEY, JSON.stringify(finalHK));
-      localStorage.setItem(STORAGE_MNT_KEY, JSON.stringify(finalMNT));
-      setLoading(false);
+      if (maintRes && maintRes.ok) {
+        const mJson = await maintRes.json();
+        if (mJson.data) {
+          setHousekeepingList(mJson.data.housekeepingList || []);
+          setMaintenanceList(mJson.data.maintenanceList || []);
+        }
+      }
     } catch (err) {
-      console.warn('Error loading maintenance reports:', err);
+      console.error('Failed to load maintenance & housekeeping reports:', err);
+    } finally {
       setLoading(false);
     }
   }, []);
@@ -338,14 +133,14 @@ export function useMaintenanceReports() {
     loadData();
   }, [loadData]);
 
+  // Sync URL query params with active tab & filters
   const handleTabChange = (tab: 'HOUSEKEEPING' | 'MAINTENANCE' | 'HISTORY') => {
     setActiveTab(tab);
     setFilters((prev) => ({ ...prev, tab }));
-    setSelectedReportId(null);
   };
 
-  const handleFilterChange = (updates: Partial<ReportFilterState>) => {
-    setFilters((prev) => ({ ...prev, ...updates }));
+  const handleFilterChange = (newFilters: Partial<ReportFilterState>) => {
+    setFilters((prev) => ({ ...prev, ...newFilters }));
   };
 
   const handleSelectReport = (id: string | null) => {
@@ -357,10 +152,11 @@ export function useMaintenanceReports() {
     return housekeepingList.filter((item) => {
       if (filters.search) {
         const q = filters.search.toLowerCase();
-        const matchTicket = item.ticketNumber.toLowerCase().includes(q);
-        const matchUnit = item.unitNumber.toLowerCase().includes(q);
+        const matchTicket = item.ticketNumber?.toLowerCase().includes(q);
+        const matchUnit = item.unitNumber?.toLowerCase().includes(q);
+        const matchProp = item.propertyName?.toLowerCase().includes(q);
         const matchReporter = item.reportedBy?.name?.toLowerCase().includes(q);
-        if (!matchTicket && !matchUnit && !matchReporter) return false;
+        if (!matchTicket && !matchUnit && !matchProp && !matchReporter) return false;
       }
 
       if (filters.housekeepingStatus !== 'ALL' && item.status !== filters.housekeepingStatus) return false;
@@ -370,7 +166,6 @@ export function useMaintenanceReports() {
       if (filters.ratingStatus === 'RATED' && !item.rating) return false;
       if (filters.ratingStatus === 'UNRATED' && item.rating) return false;
 
-      // Date Filtering
       if (filters.startDate) {
         const itemDate = new Date(item.createdAt).getTime();
         const startDate = new Date(filters.startDate).getTime();
@@ -391,21 +186,22 @@ export function useMaintenanceReports() {
     return maintenanceList.filter((item) => {
       if (filters.search) {
         const q = filters.search.toLowerCase();
-        const matchTicket = item.ticketNumber.toLowerCase().includes(q);
-        const matchUnit = item.unitNumber.toLowerCase().includes(q);
-        const matchTitle = item.title.toLowerCase().includes(q);
+        const matchTicket = item.ticketNumber?.toLowerCase().includes(q);
+        const matchUnit = item.unitNumber?.toLowerCase().includes(q);
+        const matchProp = item.propertyName?.toLowerCase().includes(q);
+        const matchTitle = item.title?.toLowerCase().includes(q);
         const matchReporter = item.reportedBy?.name?.toLowerCase().includes(q);
-        if (!matchTicket && !matchUnit && !matchTitle && !matchReporter) return false;
+        if (!matchTicket && !matchUnit && !matchProp && !matchTitle && !matchReporter) return false;
       }
 
       if (filters.maintenanceStatus !== 'ALL' && item.status !== filters.maintenanceStatus) return false;
       if (filters.priority !== 'ALL' && item.priority !== filters.priority) return false;
+      if (filters.costLiability !== 'ALL' && item.costLiability !== filters.costLiability) return false;
       if (filters.propertyId !== 'ALL' && item.propertyId !== filters.propertyId) return false;
 
       if (filters.ratingStatus === 'RATED' && !item.rating) return false;
       if (filters.ratingStatus === 'UNRATED' && item.rating) return false;
 
-      // Date Filtering
       if (filters.startDate) {
         const itemDate = new Date(item.createdAt).getTime();
         const startDate = new Date(filters.startDate).getTime();
@@ -430,203 +226,102 @@ export function useMaintenanceReports() {
 
       totalMaintenance: maintenanceList.length,
       maintenanceReported: maintenanceList.filter((m) => m.status === 'REPORTED').length,
-      maintenanceAwaitingApproval: 0,
-      maintenanceInProgress: maintenanceList.filter((m) => m.status === 'IN_PROGRESS').length,
+      maintenanceAwaitingApproval: maintenanceList.filter((m) => m.status === 'AWAITING_APPROVAL').length,
+      maintenanceInProgress: maintenanceList.filter((m) => m.status === 'IN_PROGRESS' || m.status === 'INSPECTION').length,
       maintenanceResolved: maintenanceList.filter((m) => m.status === 'RESOLVED' || m.status === 'CLOSED').length,
     };
   }, [housekeepingList, maintenanceList]);
 
-  const saveHK = (updated: HousekeepingReport[]) => {
-    setHousekeepingList(updated);
-    localStorage.setItem(STORAGE_HK_KEY, JSON.stringify(updated));
-    if (typeof window !== 'undefined') window.dispatchEvent(new Event('arventa_task_updated'));
-  };
-
-  const saveMNT = (updated: MaintenanceReportItem[]) => {
-    setMaintenanceList(updated);
-    localStorage.setItem(STORAGE_MNT_KEY, JSON.stringify(updated));
-    if (typeof window !== 'undefined') window.dispatchEvent(new Event('arventa_task_updated'));
-  };
-
-  const completeHousekeeping = (
+  // Mutations calling Backend PostgreSQL API
+  const completeHousekeeping = async (
     reportId: string,
     checklist: HousekeepingChecklist,
     notes: string,
     afterPhotos: string[]
   ) => {
-    const timestamp = new Date().toLocaleDateString('id-ID', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-
-    const performer = currentStaffName || 'Staf Housekeeping';
-
-    const updated = housekeepingList.map((h) => {
-      if (h.id === reportId) {
-        const newLog: TimelineLog = {
-          id: `hist-hk-${Date.now()}`,
-          reportId,
-          timestamp,
+    try {
+      const res = await fetch(`/api/maintenance/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           status: 'COMPLETED',
-          performerName: performer,
-          performerRole: 'Housekeeper',
-          notes: notes || 'SOP kebersihan selesai 100%.',
-        };
-
-        return {
-          ...h,
-          status: 'COMPLETED' as HousekeepingStatus,
-          housekeeper: {
-            id: h.housekeeper?.id || 'stf-current',
-            name: performer,
-            role: 'STAFF' as const,
-          },
           checklist,
           resolutionNotes: notes,
-          photos: {
-            ...h.photos,
-            after: [...h.photos.after, ...afterPhotos],
-          },
-          updatedAt: new Date().toISOString(),
-          timeline: [...h.timeline, newLog],
-        };
-      }
-      return h;
-    });
+          photosAfter: afterPhotos,
+          timelineNotes: notes || 'SOP kebersihan kamar diselesaikan.',
+        }),
+      });
 
-    saveHK(updated);
+      if (res.ok) {
+        await loadData();
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('arventa_task_updated'));
+      }
+    } catch (err) {
+      console.error('Failed to complete housekeeping task:', err);
+    }
   };
 
-  const startRepair = (reportId: string) => {
-    const timestamp = new Date().toLocaleDateString('id-ID', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-
-    const updated = maintenanceList.map((m) => {
-      if (m.id === reportId) {
-        const newLog: TimelineLog = {
-          id: `hist-mnt-${Date.now()}`,
-          reportId,
-          timestamp,
+  const startRepair = async (reportId: string) => {
+    try {
+      const res = await fetch(`/api/maintenance/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           status: 'IN_PROGRESS',
-          performerName: currentStaffName || 'Staf Teknisi',
-          performerRole: 'Staff Teknisi',
-          notes: 'Perbaikan dimulai oleh teknisi.',
-        };
+          timelineNotes: 'Pengerjaan perbaikan dimulai oleh staf/teknisi.',
+        }),
+      });
 
-        return {
-          ...m,
-          status: 'IN_PROGRESS' as MaintenanceStatus,
-          updatedAt: new Date().toISOString(),
-          timeline: [...m.timeline, newLog],
-        };
+      if (res.ok) {
+        await loadData();
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('arventa_task_updated'));
       }
-      return m;
-    });
-
-    saveMNT(updated);
+    } catch (err) {
+      console.error('Failed to start repair:', err);
+    }
   };
 
-  const resolveMaintenance = (
+  const resolveMaintenance = async (
     reportId: string,
     resolutionNotes: string,
-    afterPhotos: string[]
+    afterPhotos: string[],
+    actualCost?: number
   ) => {
-    const timestamp = new Date().toLocaleDateString('id-ID', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-
-    const updated = maintenanceList.map((m) => {
-      if (m.id === reportId) {
-        const newLog: TimelineLog = {
-          id: `hist-mnt-${Date.now()}`,
-          reportId,
-          timestamp,
+    try {
+      const res = await fetch(`/api/maintenance/${reportId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           status: 'RESOLVED',
-          performerName: currentStaffName || 'Staf Teknisi',
-          performerRole: 'Staff Teknisi',
-          notes: resolutionNotes || 'Perbaikan selesai.',
-        };
-
-        return {
-          ...m,
-          status: 'RESOLVED' as MaintenanceStatus,
           resolutionNotes,
-          photos: {
-            ...m.photos,
-            after: [...m.photos.after, ...afterPhotos],
-          },
-          updatedAt: new Date().toISOString(),
-          timeline: [...m.timeline, newLog],
-        };
-      }
-      return m;
-    });
+          photosAfter: afterPhotos,
+          actualCost: actualCost || undefined,
+          timelineNotes: resolutionNotes || 'Perbaikan selesai dan diverifikasi.',
+        }),
+      });
 
-    saveMNT(updated);
+      if (res.ok) {
+        await loadData();
+        if (typeof window !== 'undefined') window.dispatchEvent(new Event('arventa_task_updated'));
+      }
+    } catch (err) {
+      console.error('Failed to resolve maintenance report:', err);
+    }
   };
 
-  const submitRating = (
-    targetType: 'HOUSEKEEPING' | 'MAINTENANCE',
-    reportId: string,
-    score: number,
-    feedback: string
-  ) => {
-    const timestamp = new Date().toLocaleDateString('id-ID', {
-      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
-    });
-
-    if (targetType === 'HOUSEKEEPING') {
-      const target = housekeepingList.find((h) => h.id === reportId);
-      if (target?.rating) {
-        throw new Error('Tiket ini sudah memiliki rating.');
-      }
-
-      const ratingObj: RatingData = {
-        score,
-        feedback,
-        ratedAt: timestamp,
-        ratedBy: { id: target?.reportedBy?.id || 'usr-tenant', name: target?.reportedBy?.name || 'Penyewa' },
-      };
-
-      const updated = housekeepingList.map((h) => {
-        if (h.id === reportId) {
-          return {
-            ...h,
-            rating: ratingObj,
-            status: 'CLOSED' as HousekeepingStatus,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return h;
+  const submitRating = async (reportId: string, score: number, feedback: string) => {
+    try {
+      const res = await fetch(`/api/maintenance/${reportId}/rating`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ score, feedback }),
       });
 
-      saveHK(updated);
-    } else {
-      const target = maintenanceList.find((m) => m.id === reportId);
-      if (target?.rating) {
-        throw new Error('Tiket ini sudah memiliki rating.');
+      if (res.ok) {
+        await loadData();
       }
-
-      const ratingObj: RatingData = {
-        score,
-        feedback,
-        ratedAt: timestamp,
-        ratedBy: { id: target?.reportedBy?.id || 'usr-tenant', name: target?.reportedBy?.name || 'Penyewa' },
-      };
-
-      const updated = maintenanceList.map((m) => {
-        if (m.id === reportId) {
-          return {
-            ...m,
-            rating: ratingObj,
-            status: 'CLOSED' as MaintenanceStatus,
-            updatedAt: new Date().toISOString(),
-          };
-        }
-        return m;
-      });
-
-      saveMNT(updated);
+    } catch (err) {
+      console.error('Failed to submit rating:', err);
     }
   };
 
@@ -635,17 +330,21 @@ export function useMaintenanceReports() {
     handleTabChange,
     housekeepingList: filteredHousekeeping,
     maintenanceList: filteredMaintenance,
+    rawHousekeepingList: housekeepingList,
+    rawMaintenanceList: maintenanceList,
     properties,
     units,
     loading,
     filters,
     metrics,
-    selectedReportId,
+    currentUserRole,
     handleFilterChange,
+    selectedReportId,
     handleSelectReport,
     completeHousekeeping,
     startRepair,
     resolveMaintenance,
     submitRating,
+    refreshData: loadData,
   };
 }

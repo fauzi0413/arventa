@@ -23,11 +23,15 @@ import {
   CheckCircle2,
   XCircle,
   FileText,
+  Wrench,
+  Sparkles,
+  ExternalLink,
 } from 'lucide-react';
 import { Unit } from '@/app/(dashboard)/units/_types';
 import { Property, InventoryItem, InventoryCondition } from '@/app/(dashboard)/properties/_types';
 import { useSafeBack } from '@/app/_hooks/useSafeBack';
 import AssignTenantModal from '@/app/(dashboard)/units/_components/AssignTenantModal';
+import ImageFileInput from '@/app/(dashboard)/housekeeping/maintenance-reports/components/common/ImageFileInput';
 
 const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   switch (cond) {
@@ -38,7 +42,7 @@ const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
     case 'Rusak Berat':
       return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800';
     case 'Hilang':
-      return 'bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-900 dark:text-gray-300 dark:border-gray-800';
+      return 'bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
     default:
       return 'bg-gray-50 text-gray-700 border-gray-200';
   }
@@ -102,6 +106,73 @@ export default function PropertyUnitDetailPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [userRole, setUserRole] = useState<'OWNER' | 'HOUSEKEEPING'>('OWNER');
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+
+  // Unit Maintenance Ticket Creation state
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [ticketType, setTicketType] = useState<'REPAIR' | 'HOUSEKEEPING'>('REPAIR');
+  const [ticketTitle, setTicketTitle] = useState('');
+  const [ticketDesc, setTicketDesc] = useState('');
+  const [ticketPriority, setTicketPriority] = useState('MEDIUM');
+  const [ticketCostLiability, setTicketCostLiability] = useState('OWNER');
+  const [ticketEstCost, setTicketEstCost] = useState('');
+  const [ticketPhotos, setTicketPhotos] = useState<string[]>([]);
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+  const [ticketToast, setTicketToast] = useState<string | null>(null);
+
+  const handleOpenCreateTicket = (type: 'REPAIR' | 'HOUSEKEEPING' = 'REPAIR', initialTitle = '') => {
+    setTicketType(type);
+    setTicketTitle(initialTitle || (type === 'REPAIR' ? `Perbaikan Unit ${unit?.name || ''}` : `Pembersihan Unit ${unit?.name || ''}`));
+    setTicketDesc('');
+    setTicketPriority('MEDIUM');
+    setTicketCostLiability('OWNER');
+    setTicketEstCost('');
+    setTicketPhotos([]);
+    setIsTicketModalOpen(true);
+  };
+
+  const handleCreateMaintenanceTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!unit) return;
+
+    setIsSubmittingTicket(true);
+    try {
+      const res = await fetch('/api/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          unitId: unit.id,
+          type: ticketType,
+          title: ticketTitle,
+          description: ticketDesc,
+          priority: ticketPriority,
+          photosBefore: ticketPhotos,
+          costLiability: ticketCostLiability,
+          estimatedCost: ticketEstCost ? Number(ticketEstCost) : undefined,
+        }),
+      });
+
+      if (res.ok) {
+        setIsTicketModalOpen(false);
+        setTicketPhotos([]);
+        setTicketToast(`Tiket ${ticketType === 'REPAIR' ? 'perbaikan' : 'housekeeping'} untuk kamar ${unit.name} berhasil dibuat!`);
+        setTimeout(() => setTicketToast(null), 4500);
+
+        if (ticketType === 'REPAIR') {
+          setUnit((prev) => (prev ? { ...prev, status: 'MAINTENANCE' as any } : null));
+        } else {
+          setUnit((prev) => (prev ? { ...prev, status: 'CLEANING' as any } : null));
+        }
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Gagal membuat tiket');
+      }
+    } catch (err) {
+      console.error('Failed to submit maintenance ticket:', err);
+    } finally {
+      setIsSubmittingTicket(false);
+    }
+  };
 
   useEffect(() => {
     const fetchUnitData = async () => {
@@ -479,14 +550,59 @@ export default function PropertyUnitDetailPage() {
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="block text-xs font-bold text-muted-foreground uppercase">Tarif Sewa</span>
-                <p className="text-xl font-black text-[#8FA28A]">
-                  {formatRupiah(unit.pricing.monthly)}
-                  <span className="text-xs font-normal text-muted-foreground">/bln</span>
-                </p>
+              <div className="flex flex-col items-end gap-2">
+                <div className="text-right">
+                  <span className="block text-xs font-bold text-muted-foreground uppercase">Tarif Sewa</span>
+                  <p className="text-xl font-black text-[#8FA28A]">
+                    {formatRupiah(unit.pricing.monthly)}
+                    <span className="text-xs font-normal text-muted-foreground">/bln</span>
+                  </p>
+                </div>
+
+                {/* Quick Maintenance Ticket Buttons */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateTicket('REPAIR')}
+                    className="min-h-[32px] px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs"
+                  >
+                    <Wrench className="h-3.5 w-3.5" />
+                    <span>+ Buat Tiket Perbaikan</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCreateTicket('HOUSEKEEPING')}
+                    className="min-h-[32px] px-3 py-1 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>+ Housekeeping</span>
+                  </button>
+                </div>
               </div>
             </div>
+
+            {/* Active Maintenance Status Banner */}
+            {((unit.status as string) === 'MAINTENANCE' || (unit.status as string) === 'CLEANING' || (unit.status as string) === 'Need Cleaning') && (
+              <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-amber-800 dark:text-amber-300 font-bold">
+                  <Wrench className="h-4 w-4 shrink-0 text-amber-600 animate-bounce" />
+                  <span>
+                    Unit ini sedang dalam status{' '}
+                    <strong className="underline">
+                      {(unit.status as string) === 'MAINTENANCE' ? 'Pemeliharaan / Perbaikan' : 'Pembersihan / Housekeeping'}
+                    </strong>
+                    .
+                  </span>
+                </div>
+                <Link
+                  href="/operations/maintenance-reports"
+                  className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] flex items-center gap-1 transition-colors shadow-xs shrink-0"
+                >
+                  <span>Pantau Laporan</span>
+                  <ExternalLink className="h-3 w-3" />
+                </Link>
+              </div>
+            )}
 
             {/* Quick Metrics */}
             <div className="grid grid-cols-2 gap-4">
@@ -662,8 +778,18 @@ export default function PropertyUnitDetailPage() {
                       </p>
                     </div>
 
-                    <div className="text-[11px] text-[#8FA28A] font-semibold mt-3 pt-2 border-t border-border dark:border-border">
-                      ✓ Aset Milik Properti {property.name}
+                    <div className="text-[11px] text-[#8FA28A] font-semibold mt-3 pt-2 border-t border-border dark:border-border flex items-center justify-between">
+                      <span>✓ Aset Milik Properti {property.name}</span>
+                      {(item.condition === 'Perlu Perbaikan' || item.condition === 'Rusak Berat') && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCreateTicket('REPAIR', `Perbaikan ${item.name} (${unit.name})`)}
+                          className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 transition-colors shadow-xs"
+                        >
+                          <Wrench className="h-3 w-3" />
+                          Tiket Perbaikan
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -864,6 +990,141 @@ export default function PropertyUnitDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      {ticketToast && (
+        <div className="fixed top-6 right-6 z-50 p-4 rounded-xl bg-emerald-700 text-white shadow-xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-4">
+          <CheckCircle2 className="h-5 w-5" />
+          <span>{ticketToast}</span>
+        </div>
+      )}
+
+      {/* Modal: Direct Create Maintenance/Housekeeping Ticket for Unit */}
+      {isTicketModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-card text-card-foreground p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-border">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                {ticketType === 'REPAIR' ? (
+                  <Wrench className="h-5 w-5 text-amber-500" />
+                ) : (
+                  <Sparkles className="h-5 w-5 text-[#8FA28A]" />
+                )}
+                <h3 className="text-base font-black text-foreground">
+                  {ticketType === 'REPAIR' ? 'Buat Tiket Perbaikan Unit' : 'Buat Tugas Housekeeping'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTicketModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMaintenanceTicket} className="space-y-3.5 text-xs">
+              <div className="p-3 bg-muted/40 border border-border rounded-xl space-y-1">
+                <p className="font-bold text-foreground">
+                  Unit: {unit.name} ({property.name})
+                </p>
+                <p className="text-[11px] text-muted-foreground">Status saat ini: {unit.status}</p>
+              </div>
+
+              <div>
+                <label className="font-bold text-foreground block mb-1">Judul Laporan *</label>
+                <input
+                  type="text"
+                  required
+                  value={ticketTitle}
+                  onChange={(e) => setTicketTitle(e.target.value)}
+                  className="w-full rounded-xl border border-border p-2.5 bg-background font-medium focus:outline-none focus:border-[#8FA28A]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Prioritas</label>
+                  <select
+                    value={ticketPriority}
+                    onChange={(e) => setTicketPriority(e.target.value)}
+                    className="w-full rounded-xl border border-border p-2.5 bg-background font-medium focus:outline-none"
+                  >
+                    <option value="LOW">Rendah</option>
+                    <option value="MEDIUM">Sedang</option>
+                    <option value="HIGH">Tinggi (Urgent)</option>
+                    <option value="EMERGENCY">Darurat</option>
+                  </select>
+                </div>
+
+                {ticketType === 'REPAIR' && (
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Beban Biaya</label>
+                    <select
+                      value={ticketCostLiability}
+                      onChange={(e) => setTicketCostLiability(e.target.value)}
+                      className="w-full rounded-xl border border-border p-2.5 bg-background font-medium focus:outline-none"
+                    >
+                      <option value="OWNER">Owner</option>
+                      <option value="TENANT">Penyewa</option>
+                      <option value="SPLIT">Split</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {ticketType === 'REPAIR' && (
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Estimasi Biaya (Rp)</label>
+                  <input
+                    type="number"
+                    value={ticketEstCost}
+                    onChange={(e) => setTicketEstCost(e.target.value)}
+                    placeholder="0"
+                    className="w-full rounded-xl border border-border p-2.5 bg-background font-medium focus:outline-none"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="font-bold text-foreground block mb-1">Keterangan / Rincian Tambahan</label>
+                <textarea
+                  value={ticketDesc}
+                  onChange={(e) => setTicketDesc(e.target.value)}
+                  rows={3}
+                  placeholder="Jelaskan detail kerusakan atau instruksi khusus..."
+                  className="w-full rounded-xl border border-border p-2.5 bg-background font-medium focus:outline-none resize-none"
+                />
+              </div>
+
+              {/* Upload Foto Kerusakan */}
+              <ImageFileInput
+                label="Unggah Foto Kerusakan / Kondisi Unit"
+                images={ticketPhotos}
+                onChange={setTicketPhotos}
+                maxFiles={4}
+              />
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setIsTicketModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-border text-foreground font-bold hover:bg-muted"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingTicket}
+                  className="px-5 py-2 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {isSubmittingTicket ? 'Menerbitkan...' : 'Terbitkan Tiket'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Assign Tenant Modal */}
       {unit && isAssignTenantOpen && (

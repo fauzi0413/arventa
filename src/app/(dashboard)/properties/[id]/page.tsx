@@ -617,27 +617,37 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Section Tab Switcher */}
-          <div className="flex gap-4 border-b border-[#C7D3C0]/40 pb-2">
-            <button
-              onClick={() => setActiveTab('units')}
-              className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'units'
-                ? 'border-[#8FA28A] text-[#8FA28A]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#C7D3C0]/40 pb-2">
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveTab('units')}
+                className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'units'
+                  ? 'border-[#8FA28A] text-[#8FA28A]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                <Home className="h-4 w-4" />
+                Kamar / Unit ({units.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('inventory')}
+                className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'inventory'
+                  ? 'border-[#8FA28A] text-[#8FA28A]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                <Package className="h-4 w-4" />
+                Inventaris Barang
+              </button>
+            </div>
+
+            <Link
+              href={`/operations/maintenance-reports?propertyId=${id}`}
+              className="pb-2 text-xs font-bold text-[#8FA28A] hover:underline flex items-center gap-1"
             >
-              <Home className="h-4 w-4" />
-              Kamar / Unit ({units.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('inventory')}
-              className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'inventory'
-                ? 'border-[#8FA28A] text-[#8FA28A]'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              <Package className="h-4 w-4" />
-              Inventaris Barang
-            </button>
+              <span>Lihat Laporan & Maintenance Properti</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
 
           {/* Switchable Sections */}

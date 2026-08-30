@@ -79,6 +79,32 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum MaintenanceType {
+  HOUSEKEEPING
+  REPAIR
+}
+
+enum MaintenanceStatus {
+  REPORTED
+  IN_PROGRESS
+  WAITING_PARTS
+  RESOLVED
+  CANCELLED
+}
+
+enum ReportPriority {
+  LOW
+  MEDIUM
+  HIGH
+  EMERGENCY
+}
+
+enum CostLiability {
+  OWNER
+  TENANT
+  SPLIT
+}
+
 // ============================================================================
 // MODEL DEFINITIONS
 // ============================================================================
@@ -113,6 +139,8 @@ model User {
   announcementsCreated    Announcement[]
   forumPosts              ForumPost[]
   forumComments           ForumComment[]
+  reportedMaintenanceTickets MaintenanceTicket[]     @relation("ReportedTickets")
+  assignedMaintenanceTickets MaintenanceTicket[]     @relation("AssignedTickets")
 
   @@map("users")
 }
@@ -447,6 +475,7 @@ model Property {
   housekeepingAssignments HousekeepingAssignment[]
   announcements           Announcement[]
   forumPosts              ForumPost[]
+  maintenanceTickets      MaintenanceTicket[]
 
   @@map("properties")
 }
@@ -502,6 +531,7 @@ model Unit {
   expenses              Expense[]
   inventoryItems        UnitInventory[]
   unitStatusLogs        UnitStatusLog[]
+  maintenanceTickets    MaintenanceTicket[]
 
   @@map("units")
 }
@@ -566,6 +596,73 @@ model UnitStatusLog {
   createdAt      DateTime   @default(now()) @map("created_at")
 
   @@map("unit_status_logs")
+}
+
+// --- 5b. MAINTENANCE & HOUSEKEEPING TICKETS ---
+model MaintenanceTicket {
+  id                String             @id @default(uuid())
+  ticketNumber      String             @unique @map("ticket_number")
+  propertyId        String             @map("property_id")
+  property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId            String?            @map("unit_id")
+  unit              Unit?              @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  type              MaintenanceType    @default(REPAIR)
+  serviceType       String?            @map("service_type")
+  title             String
+  description       String?            @db.Text
+  priority          ReportPriority     @default(MEDIUM)
+  status            MaintenanceStatus  @default(REPORTED)
+
+  reportedById      String?            @map("reported_by_id")
+  reportedBy        User?              @relation("ReportedTickets", fields: [reportedById], references: [id], onDelete: SetNull)
+  reportedByName    String?            @map("reported_by_name")
+  reportedByRole    String?            @map("reported_by_role")
+
+  assignedStaffId   String?            @map("assigned_staff_id")
+  assignedStaff     User?              @relation("AssignedTickets", fields: [assignedStaffId], references: [id], onDelete: SetNull)
+  assignedStaffName String?            @map("assigned_staff_name")
+
+  costLiability     CostLiability?     @map("cost_liability")
+  estimatedCost     Decimal?           @map("estimated_cost") @db.Decimal(12, 2)
+  actualCost        Decimal?           @map("actual_cost") @db.Decimal(12, 2)
+  damageAnalysis    String?            @map("damage_analysis") @db.Text
+  vendorName        String?            @map("vendor_name")
+
+  photosBefore      String[]           @default([]) @map("photos_before")
+  photosAfter       String[]           @default([]) @map("photos_after")
+  resolutionNotes   String?            @map("resolution_notes") @db.Text
+  checklist         Json?
+
+  ratingScore       Int?               @map("rating_score")
+  ratingFeedback    String?            @map("rating_feedback") @db.Text
+  ratedAt           DateTime?          @map("rated_at")
+  ratedByName       String?            @map("rated_by_name")
+
+  resolvedAt        DateTime?          @map("resolved_at")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+
+  timelines         MaintenanceTimeline[]
+
+  @@map("maintenance_tickets")
+}
+
+model MaintenanceTimeline {
+  id            String            @id @default(uuid())
+  ticketId      String            @map("ticket_id")
+  ticket        MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  status        String
+  performerId   String?           @map("performer_id")
+  performerName String            @map("performer_name")
+  performerRole String            @map("performer_role")
+  notes         String?           @db.Text
+  attachmentUrl String?           @map("attachment_url")
+
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@map("maintenance_timelines")
 }
 
 // --- 6. LEASE & FINANCIAL ---

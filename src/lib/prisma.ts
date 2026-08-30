@@ -9,7 +9,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 // Hot Module Replacement without exhausting the connection pool.
 // ---------------------------------------------------------------------------
 
-const connectionString = process.env.DATABASE_URL!;
+const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL!;
 
 function createPrismaClient() {
   const adapter = new PrismaPg(connectionString);
@@ -19,11 +19,6 @@ function createPrismaClient() {
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
-
-if (globalForPrisma.prisma) {
-  // Clear stale cached client missing newly generated models or fields in dev server memory
-  delete globalForPrisma.prisma;
-}
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 

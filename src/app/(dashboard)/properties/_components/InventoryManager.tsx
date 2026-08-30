@@ -280,6 +280,16 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
     setEditingId(null);
   };
 
+  // Maintenance Ticket Trigger State
+  const [ticketTargetItem, setTicketTargetItem] = useState<InventoryItem | null>(null);
+  const [ticketTitle, setTicketTitle] = useState('');
+  const [ticketPriority, setTicketPriority] = useState('MEDIUM');
+  const [ticketCostLiability, setTicketCostLiability] = useState('OWNER');
+  const [ticketEstCost, setTicketEstCost] = useState('');
+  const [ticketDesc, setTicketDesc] = useState('');
+  const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
+  const [ticketSuccessToast, setTicketSuccessToast] = useState<string | null>(null);
+
   const triggerEdit = (item: InventoryItem) => {
     setEditingId(item.id);
     setName(PREDEFINED_ITEMS.includes(item.name) ? item.name : 'Lainnya');
@@ -290,20 +300,97 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
     setIsAdding(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Apakah Anda yakin ingin menghapus inventaris ini?')) {
+      const target = items.find((i) => i.id === id);
+      try {
+        await fetch(`/api/inventory?id=${id}&isUnitInventory=${Boolean(target?.unitId)}`, {
+          method: 'DELETE',
+        });
+      } catch (err) {
+        console.warn('API delete inventory notice:', err);
+      }
       const updated = items.filter((item) => item.id !== id);
       saveItems(updated);
     }
   };
 
-  const handleQuickConditionUpdate = (id: string, newCond: InventoryCondition) => {
+  const handleQuickConditionUpdate = async (id: string, newCond: InventoryCondition) => {
+    const target = items.find((i) => i.id === id);
+    try {
+      await fetch('/api/inventory', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id,
+          isUnitInventory: Boolean(target?.unitId),
+          condition: newCond,
+        }),
+      });
+    } catch (err) {
+      console.warn('API patch inventory notice:', err);
+    }
+
     const updated = items.map((item) =>
       item.id === id
         ? { ...item, condition: newCond, lastUpdated: new Date().toISOString() }
         : item
     );
     saveItems(updated);
+
+    if (newCond === 'Perlu Perbaikan' || newCond === 'Rusak Berat') {
+      const updatedTarget = updated.find((i) => i.id === id);
+      if (updatedTarget) {
+        openTicketModal(updatedTarget);
+      }
+    }
+  };
+
+  const openTicketModal = (item: InventoryItem) => {
+    setTicketTargetItem(item);
+    const loc = item.unitName ? `Kamar ${item.unitName}` : 'Area Umum';
+    setTicketTitle(`Perbaikan ${item.name} (${loc})`);
+    setTicketDesc(`Kondisi fisik barang: ${item.condition}. Ditemukan saat inspeksi properti ${propertyName}.`);
+    setTicketPriority(item.condition === 'Rusak Berat' ? 'HIGH' : 'MEDIUM');
+    setTicketCostLiability('OWNER');
+    setTicketEstCost('');
+  };
+
+  const handleSubmitMaintenanceTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ticketTargetItem) return;
+
+    setIsSubmittingTicket(true);
+    try {
+      const res = await fetch('/api/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          unitId: ticketTargetItem.unitId || undefined,
+          type: 'REPAIR',
+          serviceType: 'INVENTORY_REPAIR',
+          title: ticketTitle,
+          description: ticketDesc,
+          priority: ticketPriority,
+          costLiability: ticketCostLiability,
+          estimatedCost: ticketEstCost ? Number(ticketEstCost) : undefined,
+        }),
+      });
+
+      if (res.ok) {
+        setTicketTargetItem(null);
+        setTicketSuccessToast(`Tiket perbaikan "${ticketTitle}" berhasil dibuat dan tersambung ke database!`);
+        setTimeout(() => setTicketSuccessToast(null), 4000);
+      } else {
+        const err = await res.json();
+        alert(err.message || 'Gagal membuat tiket maintenance');
+      }
+    } catch (err) {
+      console.error('Failed to create ticket:', err);
+    } finally {
+      setIsSubmittingTicket(false);
+    }
   };
 
   const sendWhatsAppReport = (item: InventoryItem) => {
@@ -587,7 +674,18 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
 
-                    {/* Show WA notification triggers for damaged items */}
+                    {/* Show quick maintenance ticket trigger & WA notification triggers for damaged items */}
+                    {(item.condition === 'Perlu Perbaikan' || item.condition === 'Rusak Berat') && (
+                      <button
+                        onClick={() => openTicketModal(item)}
+                        className="flex items-center gap-1 rounded-lg bg-amber-500 text-white hover:bg-amber-600 px-2 py-1 text-[10px] font-bold shadow-sm transition-colors"
+                        title="Buat Tiket Perbaikan Unit"
+                      >
+                        <Wrench className="h-3.5 w-3.5" />
+                        Tiket Perbaikan
+                      </button>
+                    )}
+
                     {(item.condition === 'Perlu Perbaikan' || item.condition === 'Rusak Berat' || item.condition === 'Hilang') && (
                       <button
                         onClick={() => sendWhatsAppReport(item)}
@@ -603,6 +701,125 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {ticketSuccessToast && (
+        <div className="fixed top-6 right-6 z-50 p-4 rounded-xl bg-emerald-700 text-white shadow-xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-4">
+          <CheckCircle2 className="h-5 w-5" />
+          <span>{ticketSuccessToast}</span>
+        </div>
+      )}
+
+      {/* Modal: Direct Create Maintenance Ticket from Inventory */}
+      {ticketTargetItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <Wrench className="h-5 w-5 text-amber-500" />
+                <h3 className="text-base font-black text-gray-800">Buat Tiket Perbaikan Unit</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTicketTargetItem(null)}
+                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitMaintenanceTicket} className="space-y-3.5 text-xs">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl space-y-1 text-amber-800">
+                <p className="font-bold">
+                  Barang: {ticketTargetItem.name}
+                </p>
+                <p className="text-[11px]">
+                  Lokasi: {propertyName} • {ticketTargetItem.unitName ? `Kamar ${ticketTargetItem.unitName}` : 'Area Umum'}
+                </p>
+                <p className="text-[11px] font-semibold">Status Fisik: {ticketTargetItem.condition}</p>
+              </div>
+
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">Judul Perbaikan *</label>
+                <input
+                  type="text"
+                  required
+                  value={ticketTitle}
+                  onChange={(e) => setTicketTitle(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="font-bold text-gray-700 block mb-1">Prioritas</label>
+                  <select
+                    value={ticketPriority}
+                    onChange={(e) => setTicketPriority(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                  >
+                    <option value="LOW">Rendah</option>
+                    <option value="MEDIUM">Sedang</option>
+                    <option value="HIGH">Tinggi (Urgent)</option>
+                    <option value="EMERGENCY">Darurat</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-gray-700 block mb-1">Beban Biaya</label>
+                  <select
+                    value={ticketCostLiability}
+                    onChange={(e) => setTicketCostLiability(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                  >
+                    <option value="OWNER">Owner</option>
+                    <option value="TENANT">Penyewa</option>
+                    <option value="SPLIT">Split</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">Estimasi Biaya (Rp)</label>
+                <input
+                  type="number"
+                  value={ticketEstCost}
+                  onChange={(e) => setTicketEstCost(e.target.value)}
+                  placeholder="0"
+                  className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-gray-700 block mb-1">Keterangan Tambahan</label>
+                <textarea
+                  value={ticketDesc}
+                  onChange={(e) => setTicketDesc(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+                <button
+                  type="button"
+                  onClick={() => setTicketTargetItem(null)}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingTicket}
+                  className="px-5 py-2 rounded-xl bg-amber-500 text-white font-bold hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {isSubmittingTicket ? 'Menerbitkan...' : 'Terbitkan Tiket Maintenance'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

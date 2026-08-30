@@ -29,7 +29,7 @@ function ModalSkeleton() {
   );
 }
 
-export default function MaintenanceReportsPage() {
+function MaintenanceReportsContent() {
   const {
     activeTab,
     handleTabChange,
@@ -260,15 +260,31 @@ export default function MaintenanceReportsPage() {
             report={selectedHousekeeping ? selectedHousekeeping : selectedMaintenance}
             reportType={selectedHousekeeping ? 'HOUSEKEEPING' : 'MAINTENANCE'}
             onSubmitRating={(score, feedback) => {
-              const isHK = !!selectedHousekeeping;
-              const targetId = isHK ? selectedHousekeeping?.id : selectedMaintenance?.id;
+              const targetId = selectedHousekeeping?.id || selectedMaintenance?.id;
               if (targetId) {
-                submitRating(isHK ? 'HOUSEKEEPING' : 'MAINTENANCE', targetId, score, feedback);
+                submitRating(targetId, score, feedback);
               }
             }}
           />
         )}
       </Suspense>
     </div>
+  );
+}
+
+export default function MaintenanceReportsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
+          <div className="text-center space-y-3">
+            <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
+            <p className="text-xs font-bold text-gray-500">Memuat laporan & tugas lapangan...</p>
+          </div>
+        </div>
+      }
+    >
+      <MaintenanceReportsContent />
+    </Suspense>
   );
 }
