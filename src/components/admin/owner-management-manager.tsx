@@ -444,11 +444,17 @@ export function OwnerManagementManager() {
                       {/* SaaS Plan */}
                       <td className="p-3.5">
                         <div className="space-y-1">
-                          <Badge variant="outline" className="font-mono text-[10px] font-bold border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                          <Badge variant="outline" className={`font-mono text-[10px] font-bold ${
+                            owner.subscriptionStatus === "ACTIVE"
+                              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                              : "border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300"
+                          }`}>
                             {owner.currentPlan}
                           </Badge>
                           <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                            Status: <span className="text-foreground">{owner.subscriptionStatus}</span>
+                            Status: <span className={`font-extrabold font-mono ${
+                              owner.subscriptionStatus === "ACTIVE" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                            }`}>{owner.subscriptionStatus === "DEFAULT" ? "DEFAULT PLAN" : owner.subscriptionStatus}</span>
                           </p>
                         </div>
                       </td>

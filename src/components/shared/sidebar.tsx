@@ -215,6 +215,17 @@ const userNavItems: NavItem[] = [
   { id: "usr-4", href: "/portal/community", label: "Komunitas Properti", icon: IconMessages, group: "KOMUNITAS" },
 ];
 
+const ROUTE_FEATURE_MAP: Record<string, { code: string; label: string }> = {
+  "/properties": { code: "PROP_MGMT", label: "Manajemen Properti & Inventory" },
+  "/operations/housekeeping-team": { code: "HOUSEKEEPING_MODULE", label: "Modul Tim Operational Housekeeping" },
+  "/tenant-&-contract": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
+  "/tenants": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
+  "/tenant-contract": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
+  "/finance": { code: "FINANCIAL_ANALYTICS", label: "Analitik & Insights Keuangan SaaS" },
+  "/finance/expenses": { code: "FINANCIAL_ANALYTICS", label: "Analitik & Insights Keuangan SaaS" },
+  "/reports": { code: "FINANCIAL_ANALYTICS", label: "Analitik & Insights Keuangan SaaS" },
+};
+
 function getTemplateItemsForRole(r: UserRole): NavItem[] {
   switch (r) {
     case UserRole.PLATFORM_ADMIN:
@@ -231,9 +242,42 @@ function getTemplateItemsForRole(r: UserRole): NavItem[] {
 
 export function Sidebar({ role: initialRole }: SidebarProps) {
   const pathname = usePathname();
+
+  // Hide sidebar on standalone pages like /owner/subscription
+  if (pathname === "/owner/subscription" || pathname.startsWith("/owner/subscription")) {
+    return null;
+  }
+
   const [currentRole, setCurrentRole] = useState<UserRole>(initialRole || UserRole.OWNER);
   const [dynamicNavItems, setDynamicNavItems] = useState<NavItem[] | null>(null);
   const [openSubmenus, setOpenSubmenus] = useState<Record<string, boolean>>({});
+
+  // SaaS Feature Gating State
+  const [enabledFeatureCodes, setEnabledFeatureCodes] = useState<string[]>([]);
+  const [saasPlanName, setSaasPlanName] = useState<string>("Perintis");
+  const [highestPlanName, setHighestPlanName] = useState<string>("Juragan");
+  const [closestPlanMap, setClosestPlanMap] = useState<Record<string, string>>({});
+  const [lockedFeatureModal, setLockedFeatureModal] = useState<{
+    featureName: string;
+    featureCode?: string;
+    requiredPlan?: string;
+    route: string;
+  } | null>(null);
+
+  const fetchSaaSStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/owner/saas-status");
+      const json = await res.json();
+      if (json.success && json.data) {
+        setEnabledFeatureCodes(json.data.enabledFeatureCodes || []);
+        setSaasPlanName(json.data.planName || "Perintis");
+        setHighestPlanName(json.data.highestPlanName || "Juragan");
+        setClosestPlanMap(json.data.closestPlanMap || {});
+      }
+    } catch (err) {
+      console.error("Failed to fetch owner SaaS status for sidebar:", err);
+    }
+  }, []);
 
   const toggleSubmenu = (menuId: string) => {
     setOpenSubmenus((prev) => ({
@@ -316,6 +360,9 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
             const userRole = json.data.role;
             setCurrentRole(userRole);
             fetchDynamicMenus(userRole);
+            if (userRole === UserRole.OWNER) {
+              fetchSaaSStatus();
+            }
           }
         } catch (err) {
           console.error("Failed to load user role in sidebar:", err);
@@ -325,19 +372,31 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
     } else {
       setCurrentRole(initialRole);
       fetchDynamicMenus(initialRole);
+      if (initialRole === UserRole.OWNER) {
+        fetchSaaSStatus();
+      }
     }
-  }, [initialRole, fetchDynamicMenus]);
+  }, [initialRole, fetchDynamicMenus, fetchSaaSStatus]);
+
+  useEffect(() => {
+    if (currentRole === UserRole.OWNER) {
+      fetchSaaSStatus();
+    }
+  }, [currentRole, fetchSaaSStatus]);
 
   useEffect(() => {
     const handleMenuUpdated = () => {
       fetchDynamicMenus(currentRole);
+      if (currentRole === UserRole.OWNER) {
+        fetchSaaSStatus();
+      }
     };
 
     window.addEventListener("menu-updated", handleMenuUpdated);
     return () => {
       window.removeEventListener("menu-updated", handleMenuUpdated);
     };
-  }, [currentRole, fetchDynamicMenus]);
+  }, [currentRole, fetchDynamicMenus, fetchSaaSStatus]);
 
   const fallbackItems = getTemplateItemsForRole(currentRole);
 
@@ -407,17 +466,6 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
             </div>
           </Link>
 
-          <div className="flex items-center justify-between bg-sidebar-accent/50 px-2.5 py-1.5 rounded-lg border border-sidebar-border">
-            <span className="text-[10px] font-semibold text-muted-foreground">Akses Role:</span>
-            <span
-              className={cn(
-                "px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-md border shrink-0",
-                getBadgeColor(currentRole)
-              )}
-            >
-              {currentRole.replace("_", " ")}
-            </span>
-          </div>
         </div>
 
         {/* Grouped Sidebar Navigation */}
@@ -479,6 +527,42 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                                   pathname === child.href ||
                                   (child.href !== "/" && pathname.startsWith(child.href));
 
+                                const childReqFeat = ROUTE_FEATURE_MAP[child.href];
+                                const isChildLocked =
+                                  currentRole === UserRole.OWNER &&
+                                  Boolean(childReqFeat) &&
+                                  !enabledFeatureCodes.includes(childReqFeat!.code);
+
+                                if (isChildLocked) {
+                                  const targetPlan = closestPlanMap[childReqFeat.code]
+                                    ? `Paket ${closestPlanMap[childReqFeat.code]}`
+                                    : `Paket ${highestPlanName}`;
+
+                                  return (
+                                    <button
+                                      key={child.id}
+                                      type="button"
+                                      onClick={() =>
+                                        setLockedFeatureModal({
+                                          featureName: childReqFeat.label,
+                                          featureCode: childReqFeat.code,
+                                          requiredPlan: targetPlan,
+                                          route: child.href,
+                                        })
+                                      }
+                                      className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-left opacity-75 hover:opacity-100 bg-sidebar-accent/30 text-sidebar-foreground/60 cursor-pointer"
+                                    >
+                                      <div className="flex items-center gap-2.5">
+                                        <ChildIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                        <span>{child.label}</span>
+                                      </div>
+                                      <span className="flex items-center justify-center p-1 rounded-md bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 shrink-0">
+                                        <IconLock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                                      </span>
+                                    </button>
+                                  );
+                                }
+
                                 return (
                                   <Link
                                     key={child.id}
@@ -498,6 +582,42 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                             </div>
                           )}
                         </div>
+                      );
+                    }
+
+                    const requiredFeat = ROUTE_FEATURE_MAP[item.href];
+                    const isLocked =
+                      currentRole === UserRole.OWNER &&
+                      Boolean(requiredFeat) &&
+                      !enabledFeatureCodes.includes(requiredFeat!.code);
+
+                    if (isLocked) {
+                      const targetPlan = closestPlanMap[requiredFeat.code]
+                        ? `Paket ${closestPlanMap[requiredFeat.code]}`
+                        : `Paket ${highestPlanName}`;
+
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() =>
+                            setLockedFeatureModal({
+                              featureName: requiredFeat.label,
+                              featureCode: requiredFeat.code,
+                              requiredPlan: targetPlan,
+                              route: item.href,
+                            })
+                          }
+                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group text-left opacity-75 hover:opacity-100 bg-sidebar-accent/30 text-sidebar-foreground/60 border border-transparent hover:border-amber-300 dark:hover:border-amber-800 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <IconComponent className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span>{item.label}</span>
+                          </div>
+                          <span className="flex items-center justify-center p-1.5 rounded-lg bg-amber-100 text-amber-800 border border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 shrink-0">
+                            <IconLock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                          </span>
+                        </button>
                       );
                     }
 
@@ -541,6 +661,49 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
           © 2026 Arventa SaaS Property. All rights reserved.
         </p>
       </div>
+
+      {/* Locked Feature Upgrade Modal */}
+      {lockedFeatureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-card border border-border p-6 shadow-2xl space-y-4 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-600 border border-amber-200 dark:bg-amber-950 dark:border-amber-800">
+              <IconLock className="h-6 w-6" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-foreground">Fitur SaaS Terkunci</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Fitur <strong className="text-foreground">{lockedFeatureModal.featureName}</strong> belum termasuk dalam paket langganan <strong className="text-amber-700 dark:text-amber-400 font-extrabold">{saasPlanName}</strong> Anda saat ini.
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 text-left text-xs space-y-1 border border-amber-500/20">
+              <span className="text-[10px] font-black tracking-wider text-amber-800 dark:text-amber-400 uppercase block">
+                Tersedia Di:
+              </span>
+              <p className="font-black text-amber-950 dark:text-amber-200 text-xs">
+                {lockedFeatureModal.requiredPlan || "Paket Pro Tier"} <span className="font-semibold text-muted-foreground">atau Add-On Modul SaaS</span>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2">
+              <button
+                onClick={() => setLockedFeatureModal(null)}
+                className="flex-1 py-2 rounded-xl border border-input text-xs font-bold text-muted-foreground hover:bg-muted cursor-pointer"
+              >
+                Tutup
+              </button>
+              <Link
+                href="/owner/subscription"
+                onClick={() => setLockedFeatureModal(null)}
+                className="flex-1 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#7D9178] text-white text-xs font-bold text-center shadow-md cursor-pointer"
+              >
+                Upgrade Paket
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 }

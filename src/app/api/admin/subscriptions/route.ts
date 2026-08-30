@@ -13,6 +13,11 @@ export async function GET() {
       prisma.saaSPlan.findMany({
         orderBy: { priceMonthly: "asc" },
         include: {
+          planFeatures: {
+            include: {
+              feature: true,
+            },
+          },
           _count: {
             select: {
               subscriptions: true,
@@ -89,10 +94,16 @@ export async function GET() {
       name: plan.name,
       maxProperties: plan.maxProperties,
       maxUnits: plan.maxUnits,
+      maxHousekeeping: plan.maxHousekeeping || 2,
       priceMonthly: Number(plan.priceMonthly),
       priceYearly: Number(plan.priceYearly),
-      features: plan.features,
+      featureIds: plan.planFeatures?.map((pf: any) => pf.featureId) || [],
+      features:
+        plan.planFeatures && plan.planFeatures.length > 0
+          ? plan.planFeatures.map((pf: any) => pf.feature.name)
+          : plan.features,
       status: planStatuses[plan.id] || plan.status || "ACTIVE",
+      isDefault: Boolean(plan.isDefault),
       subscriberCount: plan._count.subscriptions,
       createdAt: plan.createdAt,
     }));
@@ -128,6 +139,12 @@ export async function GET() {
       createdAt: inv.createdAt,
     }));
 
+    // Compute Most Popular Plan dynamically from active subscriber counts
+    const sortedPlansBySubscribers = [...formattedPlans].sort((a: any, b: any) => b.subscriberCount - a.subscriberCount);
+    const mostPopularPlan = sortedPlansBySubscribers.length > 0 && sortedPlansBySubscribers[0].subscriberCount > 0
+      ? sortedPlansBySubscribers[0].name
+      : (formattedPlans.find((p: any) => p.status === "ACTIVE")?.name || "-");
+
     return ApiResponse.success({
       message: "Berhasil mengambil data paket langganan & tagihan billing SaaS",
       data: {
@@ -139,6 +156,7 @@ export async function GET() {
           totalARR: totalMRR * 12,
           activeSubscriptionsCount: subscriptionsList.filter((s: any) => s.status === "ACTIVE").length,
           pendingInvoicesCount,
+          mostPopularPlan,
         },
       },
     });
@@ -161,9 +179,28 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { action } = body;
 
+    // 0. Set Default Registration Plan
+    if (action === "SET_DEFAULT_PLAN") {
+      const { planId } = body;
+      if (!planId) {
+        return ApiResponse.error({ message: "ID paket wajib diisi", status: 400 });
+      }
+
+      await prisma.saaSPlan.updateMany({ data: { isDefault: false } });
+      const updatedPlan = await prisma.saaSPlan.update({
+        where: { id: planId },
+        data: { isDefault: true },
+      });
+
+      return ApiResponse.success({
+        message: `Paket "${updatedPlan.name}" berhasil ditetapkan sebagai Paket Default Pendaftaran Owner`,
+        data: updatedPlan,
+      });
+    }
+
     // 1. Create New SaaS Subscription Tier Plan
     if (action === "CREATE_PLAN") {
-      const { name, maxProperties, maxUnits, priceMonthly, priceYearly, features } = body;
+      const { name, maxProperties, maxUnits, maxHousekeeping, priceMonthly, priceYearly, features, featureIds } = body;
 
       if (!name || priceMonthly === undefined) {
         return ApiResponse.error({
@@ -186,14 +223,25 @@ export async function POST(req: Request) {
       const newPlan = await prisma.saaSPlan.create({
         data: {
           name,
-          maxProperties: parseInt(maxProperties || "1", 10),
-          maxUnits: parseInt(maxUnits || "10", 10),
-          priceMonthly: parseFloat(priceMonthly),
-          priceYearly: parseFloat(priceYearly || priceMonthly * 10),
+          maxProperties: Math.max(0, parseInt(maxProperties || "1", 10)),
+          maxUnits: Math.max(0, parseInt(maxUnits || "10", 10)),
+          maxHousekeeping: Math.max(0, parseInt(maxHousekeeping || "2", 10)),
+          priceMonthly: Math.max(0, parseFloat(priceMonthly)),
+          priceYearly: Math.max(0, parseFloat(priceYearly || priceMonthly * 10)),
           features: Array.isArray(features) ? features : [],
           status: body.status || "ACTIVE",
         },
       });
+
+      // Link featureIds if provided
+      if (Array.isArray(featureIds) && featureIds.length > 0) {
+        await prisma.saaSPlanFeature.createMany({
+          data: featureIds.map((fId: string) => ({
+            planId: newPlan.id,
+            featureId: fId,
+          })),
+        });
+      }
 
       // Write Audit Log
       await prisma.auditLog.create({
@@ -201,7 +249,7 @@ export async function POST(req: Request) {
           action: "CREATE_SAAS_PLAN",
           entityName: "SaaSPlan",
           entityId: newPlan.id,
-          details: { name, priceMonthly, maxProperties, maxUnits, status: newPlan.status },
+          details: { name, priceMonthly, maxProperties, maxUnits, maxHousekeeping, status: newPlan.status },
           ipAddress: "127.0.0.1",
         },
       });
@@ -214,7 +262,7 @@ export async function POST(req: Request) {
 
     // 2. Update Existing SaaS Subscription Plan
     if (action === "UPDATE_PLAN") {
-      const { planId, name, maxProperties, maxUnits, priceMonthly, priceYearly, features, status } = body;
+      const { planId, name, maxProperties, maxUnits, maxHousekeeping, priceMonthly, priceYearly, features, featureIds, status } = body;
 
       if (!planId && !name) {
         return ApiResponse.error({
@@ -248,64 +296,47 @@ export async function POST(req: Request) {
 
       const updateData: any = {
         name: name !== undefined ? name : undefined,
-        maxProperties: maxProperties !== undefined ? parseInt(maxProperties, 10) : undefined,
-        maxUnits: maxUnits !== undefined ? parseInt(maxUnits, 10) : undefined,
-        priceMonthly: priceMonthly !== undefined ? parseFloat(priceMonthly) : undefined,
-        priceYearly: priceYearly !== undefined ? parseFloat(priceYearly) : undefined,
+        maxProperties: maxProperties !== undefined ? Math.max(0, parseInt(maxProperties, 10)) : undefined,
+        maxUnits: maxUnits !== undefined ? Math.max(0, parseInt(maxUnits, 10)) : undefined,
+        maxHousekeeping: maxHousekeeping !== undefined ? Math.max(0, parseInt(maxHousekeeping, 10)) : undefined,
+        priceMonthly: priceMonthly !== undefined ? Math.max(0, parseFloat(priceMonthly)) : undefined,
+        priceYearly: priceYearly !== undefined ? Math.max(0, parseFloat(priceYearly)) : undefined,
         features: Array.isArray(features) ? features : undefined,
         status: status !== undefined ? status : undefined,
       };
 
       let updatedPlan: any;
-      try {
-        if (existingPlan) {
-          updatedPlan = await prisma.saaSPlan.update({
-            where: { id: existingPlan.id },
-            data: updateData,
-          });
-        } else {
-          updatedPlan = await prisma.saaSPlan.create({
-            data: {
-              name: name || "Paket SaaS Baru",
-              maxProperties: parseInt(maxProperties || "1", 10),
-              maxUnits: parseInt(maxUnits || "10", 10),
-              priceMonthly: parseFloat(priceMonthly || "99000"),
-              priceYearly: parseFloat(priceYearly || "990000"),
-              features: Array.isArray(features) ? features : [],
-              status: status || "ACTIVE",
-            },
-          });
-        }
-      } catch (err: any) {
-        // Fallback for cached Prisma Client instance where status is unknown argument in runtime
-        delete updateData.status;
-        if (existingPlan) {
-          updatedPlan = await prisma.saaSPlan.update({
-            where: { id: existingPlan.id },
-            data: updateData,
-          });
-          if (status) {
-            try {
-              await prisma.$executeRawUnsafe(
-                `UPDATE saas_plans SET status = $1 WHERE id = $2`,
-                status,
-                existingPlan.id
-              );
-              updatedPlan.status = status;
-            } catch (e) {
-              console.warn("Failed raw status update:", e);
-            }
-          }
-        } else {
-          updatedPlan = await prisma.saaSPlan.create({
-            data: {
-              name: name || "Paket SaaS Baru",
-              maxProperties: parseInt(maxProperties || "1", 10),
-              maxUnits: parseInt(maxUnits || "10", 10),
-              priceMonthly: parseFloat(priceMonthly || "99000"),
-              priceYearly: parseFloat(priceYearly || "990000"),
-              features: Array.isArray(features) ? features : [],
-            },
+      if (existingPlan) {
+        updatedPlan = await prisma.saaSPlan.update({
+          where: { id: existingPlan.id },
+          data: updateData,
+        });
+      } else {
+        updatedPlan = await prisma.saaSPlan.create({
+          data: {
+            name: name || "Paket SaaS Baru",
+            maxProperties: parseInt(maxProperties || "1", 10),
+            maxUnits: parseInt(maxUnits || "10", 10),
+            maxHousekeeping: parseInt(maxHousekeeping || "2", 10),
+            priceMonthly: parseFloat(priceMonthly || "99000"),
+            priceYearly: parseFloat(priceYearly || "990000"),
+            features: Array.isArray(features) ? features : [],
+            status: status || "ACTIVE",
+          },
+        });
+      }
+
+      // Sync featureIds in pivot table SaaSPlanFeature
+      if (Array.isArray(featureIds) && updatedPlan?.id) {
+        await prisma.saaSPlanFeature.deleteMany({
+          where: { planId: updatedPlan.id },
+        });
+        if (featureIds.length > 0) {
+          await prisma.saaSPlanFeature.createMany({
+            data: featureIds.map((fId: string) => ({
+              planId: updatedPlan.id,
+              featureId: fId,
+            })),
           });
         }
       }
@@ -354,7 +385,10 @@ export async function POST(req: Request) {
 
       const invoice = await prisma.saaSInvoice.findUnique({
         where: { id: invoiceId },
-        include: { subscription: true },
+        include: {
+          subscription: true,
+          items: true,
+        },
       });
 
       if (!invoice) {
@@ -376,14 +410,42 @@ export async function POST(req: Request) {
         },
       });
 
-      // If PAID, extend/activate subscription duration
+      // If PAID, update OwnerSubscription planId and extend subscription duration
       if (isPaid && invoice.subscription) {
-        const nextEndDate = new Date();
-        nextEndDate.setMonth(nextEndDate.getMonth() + 1);
+        let targetPlanId = invoice.subscription.planId;
+        let monthsToAdd = 1;
+
+        // Check if invoice items contain a plan upgrade/renewal
+        const planItem = invoice.items.find((item: any) => item.itemType === "PLAN");
+        if (planItem) {
+          if (planItem.itemTitle.includes("12 Bulan") || planItem.itemTitle.includes("1 Tahun")) {
+            monthsToAdd = 12;
+          } else if (planItem.itemTitle.includes("6 Bulan")) {
+            monthsToAdd = 6;
+          } else if (planItem.itemTitle.includes("3 Bulan")) {
+            monthsToAdd = 3;
+          }
+
+          // Extract plan name from title, e.g. "Upgrade Paket Pengusaha (1 Bulan)" -> "Pengusaha"
+          const allPlans = await prisma.saaSPlan.findMany({ where: { status: "ACTIVE" } });
+          const matchedPlan = allPlans.find((p: any) =>
+            planItem.itemTitle.toLowerCase().includes(p.name.toLowerCase())
+          );
+          if (matchedPlan) {
+            targetPlanId = matchedPlan.id;
+          }
+        }
+
+        const currentEnd = (invoice.subscription.endDate && new Date(invoice.subscription.endDate) > new Date())
+          ? new Date(invoice.subscription.endDate)
+          : new Date();
+        const nextEndDate = new Date(currentEnd);
+        nextEndDate.setMonth(nextEndDate.getMonth() + monthsToAdd);
 
         await prisma.ownerSubscription.update({
           where: { id: invoice.subscriptionId },
           data: {
+            planId: targetPlanId,
             status: "ACTIVE",
             endDate: nextEndDate,
           },

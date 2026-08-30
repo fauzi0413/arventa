@@ -23,6 +23,7 @@ import {
   Activity,
   Layers,
   ArrowRight,
+  Lock,
 } from 'lucide-react';
 import {
   HousekeepingMember,
@@ -36,6 +37,10 @@ import ActivityTimeline from './_components/ActivityTimeline';
 import ConfirmModal from '@/components/ui/ConfirmModal';
 
 export default function HousekeepingTeamPage() {
+  // Feature Gating State
+  const [isFeatureLocked, setIsFeatureLocked] = useState(false);
+  const [checkingFeature, setCheckingFeature] = useState(true);
+
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'team' | 'activity'>('team');
 
@@ -265,6 +270,28 @@ export default function HousekeepingTeamPage() {
   }, [activityPropertyFilter, activityTypeFilter, activityDateRange, activitySearchQuery]);
 
   useEffect(() => {
+    async function checkEntitlement() {
+      try {
+        const res = await fetch('/api/owner/saas-status');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && json.data) {
+            const enabledCodes = json.data.enabledFeatureCodes || [];
+            if (!enabledCodes.includes('HOUSEKEEPING_MODULE')) {
+              setIsFeatureLocked(true);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Feature entitlement check error:', err);
+      } finally {
+        setCheckingFeature(false);
+      }
+    }
+    checkEntitlement();
+  }, []);
+
+  useEffect(() => {
     fetchProperties();
     fetchHousekeepingTeam();
   }, [fetchProperties, fetchHousekeepingTeam]);
@@ -274,6 +301,36 @@ export default function HousekeepingTeamPage() {
       fetchActivities();
     }
   }, [activeTab, fetchActivities]);
+
+  if (checkingFeature) {
+    return (
+      <div className="flex h-[70vh] items-center justify-center bg-[#F7F4ED] rounded-2xl border border-[#C7D3C0]/40">
+        <div className="flex flex-col items-center gap-2 text-[#8FA28A]">
+          <RefreshCw className="h-7 w-7 animate-spin" />
+          <span className="text-xs font-bold text-gray-500">Memeriksa lisensi fitur...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isFeatureLocked) {
+    return (
+      <div className="bg-[#F7F4ED] min-h-[75vh] p-8 rounded-2xl border border-[#C7D3C0]/40 flex flex-col items-center justify-center text-center space-y-5">
+        <div className="h-20 w-20 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 shadow-md">
+          <Lock className="h-10 w-10" />
+        </div>
+        <div className="max-w-md space-y-2">
+          <span className="px-3.5 py-1 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black uppercase tracking-wider border border-amber-300 inline-flex items-center gap-1.5">
+            <Sparkles className="h-3 w-3 text-amber-600" /> Fitur Premium Terkunci (SaaS Pro Tier)
+          </span>
+          <h2 className="text-xl font-black text-gray-900">Modul Tim Operasional & Housekeeping Terkunci</h2>
+          <p className="text-xs text-gray-600 leading-relaxed">
+            Paket langganan default Anda saat ini belum mencakup modul Tim Operasional & Housekeeping. Silakan lakukan upgrade paket langganan Anda ke paket <strong>Pro Tier</strong> untuk mengaktifkan kelola staf kebersihan, penugasan properti, dan log audit aktivitas harian.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // ---------------------------------------------------------------------------
   // Action Handlers

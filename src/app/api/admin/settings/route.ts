@@ -17,6 +17,7 @@ export async function GET() {
 
     // Merge DB settings with .env defaults so UI automatically pre-fills with active env keys
     const mergedSettings: Record<string, string> = {
+      ...settingsMap,
       maintenance_mode: settingsMap.maintenance_mode || "false",
       platform_name: settingsMap.platform_name || "ARVENTA - Room & Property PMS",
       default_currency: settingsMap.default_currency || "IDR",
@@ -26,6 +27,7 @@ export async function GET() {
       gemini_model: settingsMap.gemini_model || "gemini-1.5-flash",
       resend_api_key: settingsMap.resend_api_key || process.env.RESEND_API_KEY || "",
       sender_email: settingsMap.sender_email || "no-reply@arventa.id",
+      support_email: settingsMap.support_email || "support@arventa.id",
       supabase_url: settingsMap.supabase_url || process.env.NEXT_PUBLIC_SUPABASE_URL || "",
       supabase_service_role: settingsMap.supabase_service_role || process.env.SUPABASE_SERVICE_ROLE_KEY || "",
       midtrans_server_key: settingsMap.midtrans_server_key || process.env.MIDTRANS_SERVER_KEY || "",

@@ -61,6 +61,7 @@ export function PlatformSettingsManager() {
     gemini_model: "gemini-1.5-flash",
     resend_api_key: "",
     sender_email: "no-reply@arventa.id",
+    support_email: "support@arventa.id",
     supabase_url: "https://xyz-supabase.co",
     supabase_service_role: "",
     midtrans_server_key: "",
@@ -539,7 +540,7 @@ export function PlatformSettingsManager() {
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Sender Email Address</label>
+                <label className="font-bold block mb-1">Sender Email Address (Pengirim)</label>
                 <input
                   type="email"
                   placeholder="no-reply@arventa.id"
@@ -547,6 +548,20 @@ export function PlatformSettingsManager() {
                   onChange={(e) => handleSettingChange("sender_email", e.target.value)}
                   className="w-full rounded-lg border p-2.5 bg-background text-xs font-mono"
                 />
+              </div>
+
+              <div>
+                <label className="font-bold block mb-1">Support CS Email Address (Tujuan Konfirmasi Bayar)</label>
+                <input
+                  type="email"
+                  placeholder="support@arventa.id"
+                  value={settings.support_email || "support@arventa.id"}
+                  onChange={(e) => handleSettingChange("support_email", e.target.value)}
+                  className="w-full rounded-lg border p-2.5 bg-background text-xs font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Email ini digunakan sebagai tujuan konfirmasi tombol email support pada invoice tagihan SaaS owner.
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   IconBuilding,
   IconBed,
@@ -26,6 +26,8 @@ interface AdminDashboardProps {
     user: { fullName: string; email: string };
     totalRevenue: number;
     activeSubscriptionsCount: number;
+    paidSubscriptionsCount?: number;
+    mostPopularPlan?: string;
     totalProperties: number;
     totalUnits: number;
     systemHealth: {
@@ -107,6 +109,16 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
     );
   };
 
+  const popularPlanName = useMemo(() => {
+    if (data.mostPopularPlan && data.mostPopularPlan !== "-") return data.mostPopularPlan;
+    if (!data.saasPlans || data.saasPlans.length === 0) return "-";
+    const sorted = [...data.saasPlans].sort((a, b) => (b.subscriberCount || 0) - (a.subscriberCount || 0));
+    if (sorted[0] && (sorted[0].subscriberCount || 0) > 0) {
+      return sorted[0].name;
+    }
+    return sorted[0]?.name || "-";
+  }, [data.mostPopularPlan, data.saasPlans]);
+
   return (
     <div className="space-y-6">
       {/* Header Hero Banner (ARVENTA Brand Dark Sage & Gold) */}
@@ -162,7 +174,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
       {/* TAB 1: EXECUTIVE DASHBOARD */}
       {activeTab === "overview" && (
         <div className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -194,7 +206,43 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                 </div>
                 <div className="mt-3">
                   <p className="text-2xl font-black text-[#2F332E] dark:text-white">{data.activeSubscriptionsCount}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Akun Owner Aktif di Platform</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Owner Berlangganan
+                  </span>
+                  <div className="rounded-xl bg-[#8FA28A]/15 p-2.5 text-[#8FA28A]">
+                    <IconShieldCheck className="size-5" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <p className="text-2xl font-black text-[#8FA28A]">{data.paidSubscriptionsCount ?? 0}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Pelanggan Aktif Paket SaaS</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Paket Populer
+                  </span>
+                  <div className="rounded-xl bg-[#C8A96B]/15 p-2.5 text-[#C8A96B]">
+                    <IconActivity className="size-5" />
+                  </div>
+                </div>
+                <div className="mt-3">
+                  <p className="text-2xl font-black text-[#C8A96B] truncate" title={popularPlanName}>
+                    {popularPlanName}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Paket Paling Banyak Dipilih</p>
                 </div>
               </CardContent>
             </Card>

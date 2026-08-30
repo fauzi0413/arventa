@@ -144,3 +144,56 @@ export async function GET(request: NextRequest) {
     });
   }
 }
+
+/**
+ * PUT /api/auth/me — Update profile details (fullName & phoneNumber only)
+ */
+export async function PUT(request: NextRequest) {
+  try {
+    const { getAuthenticatedUser } = await import("@/lib/auth/get-authenticated-user");
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser) {
+      return ApiResponse.unauthorized("Belum terautentikasi");
+    }
+
+    const body = await request.json();
+    const { fullName, phoneNumber } = body;
+
+    if (!fullName || String(fullName).trim() === "") {
+      return ApiResponse.error({
+        message: "Nama lengkap wajib diisi",
+        status: 400,
+      });
+    }
+
+    // Update ONLY fullName and phoneNumber in Prisma DB
+    const updatedUser = await prisma.user.update({
+      where: { id: authUser.id },
+      data: {
+        fullName: String(fullName).trim(),
+        phoneNumber: phoneNumber !== undefined && phoneNumber !== null ? String(phoneNumber).replace(/[^0-9]/g, "") : null,
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        avatarUrl: true,
+        role: true,
+        isActive: true,
+      },
+    });
+
+    return ApiResponse.success({
+      message: "Profil Anda berhasil diperbarui",
+      data: updatedUser,
+    });
+  } catch (error: any) {
+    console.error("PUT /api/auth/me error:", error);
+    return ApiResponse.error({
+      message: "Gagal memperbarui profil",
+      error: error?.message || error,
+      status: 500,
+    });
+  }
+}

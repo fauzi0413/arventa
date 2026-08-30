@@ -60,13 +60,18 @@ export async function GET(req: Request) {
       prisma.user.count({ where: { role: "OWNER", isActive: true } }),
       prisma.user.count({ where: { role: "OWNER", isActive: false } }),
       prisma.saaSPlan.findMany({
-        select: { id: true, name: true, priceMonthly: true, maxProperties: true, maxUnits: true },
+        select: { id: true, name: true, priceMonthly: true, maxProperties: true, maxUnits: true, isDefault: true },
         orderBy: { priceMonthly: "asc" },
       }),
     ]);
 
+    const configuredDefaultPlan = plans.find((p: any) => p.isDefault) || plans[0] || null;
+    const defaultPlanName = configuredDefaultPlan ? configuredDefaultPlan.name : "Perintis";
+
     const formattedOwners = ownersList.map((owner) => {
-      const activeSub = owner.subscriptions[0] || null;
+      const activeSub = owner.subscriptions.find((s) => s.status === "ACTIVE") || owner.subscriptions[0] || null;
+      const isPaidSub = Boolean(activeSub && activeSub.status === "ACTIVE");
+
       return {
         id: owner.id,
         fullName: owner.fullName,
@@ -74,10 +79,10 @@ export async function GET(req: Request) {
         phoneNumber: owner.phoneNumber || "-",
         isActive: owner.isActive,
         propertyCount: owner._count.ownedProperties,
-        currentPlan: activeSub ? activeSub.plan.name : "Free / Trial",
-        planId: activeSub ? activeSub.plan.id : null,
-        subscriptionStatus: activeSub ? activeSub.status : "TRIAL",
-        subscriptionEndDate: activeSub ? activeSub.endDate : null,
+        currentPlan: isPaidSub ? activeSub.plan.name : defaultPlanName,
+        planId: isPaidSub ? activeSub.plan.id : (configuredDefaultPlan ? configuredDefaultPlan.id : null),
+        subscriptionStatus: isPaidSub ? "ACTIVE" : "DEFAULT",
+        subscriptionEndDate: isPaidSub ? activeSub.endDate : null,
         createdAt: owner.createdAt,
       };
     });

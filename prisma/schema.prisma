@@ -55,6 +55,7 @@ enum LeaseStatus {
 
 enum InvoiceStatus {
   PENDING
+  PENDING_VERIFICATION
   PAID
   OVERDUE
   CANCELLED
@@ -105,6 +106,7 @@ model User {
   expensesCreated         Expense[]                @relation("ExpenseCreatedBy")
   unitAccount             Unit?                    @relation("UnitUserAccount")
   subscriptions           OwnerSubscription[]
+  saasCart                SaaSCart?
   housekeepingAssignments HousekeepingAssignment[]
   auditLogs               AuditLog[]
   unitStatusLogs          UnitStatusLog[]
@@ -151,23 +153,73 @@ model TenantProfile {
   @@map("tenant_profiles")
 }
 
-// --- 2. SAAS SUBSCRIPTION & BILLING (PLATFORM ADMIN) ---
+// --- 2. SAAS SUBSCRIPTION, FEATURES & BILLING (PLATFORM ADMIN) ---
 model SaaSPlan {
+  id              String   @id @default(uuid())
+  name            String   @unique // Contoh: Basic, Business, Pro
+  maxProperties   Int      @default(1) @map("max_properties")
+  maxUnits        Int      @default(10) @map("max_units")
+  maxHousekeeping Int      @default(2) @map("max_housekeeping")
+  priceMonthly    Decimal  @map("price_monthly") @db.Decimal(12, 2)
+  priceYearly     Decimal  @map("price_yearly") @db.Decimal(12, 2)
+  features        String[] @default([])
+  status          String   @default("ACTIVE")
+  isDefault       Boolean  @default(false) @map("is_default")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  subscriptions   OwnerSubscription[]
+  planFeatures    SaaSPlanFeature[]
+
+  @@map("saas_plans")
+}
+
+model SaaSFeature {
+  id          String   @id @default(uuid())
+  code        String   @unique // Contoh: "PROP_MGMT", "HOUSEKEEPING_MODULE", "OCR_KTP"
+  name        String   // Contoh: "Modul Operational Housekeeping"
+  description String?  @db.Text
+  category    String   @default("OPERATIONAL") // OPERATIONAL, FINANCIAL, COMMUNITY, SYSTEM
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  planFeatures SaaSPlanFeature[]
+
+  @@map("saas_features")
+}
+
+model SaaSPlanFeature {
+  planId    String      @map("plan_id")
+  plan      SaaSPlan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  featureId String      @map("feature_id")
+  feature   SaaSFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@id([planId, featureId])
+  @@map("saas_plan_features")
+}
+
+model SaaSAddOn {
   id            String   @id @default(uuid())
-  name          String   @unique // Contoh: Basic, Business, Pro
-  maxProperties Int      @default(1) @map("max_properties")
-  maxUnits      Int      @default(10) @map("max_units")
+  name          String   // Contoh: "+10 Tambah Unit Kamar", "Fitur OCR KTP Auto-scan"
+  category      String   @default("UNIT") // PROPERTY, UNIT, HOUSEKEEPING, FEATURE
+  unitQuota     Int      @default(1) @map("unit_quota")
   priceMonthly  Decimal  @map("price_monthly") @db.Decimal(12, 2)
   priceYearly   Decimal  @map("price_yearly") @db.Decimal(12, 2)
-  features      String[] @default([])
+  description   String?  @db.Text
   status        String   @default("ACTIVE")
 
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
-  subscriptions OwnerSubscription[]
+  subscriptionAddOns OwnerSubscriptionAddOn[]
+  cartItems          SaaSCartItem[]
 
-  @@map("saas_plans")
+  @@map("saas_add_ons")
 }
 
 model OwnerSubscription {
@@ -185,9 +237,25 @@ model OwnerSubscription {
   createdAt    DateTime           @default(now()) @map("created_at")
   updatedAt    DateTime           @updatedAt @map("updated_at")
 
-  saasInvoices SaaSInvoice[]
+  saasInvoices       SaaSInvoice[]
+  subscriptionAddOns OwnerSubscriptionAddOn[]
 
   @@map("owner_subscriptions")
+}
+
+model OwnerSubscriptionAddOn {
+  id             String            @id @default(uuid())
+  subscriptionId String            @map("subscription_id")
+  subscription   OwnerSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  addOnId        String            @map("add_on_id")
+  addOn          SaaSAddOn         @relation(fields: [addOnId], references: [id], onDelete: Restrict)
+  quantity       Int               @default(1)
+  status         String            @default("ACTIVE") // ACTIVE, EXPIRED, CANCELLED
+
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@map("owner_subscription_add_ons")
 }
 
 model SaaSInvoice {
@@ -205,7 +273,55 @@ model SaaSInvoice {
   createdAt      DateTime          @default(now()) @map("created_at")
   updatedAt      DateTime          @updatedAt @map("updated_at")
 
+  items          SaaSInvoiceItem[]
+
   @@map("saas_invoices")
+}
+
+model SaaSInvoiceItem {
+  id        String      @id @default(uuid())
+  invoiceId String      @map("invoice_id")
+  invoice   SaaSInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  itemType  String      @map("item_type") // PLAN, ADD_ON
+  itemTitle String      @map("item_title")
+  unitPrice Decimal     @map("unit_price") @db.Decimal(12, 2)
+  quantity  Int         @default(1)
+
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@map("saas_invoice_items")
+}
+
+model SaaSCart {
+  id             String        @id @default(uuid())
+  ownerId        String        @unique @map("owner_id")
+  owner          User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  selectedPlanId String?       @map("selected_plan_id")
+  billingCycle   String        @default("monthly") @map("billing_cycle") // monthly, yearly
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  items          SaaSCartItem[]
+
+  @@map("saas_carts")
+}
+
+model SaaSCartItem {
+  id        String    @id @default(uuid())
+  cartId    String    @map("cart_id")
+  cart      SaaSCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  addOnId   String    @map("add_on_id")
+  addOn     SaaSAddOn @relation(fields: [addOnId], references: [id], onDelete: Cascade)
+  quantity  Int       @default(1)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@unique([cartId, addOnId])
+  @@map("saas_cart_items")
 }
 
 model SaaSPaymentMethod {

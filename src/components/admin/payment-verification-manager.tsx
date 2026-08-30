@@ -34,7 +34,7 @@ interface VerificationItem {
   ownerEmail: string;
   planName: string;
   amount: number;
-  status: "PENDING" | "PAID" | "CANCELLED";
+  status: "PENDING" | "PENDING_VERIFICATION" | "PAID" | "CANCELLED" | "EXPIRED";
   paymentProof?: string | null;
   bankName?: string;
   senderName?: string;
@@ -152,23 +152,68 @@ export function PaymentVerificationManager() {
     }
   };
 
+  const renderStatusBadge = (status: string, paymentProof?: string | null) => {
+    if (status === "PAID") {
+      return (
+        <Badge className="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-0.5 gap-1">
+          <IconCheck className="size-3" /> LUNAS & AKTIF
+        </Badge>
+      );
+    }
+    if (status === "PENDING_VERIFICATION" || (status === "PENDING" && Boolean(paymentProof))) {
+      return (
+        <Badge className="bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2.5 py-0.5 gap-1 shadow-xs">
+          <IconClock className="size-3 animate-pulse" /> MENUNGGU VERIFIKASI
+        </Badge>
+      );
+    }
+    if (status === "PENDING") {
+      return (
+        <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold text-[10px] px-2.5 py-0.5 gap-1">
+          <IconAlertCircle className="size-3" /> BELUM DIBAYAR
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className="text-muted-foreground text-[10px] font-semibold px-2 py-0.5">
+        DIBATALKAN / EXPIRED
+      </Badge>
+    );
+  };
+
   const fetchData = async () => {
     setLoading(true);
     setErrorMsg(null);
     try {
       const res = await fetch("/api/admin/subscriptions", { cache: "no-store" });
       const json = await res.json();
+      let loadedItems: VerificationItem[] = [];
+
       if (json.success && json.data && json.data.invoices && json.data.invoices.length > 0) {
-        setVerifications(
-          json.data.invoices.map((inv: any) => ({
-            ...inv,
-            bankName: inv.bankName || "Transfer Bank Direct",
-            senderName: inv.ownerName,
-            transferRef: inv.transferRef || `TRX-${inv.invoiceNumber.slice(-6)}`,
-          }))
-        );
+        loadedItems = json.data.invoices.map((inv: any) => ({
+          ...inv,
+          bankName: inv.bankName || "Transfer Bank Direct",
+          senderName: inv.ownerName,
+          transferRef: inv.transferRef || `TRX-${inv.invoiceNumber.slice(-6)}`,
+        }));
+        setVerifications(loadedItems);
       } else {
-        setVerifications(FALLBACK_VERIFICATIONS);
+        loadedItems = FALLBACK_VERIFICATIONS;
+        setVerifications(loadedItems);
+      }
+
+      // Auto-open audit modal if invoiceId or id query parameter exists
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetInvoiceId = urlParams.get("invoiceId") || urlParams.get("id");
+        if (targetInvoiceId) {
+          const matchItem = loadedItems.find(
+            (v) => v.id === targetInvoiceId || v.invoiceNumber === targetInvoiceId
+          );
+          if (matchItem) {
+            setSelectedProofItem(matchItem);
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to load verification items:", err);
@@ -252,7 +297,13 @@ export function PaymentVerificationManager() {
   };
 
   const filteredItems = verifications.filter((item) => {
-    const matchesTab = activeTab === "ALL" || item.status === activeTab;
+    const isPendingMatch =
+      item.status === "PENDING_VERIFICATION" ||
+      item.status === "PENDING";
+
+    const matchesTab =
+      activeTab === "ALL" ||
+      (activeTab === "PENDING" ? isPendingMatch : item.status === activeTab);
 
     const matchesQuery =
       item.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -264,9 +315,13 @@ export function PaymentVerificationManager() {
     return matchesTab && matchesQuery;
   });
 
-  const pendingCount = verifications.filter((v) => v.status === "PENDING").length;
+  const pendingCount = verifications.filter(
+    (v) => v.status === "PENDING_VERIFICATION" || v.status === "PENDING"
+  ).length;
   const paidCount = verifications.filter((v) => v.status === "PAID").length;
-  const cancelledCount = verifications.filter((v) => v.status === "CANCELLED").length;
+  const cancelledCount = verifications.filter(
+    (v) => v.status === "CANCELLED" || v.status === "EXPIRED"
+  ).length;
 
   return (
     <div className="space-y-6">
@@ -449,9 +504,9 @@ export function PaymentVerificationManager() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {filteredItems.map((item) => {
-                const isPending = item.status === "PENDING";
+                const isPending = item.status === "PENDING" || item.status === "PENDING_VERIFICATION";
                 const isPaid = item.status === "PAID";
-                const isCancelled = item.status === "CANCELLED";
+                const isCancelled = item.status === "CANCELLED" || item.status === "EXPIRED";
 
                 return (
                   <div
@@ -479,21 +534,7 @@ export function PaymentVerificationManager() {
                           </p>
                         </div>
 
-                        {isPending && (
-                          <Badge className="bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2.5 py-0.5 gap-1">
-                            <IconClock className="size-3" /> MENUNGGU VERIFIKASI
-                          </Badge>
-                        )}
-                        {isPaid && (
-                          <Badge className="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-0.5 gap-1">
-                            <IconCheck className="size-3" /> LUNAS & AKTIF
-                          </Badge>
-                        )}
-                        {isCancelled && (
-                          <Badge variant="outline" className="text-muted-foreground text-[10px] font-semibold px-2 py-0.5">
-                            DIBATALKAN
-                          </Badge>
-                        )}
+                        {renderStatusBadge(item.status, item.paymentProof)}
                       </div>
 
                       {/* Content Body Grid */}
@@ -623,9 +664,9 @@ export function PaymentVerificationManager() {
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground">Status Aktif:</p>
-                  <Badge variant={selectedProofItem.status === "PAID" ? "default" : "outline"}>
-                    {selectedProofItem.status}
-                  </Badge>
+                  <div className="mt-0.5">
+                    {renderStatusBadge(selectedProofItem.status, selectedProofItem.paymentProof)}
+                  </div>
                 </div>
                 <div>
                   <p className="text-[10px] text-muted-foreground">Owner / Properti:</p>
@@ -672,7 +713,7 @@ export function PaymentVerificationManager() {
                 )}
               </div>
 
-              {selectedProofItem.status === "PENDING" && (
+              {(selectedProofItem.status === "PENDING" || selectedProofItem.status === "PENDING_VERIFICATION") ? (
                 <div className="flex gap-2 pt-2 border-t">
                   <Button
                     type="button"
@@ -682,7 +723,7 @@ export function PaymentVerificationManager() {
                       setRejectModalItem(selectedProofItem);
                       setModalErrorMsg(null);
                     }}
-                    className="flex-1 text-xs font-bold text-red-600 hover:bg-red-500/10 border-red-500/30"
+                    className="flex-1 text-xs font-bold text-red-600 hover:bg-red-500/10 border-red-500/30 cursor-pointer"
                   >
                     <IconX className="size-4" /> Tolak Pembayaran
                   </Button>
@@ -690,10 +731,21 @@ export function PaymentVerificationManager() {
                     type="button"
                     disabled={isSubmitting}
                     onClick={() => handleApprovePayment(selectedProofItem.id)}
-                    className="flex-1 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white gap-1"
+                    className="flex-1 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white gap-1 shadow-md cursor-pointer"
                   >
                     {isSubmitting ? <IconLoader2 className="size-4 animate-spin" /> : <IconCheck className="size-4" />}
                     Setujui & Aktifkan Fitur
+                  </Button>
+                </div>
+              ) : (
+                <div className="pt-2 border-t flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSelectedProofItem(null)}
+                    className="text-xs font-bold px-4 py-2 rounded-xl cursor-pointer"
+                  >
+                    Tutup Modal Audit
                   </Button>
                 </div>
               )}

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   IconReceipt,
   IconSearch,
@@ -32,7 +33,7 @@ interface InvoiceItem {
   ownerEmail: string;
   planName: string;
   amount: number;
-  status: "PENDING" | "PAID" | "CANCELLED";
+  status: "PENDING" | "PENDING_VERIFICATION" | "PAID" | "CANCELLED" | "EXPIRED";
   paymentProof?: string | null;
   dueDate: string;
   paidAt?: string | null;
@@ -113,6 +114,7 @@ const FALLBACK_INVOICES: InvoiceItem[] = [
 ];
 
 export function SaasInvoiceManager() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<InvoiceItem[]>([]);
   const [subscriptions, setSubscriptions] = useState<SubscriptionOption[]>([]);
@@ -124,7 +126,7 @@ export function SaasInvoiceManager() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "PAID" | "CANCELLED">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING_VERIFICATION" | "PENDING" | "PAID" | "CANCELLED">("ALL");
 
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -282,6 +284,262 @@ export function SaasInvoiceManager() {
     }
   };
 
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+
+  const handleDownloadPDF = async (inv: any) => {
+    if (!inv) return;
+    setIsGeneratingPDF(true);
+
+    try {
+      let jspdfLib = (window as any).jspdf;
+      if (!jspdfLib) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+          script.onload = resolve;
+          script.onerror = reject;
+          document.body.appendChild(script);
+        });
+        jspdfLib = (window as any).jspdf;
+      }
+
+      const { jsPDF } = jspdfLib;
+      const isPaid = inv.status === "PAID";
+      const statusText = isPaid
+        ? "LUNAS (PAID)"
+        : inv.status === "PENDING_VERIFICATION"
+        ? "MENUNGGU VERIFIKASI"
+        : inv.status === "PENDING"
+        ? "BELUM DIBAYAR"
+        : "DIBATALKAN";
+
+      const doc = new jsPDF("p", "mm", "a4");
+
+      // Outer Card Box
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(12, 12, 186, 265, 4, 4, "FD");
+
+      // Accent Line Top
+      doc.setFillColor(143, 162, 138);
+      doc.rect(20, 20, 170, 2, "F");
+
+      // Brand Title
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.setTextColor(36, 40, 35);
+      doc.text("ARVENTA", 20, 32);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("SAAS PROPERTY MANAGEMENT PLATFORM", 20, 37);
+
+      // Invoice Badge & Info (Right Side)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(143, 162, 138);
+      doc.text("INVOICE & KWITANSI RESMI", 190, 28, { align: "right" });
+
+      doc.setFont("courier", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(180, 83, 9);
+      doc.text(inv.invoiceNumber, 190, 34, { align: "right" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      const dateStr = `Tgl Penerbitan: ${new Date(inv.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`;
+      doc.text(dateStr, 190, 39, { align: "right" });
+
+      // Line Separator
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.5);
+      doc.line(20, 44, 190, 44);
+
+      // Customer Box (Left)
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(20, 50, 81, 26, 3, 3, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(20, 50, 81, 26, 3, 3, "S");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("DITERBITKAN UNTUK (PELANGGAN):", 24, 56);
+
+      const ownerNameText = inv.ownerName || inv.owner?.fullName || inv.subscription?.owner?.fullName || "Owner Properti";
+      const ownerEmailText = inv.ownerEmail || inv.owner?.email || inv.subscription?.owner?.email || "-";
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(15, 23, 42);
+      doc.text(ownerNameText, 24, 63);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text(ownerEmailText, 24, 69);
+
+      // Status Box (Right)
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(109, 50, 81, 26, 3, 3, "F");
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(109, 50, 81, 26, 3, 3, "S");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("STATUS TAGIHAN & JATUH TEMPO:", 113, 56);
+
+      if (isPaid) {
+        doc.setFillColor(220, 252, 231);
+        doc.setDrawColor(134, 239, 172);
+        doc.roundedRect(113, 58, 48, 6.5, 3, 3, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(21, 128, 61);
+        doc.text(statusText, 137, 62.5, { align: "center" });
+      } else {
+        doc.setFillColor(254, 243, 199);
+        doc.setDrawColor(253, 230, 138);
+        doc.roundedRect(113, 58, 48, 6.5, 3, 3, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(180, 83, 9);
+        doc.text(statusText, 137, 62.5, { align: "center" });
+      }
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      const dueDateStr = `Jatuh Tempo: ${inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}`;
+      doc.text(dueDateStr, 113, 71);
+
+      // Items Table Header
+      const startY = 84;
+      doc.setFillColor(36, 40, 35);
+      doc.rect(20, startY, 170, 8, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text("DESKRIPSI LAYANAN SAAS", 24, startY + 5.5);
+      doc.text("DURASI", 125, startY + 5.5, { align: "center" });
+      doc.text("TOTAL NOMINAL", 186, startY + 5.5, { align: "right" });
+
+      // Table Rows
+      let currentY = startY + 8;
+      const items = Array.isArray(inv.items) && inv.items.length > 0
+        ? inv.items
+        : [{ itemTitle: `Langganan SaaS Platform - ${inv.planName || "Paket SaaS"}`, amount: inv.amount }];
+
+      items.forEach((item: any, idx: number) => {
+        doc.setFillColor(idx % 2 === 0 ? 255 : 248, idx % 2 === 0 ? 255 : 250, idx % 2 === 0 ? 255 : 252);
+        doc.rect(20, currentY, 170, 9, "F");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(30, 41, 59);
+        doc.text(item.itemTitle || "Layanan SaaS", 24, currentY + 6);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text("1 Bulan", 125, currentY + 6, { align: "center" });
+
+        doc.setFont("courier", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(180, 83, 9);
+        doc.text(formatIDR(item.amount || 0), 186, currentY + 6, { align: "right" });
+
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.3);
+        doc.line(20, currentY + 9, 190, currentY + 9);
+
+        currentY += 9;
+      });
+
+      // Summary
+      currentY += 8;
+      const sumBoxX = 120;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Subtotal:", sumBoxX, currentY);
+      doc.setFont("courier", "normal");
+      doc.text(formatIDR(inv.amount || 0), 190, currentY, { align: "right" });
+
+      currentY += 6;
+      doc.setFont("helvetica", "normal");
+      doc.text("Pajak (0% Included):", sumBoxX, currentY);
+      doc.setFont("courier", "normal");
+      doc.text("Rp 0", 190, currentY, { align: "right" });
+
+      currentY += 4;
+      doc.setDrawColor(226, 232, 240);
+      doc.line(sumBoxX, currentY, 190, currentY);
+
+      currentY += 6;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(180, 83, 9);
+      doc.text("TOTAL BAYAR:", sumBoxX, currentY);
+      doc.setFont("courier", "bold");
+      doc.setFontSize(11);
+      doc.text(formatIDR(inv.amount || 0), 190, currentY, { align: "right" });
+
+      currentY += 2;
+      doc.line(sumBoxX, currentY, 190, currentY);
+
+      // Footer
+      const footerY = Math.max(currentY + 25, 235);
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.4);
+      doc.line(20, footerY, 190, footerY);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Catatan Resmi / Disclaimer:", 20, footerY + 6);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text(
+        "Dokumen ini diterbitkan secara resmi oleh ARVENTA SaaS Billing Controller. Berkelayakan hukum sebagai bukti kwitansi transaksi langganan yang sah.",
+        20,
+        footerY + 10,
+        { maxWidth: 120 }
+      );
+
+      // Stamp Mark
+      if (isPaid) {
+        doc.setDrawColor(21, 128, 61);
+        doc.setFillColor(240, 253, 244);
+        doc.roundedRect(145, footerY + 4, 45, 12, 2, 2, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(21, 128, 61);
+        doc.text("VERIFIED PAID", 167.5, footerY + 11.5, { align: "center" });
+      } else {
+        doc.setDrawColor(180, 83, 9);
+        doc.setFillColor(254, 243, 199);
+        doc.roundedRect(145, footerY + 4, 45, 12, 2, 2, "FD");
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(180, 83, 9);
+        doc.text("PENDING AUDIT", 167.5, footerY + 11.5, { align: "center" });
+      }
+
+      doc.save(`Invoice-${inv.invoiceNumber}.pdf`);
+    } catch (err) {
+      console.error("Direct PDF export error:", err);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
   const filteredInvoices = invoices.filter((inv) => {
     const matchesQuery =
       inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -289,7 +547,14 @@ export function SaasInvoiceManager() {
       inv.ownerEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inv.planName.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus = statusFilter === "ALL" || inv.status === statusFilter;
+    const isPendingVerif = inv.status === "PENDING_VERIFICATION" || (inv.status === "PENDING" && Boolean(inv.paymentProof));
+    const isUnpaid = inv.status === "PENDING" && !inv.paymentProof;
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "PENDING_VERIFICATION" && isPendingVerif) ||
+      (statusFilter === "PENDING" && isUnpaid) ||
+      inv.status === statusFilter;
 
     return matchesQuery && matchesStatus;
   });
@@ -298,9 +563,12 @@ export function SaasInvoiceManager() {
     .filter((inv) => inv.status === "PAID")
     .reduce((acc, inv) => acc + inv.amount, 0);
 
-  const pendingCount = invoices.filter((inv) => inv.status === "PENDING").length;
+  const pendingVerificationCount = invoices.filter(
+    (inv) => inv.status === "PENDING_VERIFICATION" || (inv.status === "PENDING" && Boolean(inv.paymentProof))
+  ).length;
+  const unpaidCount = invoices.filter((inv) => inv.status === "PENDING" && !inv.paymentProof).length;
   const paidCount = invoices.filter((inv) => inv.status === "PAID").length;
-  const cancelledCount = invoices.filter((inv) => inv.status === "CANCELLED").length;
+  const cancelledCount = invoices.filter((inv) => inv.status === "CANCELLED" || inv.status === "EXPIRED").length;
 
   return (
     <div className="space-y-6">
@@ -367,7 +635,7 @@ export function SaasInvoiceManager() {
             <div>
               <p className="text-xs font-semibold text-muted-foreground">Menunggu Verifikasi</p>
               <h3 className="text-xl font-black tracking-tight text-amber-600 dark:text-amber-400 mt-1">
-                {pendingCount} Invoice
+                {pendingVerificationCount} Invoice
               </h3>
               <p className="text-[10px] text-amber-600/80 dark:text-amber-400/80 mt-0.5 font-medium">
                 Memerlukan persetujuan admin
@@ -468,9 +736,10 @@ export function SaasInvoiceManager() {
               className="rounded-xl border bg-background px-3 py-1.5 text-xs font-bold text-foreground focus:ring-2 focus:ring-amber-500 cursor-pointer"
             >
               <option value="ALL">Semua Status</option>
-              <option value="PENDING">PENDING (Menunggu Verifikasi)</option>
-              <option value="PAID">PAID (Lunas)</option>
-              <option value="CANCELLED">CANCELLED (Dibatalkan)</option>
+              <option value="PENDING_VERIFICATION">MENUNGGU VERIFIKASI ADMIN</option>
+              <option value="PENDING">BELUM DIBAYAR</option>
+              <option value="PAID">LUNAS (PAID)</option>
+              <option value="CANCELLED">DIBATALKAN / EXPIRED</option>
             </select>
           </div>
         </CardHeader>
@@ -493,8 +762,9 @@ export function SaasInvoiceManager() {
             <div className="divide-y rounded-2xl border bg-card/60 overflow-hidden">
               {filteredInvoices.map((inv) => {
                 const isPaid = inv.status === "PAID";
-                const isPending = inv.status === "PENDING";
-                const isCancelled = inv.status === "CANCELLED";
+                const isPendingVerif = inv.status === "PENDING_VERIFICATION" || (inv.status === "PENDING" && Boolean(inv.paymentProof));
+                const isUnpaid = inv.status === "PENDING" && !inv.paymentProof;
+                const isCancelled = inv.status === "CANCELLED" || inv.status === "EXPIRED";
 
                 return (
                   <div
@@ -517,14 +787,19 @@ export function SaasInvoiceManager() {
                               <IconCheck className="size-3" /> LUNAS (PAID)
                             </Badge>
                           )}
-                          {isPending && (
-                            <Badge className="bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2 py-0.5 gap-1">
-                              <IconClock className="size-3" /> MENUNGGU VERIFIKASI
+                          {isPendingVerif && (
+                            <Badge className="bg-amber-500 text-slate-950 font-extrabold text-[10px] px-2 py-0.5 gap-1 shadow-xs">
+                              <IconClock className="size-3 animate-pulse" /> MENUNGGU VERIFIKASI
+                            </Badge>
+                          )}
+                          {isUnpaid && (
+                            <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold text-[10px] px-2 py-0.5 gap-1">
+                              <IconAlertCircle className="size-3" /> BELUM DIBAYAR
                             </Badge>
                           )}
                           {isCancelled && (
                             <Badge variant="outline" className="text-muted-foreground text-[10px] font-semibold px-2 py-0.5">
-                              DIBATALKAN
+                              DIBATALKAN / EXPIRED
                             </Badge>
                           )}
                         </div>
@@ -555,15 +830,12 @@ export function SaasInvoiceManager() {
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        {/* Verify Payment Button (For PENDING status) */}
-                        {isPending && (
+                        {/* Verify Payment Button */}
+                        {(isPendingVerif || isUnpaid) && (
                           <Button
                             size="sm"
-                            onClick={() => {
-                              setVerifyInvoiceItem(inv);
-                              setModalErrorMsg(null);
-                            }}
-                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs h-8 px-2.5 gap-1 shadow-xs"
+                            onClick={() => router.push(`/platform/payment-verification?invoiceId=${inv.id}`)}
+                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs h-8 px-2.5 gap-1 shadow-xs cursor-pointer"
                           >
                             <IconShieldCheck className="size-4" /> Verifikasi
                           </Button>
@@ -706,10 +978,19 @@ export function SaasInvoiceManager() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => window.print()}
-                  className="gap-1.5 text-xs font-bold h-8"
+                  disabled={isGeneratingPDF}
+                  onClick={() => handleDownloadPDF(receiptInvoiceItem)}
+                  className="gap-1.5 text-xs font-bold h-8 cursor-pointer bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30 hover:bg-amber-500/20 shadow-xs"
                 >
-                  <IconPrinter className="size-4" /> Cetak / PDF
+                  {isGeneratingPDF ? (
+                    <>
+                      <IconLoader2 className="size-4 animate-spin" /> Unduh PDF...
+                    </>
+                  ) : (
+                    <>
+                      <IconPrinter className="size-4" /> Download PDF Invoice
+                    </>
+                  )}
                 </Button>
                 <button
                   onClick={() => setReceiptInvoiceItem(null)}

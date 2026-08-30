@@ -347,3 +347,131 @@ export async function sendUserInvitationEmail({
     html: createEmailWrapper(htmlContent, `${inviterName} mengundang Anda bergabung sebagai ${roleName} di platform ARVENTA.`),
   });
 }
+
+// ============================================================================
+// 6. TEMPLATE: NOTIFIKASI BUKTI TRANSFER UNTUK TIM SUPPORT / FINANCE ADMIN
+// ============================================================================
+export async function sendSupportPaymentProofNotificationEmail({
+  supportEmail,
+  ownerName,
+  ownerEmail,
+  invoiceNumber,
+  amountPaid,
+  itemSummary,
+}: {
+  supportEmail: string;
+  ownerName: string;
+  ownerEmail: string;
+  invoiceNumber: string;
+  amountPaid: string;
+  itemSummary: string;
+}) {
+  const htmlContent = `
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="background-color: #FEF3C7; color: #92400E; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+        &bull; Perlu Verifikasi Finance
+      </span>
+    </div>
+
+    <h2 style="font-size: 18px; font-weight: 800; color: #2F332E; margin: 0 0 12px 0; text-align: center;">Bukti Transfer Pembayaran Baru Diunggah</h2>
+    <p style="font-size: 14px; color: #4A5049; margin: 0 0 16px 0;">Halo Tim Support &amp; Finance ARVENTA,</p>
+    <p style="font-size: 14px; color: #4A5049; line-height: 1.6; margin: 0 0 20px 0;">
+      Owner <strong>${ownerName}</strong> (<em>${ownerEmail}</em>) telah mengunggah bukti transfer pembayaran untuk invoice langganan SaaS. Mohon lakukan verifikasi mutasi dan persetujuan status.
+    </p>
+
+    <!-- Details Box -->
+    <div style="background-color: #F9FAF8; border: 1px solid #E1ECE0; border-radius: 14px; padding: 18px; margin-bottom: 24px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">No. Billing Invoice:</td>
+          <td style="padding: 6px 0; color: #2F332E; font-weight: 800; text-align: right;">${invoiceNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">Pengirim (Owner):</td>
+          <td style="padding: 6px 0; color: #2F332E; font-weight: 800; text-align: right;">${ownerName}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">Item Tagihan:</td>
+          <td style="padding: 6px 0; color: #2F332E; font-weight: 800; text-align: right;">${itemSummary}</td>
+        </tr>
+        <tr style="border-top: 1px dashed #D5E2D3;">
+          <td style="padding: 10px 0 0 0; color: #2F332E; font-weight: 800; font-size: 14px;">Total Nominal:</td>
+          <td style="padding: 10px 0 0 0; color: #B45309; font-weight: 900; font-size: 16px; text-align: right;">${amountPaid}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="font-size: 12px; color: #7A8279; line-height: 1.5; margin: 20px 0 0 0; text-align: center;">
+      Verifikasi dapat dilakukan langsung melalui Admin Dashboard Manajemen Subskripsi &amp; Billing.
+    </p>
+  `;
+
+  return dispatchEmail({
+    to: supportEmail,
+    subject: `[PERLU VERIFIKASI] Bukti Transfer Invoice ${invoiceNumber} - ${ownerName}`,
+    html: createEmailWrapper(htmlContent, `Pemberitahuan bukti transfer baru dari ${ownerName} untuk invoice ${invoiceNumber}.`),
+  });
+}
+
+// ============================================================================
+// 7. TEMPLATE: KONFIRMASI DITERIMA UNTUK OWNER (ACKNOWLEDGEMENT EMAIL)
+// ============================================================================
+export async function sendOwnerPaymentConfirmationAckEmail({
+  ownerEmail,
+  ownerName,
+  invoiceNumber,
+  amountPaid,
+  itemSummary,
+}: {
+  ownerEmail: string;
+  ownerName: string;
+  invoiceNumber: string;
+  amountPaid: string;
+  itemSummary: string;
+}) {
+  const htmlContent = `
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="background-color: #DEF7EC; color: #03543F; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+        &check; Konfirmasi Berhasil Diterima
+      </span>
+    </div>
+
+    <h2 style="font-size: 18px; font-weight: 800; color: #2F332E; margin: 0 0 12px 0; text-align: center;">Konfirmasi Pembayaran Diterima</h2>
+    <p style="font-size: 14px; color: #4A5049; margin: 0 0 16px 0;">Yth. <strong>${ownerName}</strong>,</p>
+    <p style="font-size: 14px; color: #4A5049; line-height: 1.6; margin: 0 0 20px 0;">
+      Terima kasih! Permohonan konfirmasi pembayaran invoice langganan SaaS Anda telah kami terima dan sedang diproses oleh Tim Finance ARVENTA.
+    </p>
+
+    <!-- Details Box -->
+    <div style="background-color: #F9FAF8; border: 1px solid #E1ECE0; border-radius: 14px; padding: 18px; margin-bottom: 24px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">No. Billing Invoice:</td>
+          <td style="padding: 6px 0; color: #2F332E; font-weight: 800; text-align: right;">${invoiceNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">Item Tagihan:</td>
+          <td style="padding: 6px 0; color: #2F332E; font-weight: 800; text-align: right;">${itemSummary}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">Status Transaksi:</td>
+          <td style="padding: 6px 0; color: #B45309; font-weight: 800; text-align: right;">Menunggu Verifikasi Admin</td>
+        </tr>
+        <tr style="border-top: 1px dashed #D5E2D3;">
+          <td style="padding: 10px 0 0 0; color: #2F332E; font-weight: 800; font-size: 14px;">Total Nominal:</td>
+          <td style="padding: 10px 0 0 0; color: #046C4E; font-weight: 900; font-size: 16px; text-align: right;">${amountPaid}</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="font-size: 12px; color: #7A8279; line-height: 1.5; margin: 20px 0 0 0; text-align: center;">
+      Proses verifikasi mutasi membutuhkan waktu maksimal 1x24 jam. Lisensi paket Anda akan otomatis aktif setelah di-approve oleh Admin.
+    </p>
+  `;
+
+  return dispatchEmail({
+    to: ownerEmail,
+    subject: `[ARVENTA] Konfirmasi Pembayaran Invoice ${invoiceNumber} Berhasil Diterima`,
+    html: createEmailWrapper(htmlContent, `Konfirmasi pembayaran untuk invoice ${invoiceNumber} telah diterima dan sedang diproses.`),
+  });
+}

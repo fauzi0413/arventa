@@ -13,6 +13,12 @@ import {
   IconX,
   IconSparkles,
   IconPower,
+  IconUserCheck,
+  IconPuzzle,
+  IconListCheck,
+  IconTag,
+  IconPackages,
+  IconStar,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,31 +29,102 @@ interface SaaSPlanItem {
   name: string;
   maxProperties: number;
   maxUnits: number;
+  maxHousekeeping: number;
   priceMonthly: number;
   priceYearly: number;
+  featureIds?: string[];
   features: string[];
   subscriberCount: number;
   status?: "ACTIVE" | "INACTIVE";
+  isDefault?: boolean;
+}
+
+interface MasterFeatureItem {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  category: string;
+  isEnabled: boolean;
+  assignedPlansCount?: number;
+}
+
+interface SaaSAddOnItem {
+  id: string;
+  name: string;
+  category: "PROPERTY" | "UNIT" | "HOUSEKEEPING" | "FEATURE";
+  unitQuota: number;
+  priceMonthly: number;
+  priceYearly: number;
+  description: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  activePurchasesCount?: number;
+}
+
+interface OwnerSubscriptionItem {
+  id: string;
+  ownerId: string;
+  ownerName: string;
+  ownerEmail: string;
+  planId: string;
+  planName: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  autoRenew: boolean;
+  latestInvoiceNumber: string;
+  latestInvoiceStatus: string;
+  createdAt: string;
 }
 
 export function SubscriptionPackageManager() {
+  const [activeTab, setActiveTab] = useState<"packages" | "master_features" | "add_ons">("packages");
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<SaaSPlanItem[]>([]);
-  const [totalSubscribersCount, setTotalSubscribersCount] = useState(128);
+  const [masterFeatures, setMasterFeatures] = useState<MasterFeatureItem[]>([]);
+  const [addOns, setAddOns] = useState<SaaSAddOnItem[]>([]);
+  const [subscriptions, setSubscriptions] = useState<OwnerSubscriptionItem[]>([]);
+  const [totalSubscribersCount, setTotalSubscribersCount] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Modal State
-  const [showModal, setShowModal] = useState(false);
+  // ---------------------------------------------------------------------------
+  // Modals States
+  // ---------------------------------------------------------------------------
+
+  // 1. Plan Modal State
+  const [showPlanModal, setShowPlanModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState<SaaSPlanItem | null>(null);
   const [formName, setFormName] = useState("");
   const [formPriceMonthly, setFormPriceMonthly] = useState("Rp 99.000");
+  const [formPriceYearly, setFormPriceYearly] = useState("Rp 990.000");
   const [formMaxUnits, setFormMaxUnits] = useState("15");
   const [formMaxProperties, setFormMaxProperties] = useState("1");
+  const [formMaxHousekeeping, setFormMaxHousekeeping] = useState("3");
   const [formStatus, setFormStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
-  const [formFeatures, setFormFeatures] = useState<string[]>([]);
-  const [newFeatureInput, setNewFeatureInput] = useState("");
+  const [selectedFeatureIds, setSelectedFeatureIds] = useState<string[]>([]);
+  const [formCustomFeatures, setFormCustomFeatures] = useState<string[]>([]);
+
+  // 2. Master Feature Modal State
+  const [showFeatureModal, setShowFeatureModal] = useState(false);
+  const [editingFeature, setEditingFeature] = useState<MasterFeatureItem | null>(null);
+  const [featureCode, setFeatureCode] = useState("");
+  const [featureName, setFeatureName] = useState("");
+  const [featureCategory, setFeatureCategory] = useState("OPERATIONAL");
+  const [featureDescription, setFeatureDescription] = useState("");
+
+  // 3. Add-On Modal State
+  const [showAddOnModal, setShowAddOnModal] = useState(false);
+  const [editingAddOn, setEditingAddOn] = useState<SaaSAddOnItem | null>(null);
+  const [addOnName, setAddOnName] = useState("");
+  const [addOnCategory, setAddOnCategory] = useState<"PROPERTY" | "UNIT" | "HOUSEKEEPING" | "FEATURE">("UNIT");
+  const [addOnUnitQuota, setAddOnUnitQuota] = useState("10");
+  const [addOnPriceMonthly, setAddOnPriceMonthly] = useState("Rp 49.000");
+  const [addOnPriceYearly, setAddOnPriceYearly] = useState("Rp 490.000");
+  const [addOnDescription, setAddOnDescription] = useState("");
+  const [addOnStatus, setAddOnStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
 
   const formatIDR = (val: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
@@ -64,39 +141,51 @@ export function SubscriptionPackageManager() {
     return digits ? parseFloat(digits) : 0;
   };
 
+  // ---------------------------------------------------------------------------
+  // Fetch All SaaS Data (Plans, Features, Add-Ons, Subscriptions)
+  // ---------------------------------------------------------------------------
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/admin/subscriptions");
-      const json = await res.json();
-      if (json.success && json.data) {
-        if (json.data.plans && json.data.plans.length > 0) {
+      setErrorMsg(null);
+
+      const [resSub, resFeat, resAddOns] = await Promise.all([
+        fetch("/api/admin/subscriptions"),
+        fetch("/api/admin/features"),
+        fetch("/api/admin/add-ons"),
+      ]);
+
+      const jsonSub = await resSub.json();
+      if (jsonSub.success && jsonSub.data) {
+        if (jsonSub.data.plans) {
           setPlans(
-            json.data.plans.map((p: any) => ({
+            jsonSub.data.plans.map((p: any) => ({
               ...p,
+              maxHousekeeping: p.maxHousekeeping || 2,
               status: p.status || "ACTIVE",
             }))
           );
-        } else {
-          // Default seed fallback if DB is empty
-          setPlans(DEFAULT_FALLBACK_PLANS);
         }
+        if (jsonSub.data.subscriptions) {
+          setSubscriptions(jsonSub.data.subscriptions);
+          setTotalSubscribersCount(
+            jsonSub.data.subscriptions.filter((s: any) => s.status === "ACTIVE").length
+          );
+        }
+      }
 
-        if (json.data.subscriptions && json.data.subscriptions.length > 0) {
-          setTotalSubscribersCount(
-            json.data.subscriptions.filter((s: any) => s.status === "ACTIVE").length
-          );
-        } else if (json.data.plans) {
-          setTotalSubscribersCount(
-            json.data.plans.reduce((acc: number, p: any) => acc + (p.subscriberCount || 0), 0)
-          );
-        }
-      } else {
-        setPlans(DEFAULT_FALLBACK_PLANS);
+      const jsonFeat = await resFeat.json();
+      if (jsonFeat.success && jsonFeat.data) {
+        setMasterFeatures(jsonFeat.data);
+      }
+
+      const jsonAddOns = await resAddOns.json();
+      if (jsonAddOns.success && jsonAddOns.data) {
+        setAddOns(jsonAddOns.data);
       }
     } catch (err) {
-      console.error("Failed to fetch subscriptions data:", err);
-      setPlans(DEFAULT_FALLBACK_PLANS);
+      console.error("Failed to fetch SaaS management data:", err);
+      setErrorMsg("Gagal memuat data dari server");
     } finally {
       setLoading(false);
     }
@@ -106,714 +195,1247 @@ export function SubscriptionPackageManager() {
     fetchData();
   }, []);
 
-  const openCreateModal = () => {
-    setEditingPlan(null);
-    setFormName("");
-    setFormPriceMonthly(formatRupiahInput("199000"));
-    setFormMaxUnits("25");
-    setFormMaxProperties("2");
-    setFormStatus("ACTIVE");
-    setFormFeatures([
-      "Property Management",
-      "Tenant Management",
-      "Invoice & Payment",
-      "WhatsApp Payment Reminder",
-    ]);
-    setNewFeatureInput("");
-    setShowModal(true);
-  };
-
-  const openEditModal = (plan: SaaSPlanItem) => {
-    setEditingPlan(plan);
-    setFormName(plan.name);
-    setFormPriceMonthly(formatRupiahInput(plan.priceMonthly));
-    setFormMaxUnits(plan.maxUnits.toString());
-    setFormMaxProperties(plan.maxProperties.toString());
-    setFormStatus(plan.status === "INACTIVE" ? "INACTIVE" : "ACTIVE");
-    setFormFeatures([...(plan.features || [])]);
-    setNewFeatureInput("");
-    setShowModal(true);
-  };
-
-  const handleAddFeature = () => {
-    const trimmed = newFeatureInput.trim();
-    if (!trimmed) return;
-    setFormFeatures((prev) => [...prev, trimmed]);
-    setNewFeatureInput("");
-  };
-
-  const handleRemoveFeature = (index: number) => {
-    setFormFeatures((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleFeatureChange = (index: number, value: string) => {
-    setFormFeatures((prev) => {
-      const copy = [...prev];
-      copy[index] = value;
-      return copy;
-    });
-  };
-
-  const handleSavePlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const numericPrice = Math.max(0, parseRupiahInput(formPriceMonthly));
-    const numericMaxUnits = Math.max(0, parseInt(formMaxUnits, 10) || 0);
-    const numericMaxProperties = Math.max(0, parseInt(formMaxProperties, 10) || 0);
-
-    if (!formName || numericPrice < 0) return alert("Nama paket dan harga (minimal 0) wajib diisi");
-
-    if (editingPlan && (editingPlan.subscriberCount || 0) > 0 && formStatus === "INACTIVE") {
-      return alert("Paket ini sudah memiliki subscriber aktif dan tidak dapat dinonaktifkan.");
-    }
-
-    setIsSubmitting(true);
+  const handleSetDefaultPlan = async (planId: string, planName: string) => {
     try {
-      const featuresArray = formFeatures.map((f) => f.trim()).filter(Boolean);
-
-      const action = editingPlan ? "UPDATE_PLAN" : "CREATE_PLAN";
-      const bodyPayload = {
-        action,
-        planId: editingPlan?.id,
-        name: formName,
-        priceMonthly: numericPrice,
-        priceYearly: numericPrice * 10,
-        maxUnits: numericMaxUnits,
-        maxProperties: numericMaxProperties,
-        status: formStatus,
-        features: featuresArray,
-      };
-
+      setIsSubmitting(true);
+      setErrorMsg(null);
       const res = await fetch("/api/admin/subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyPayload),
+        body: JSON.stringify({
+          action: "SET_DEFAULT_PLAN",
+          planId,
+        }),
       });
-
       const json = await res.json();
       if (json.success) {
-        // Also update local state for fast UI reflection
-        setPlans((prev) =>
-          prev.map((p) =>
-            p.id === editingPlan?.id
-              ? {
-                  ...p,
-                  name: formName,
-                  priceMonthly: numericPrice,
-                  maxUnits: numericMaxUnits,
-                  maxProperties: numericMaxProperties,
-                  status: formStatus,
-                  features: featuresArray,
-                }
-              : p
-          )
-        );
-        setSuccessMsg(
-          editingPlan
-            ? `Paket "${formName}" berhasil diperbarui (Status: ${formStatus === "ACTIVE" ? "Aktif" : "Non-Aktif"})!`
-            : `Paket baru "${formName}" berhasil ditambahkan!`
-        );
-        setShowModal(false);
-        fetchData();
+        setSuccessMsg(`Paket "${planName}" berhasil ditetapkan sebagai Paket Default Pendaftaran Owner`);
+        await fetchData();
       } else {
-        alert("Gagal menyimpan paket: " + json.message);
+        setErrorMsg(json.message || "Gagal mengatur paket default");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Terjadi kesalahan koneksi.");
+    } catch (err: any) {
+      setErrorMsg("Terjadi kesalahan jaringan saat mengatur paket default");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Dynamically calculate the most popular plan based on subscriberCount / plan tier
-  const mostPopularPlan = plans.length > 0
-    ? [...plans].sort((a, b) => {
-        if ((b.subscriberCount || 0) !== (a.subscriberCount || 0)) {
-          return (b.subscriberCount || 0) - (a.subscriberCount || 0);
-        }
-        if (b.name.toLowerCase().includes("business")) return 1;
-        if (a.name.toLowerCase().includes("business")) return -1;
-        if (b.name.toLowerCase().includes("pro")) return 1;
-        return 0;
-      })[0]
-    : null;
-
-  const filteredPlans = plans.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const getTargetText = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes("basic")) return "Target: Pemilik kos kecil atau satu bangunan.";
-    if (n.includes("business")) return "Target: Pemilik properti menengah.";
-    if (n.includes("pro")) return "Target: Pengelola properti skala besar.";
-    return "Target: Pengelola properti SaaS ARVENTA.";
+  // ---------------------------------------------------------------------------
+  // Plan Modal Handlers
+  // ---------------------------------------------------------------------------
+  const openCreatePlanModal = () => {
+    setEditingPlan(null);
+    setFormName("");
+    setFormPriceMonthly(formatRupiahInput("199000"));
+    setFormPriceYearly(formatRupiahInput("1990000"));
+    setFormMaxUnits("25");
+    setFormMaxProperties("2");
+    setFormMaxHousekeeping("5");
+    setFormStatus("ACTIVE");
+    setSelectedFeatureIds(masterFeatures.filter((f) => f.isEnabled).map((f) => f.id));
+    setFormCustomFeatures([]);
+    setShowPlanModal(true);
   };
 
-  const getRoomLimitText = (maxUnits: number) => {
-    if (maxUnits >= 999) return "Limit: Unlimited";
-    return `Limit: ${maxUnits} Rooms`;
+  const openEditPlanModal = (plan: SaaSPlanItem) => {
+    setEditingPlan(plan);
+    setFormName(plan.name);
+    setFormPriceMonthly(formatRupiahInput(plan.priceMonthly));
+    setFormPriceYearly(formatRupiahInput(plan.priceYearly || plan.priceMonthly * 10));
+    setFormMaxUnits(String(plan.maxUnits));
+    setFormMaxProperties(String(plan.maxProperties));
+    setFormMaxHousekeeping(String(plan.maxHousekeeping || 2));
+    setFormStatus(plan.status || "ACTIVE");
+    setSelectedFeatureIds(plan.featureIds || []);
+    setFormCustomFeatures(plan.features || []);
+    setShowPlanModal(true);
   };
 
-  if (loading) {
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim()) {
+      setErrorMsg("Nama paket tidak boleh kosong");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+
+      const payload = {
+        action: editingPlan ? "UPDATE_PLAN" : "CREATE_PLAN",
+        planId: editingPlan?.id,
+        name: formName.trim(),
+        priceMonthly: parseRupiahInput(formPriceMonthly),
+        priceYearly: parseRupiahInput(formPriceYearly),
+        maxUnits: parseInt(formMaxUnits, 10) || 10,
+        maxProperties: parseInt(formMaxProperties, 10) || 1,
+        maxHousekeeping: parseInt(formMaxHousekeeping, 10) || 2,
+        status: formStatus,
+        featureIds: selectedFeatureIds,
+        features: formCustomFeatures,
+      };
+
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menyimpan paket");
+      }
+
+      setSuccessMsg(
+        editingPlan
+          ? `Paket "${formName}" berhasil diperbarui!`
+          : `Paket "${formName}" berhasil dibuat!`
+      );
+      setTimeout(() => setSuccessMsg(null), 4000);
+      setShowPlanModal(false);
+      await fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Terjadi kesalahan saat menyimpan paket");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Master Feature Modal Handlers
+  // ---------------------------------------------------------------------------
+  const openCreateFeatureModal = () => {
+    setEditingFeature(null);
+    setFeatureCode("");
+    setFeatureName("");
+    setFeatureCategory("OPERATIONAL");
+    setFeatureDescription("");
+    setShowFeatureModal(true);
+  };
+
+  const openEditFeatureModal = (feat: MasterFeatureItem) => {
+    setEditingFeature(feat);
+    setFeatureCode(feat.code);
+    setFeatureName(feat.name);
+    setFeatureCategory(feat.category || "OPERATIONAL");
+    setFeatureDescription(feat.description || "");
+    setShowFeatureModal(true);
+  };
+
+  const handleSaveFeature = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!featureCode.trim() || !featureName.trim()) {
+      setErrorMsg("Kode dan nama fitur wajib diisi");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+
+      const payload = {
+        action: editingFeature ? "UPDATE_FEATURE" : "CREATE_FEATURE",
+        id: editingFeature?.id,
+        code: featureCode,
+        name: featureName,
+        category: featureCategory,
+        description: featureDescription,
+      };
+
+      const res = await fetch("/api/admin/features", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menyimpan fitur master");
+      }
+
+      setSuccessMsg(`Fitur "${featureName}" berhasil disimpan!`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      setShowFeatureModal(false);
+      await fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Gagal menyimpan fitur");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleFeature = async (feat: MasterFeatureItem) => {
+    try {
+      const res = await fetch("/api/admin/features", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "TOGGLE_FEATURE",
+          id: feat.id,
+          isEnabled: !feat.isEnabled,
+        }),
+      });
+      if (res.ok) await fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Add-On Modal Handlers
+  // ---------------------------------------------------------------------------
+  const openCreateAddOnModal = () => {
+    setEditingAddOn(null);
+    setAddOnName("");
+    setAddOnCategory("UNIT");
+    setAddOnUnitQuota("10");
+    setAddOnPriceMonthly(formatRupiahInput("49000"));
+    setAddOnPriceYearly(formatRupiahInput("490000"));
+    setAddOnDescription("");
+    setAddOnStatus("ACTIVE");
+    setShowAddOnModal(true);
+  };
+
+  const openEditAddOnModal = (addon: SaaSAddOnItem) => {
+    setEditingAddOn(addon);
+    setAddOnName(addon.name);
+    setAddOnCategory(addon.category);
+    setAddOnUnitQuota(String(addon.unitQuota));
+    setAddOnPriceMonthly(formatRupiahInput(addon.priceMonthly));
+    setAddOnPriceYearly(formatRupiahInput(addon.priceYearly));
+    setAddOnDescription(addon.description || "");
+    setAddOnStatus(addon.status);
+    setShowAddOnModal(true);
+  };
+
+  const handleSaveAddOn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addOnName.trim()) {
+      setErrorMsg("Nama Add-On wajib diisi");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setErrorMsg(null);
+
+      const payload = {
+        action: editingAddOn ? "UPDATE_ADDON" : "CREATE_ADDON",
+        id: editingAddOn?.id,
+        name: addOnName.trim(),
+        category: addOnCategory,
+        unitQuota: parseInt(addOnUnitQuota, 10) || 1,
+        priceMonthly: parseRupiahInput(addOnPriceMonthly),
+        priceYearly: parseRupiahInput(addOnPriceYearly),
+        description: addOnDescription.trim(),
+        status: addOnStatus,
+      };
+
+      const res = await fetch("/api/admin/add-ons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Gagal menyimpan Add-On");
+      }
+
+      setSuccessMsg(`Add-On "${addOnName}" berhasil disimpan!`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+      setShowAddOnModal(false);
+      await fetchData();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Gagal menyimpan Add-On");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleAddOnStatus = async (addon: SaaSAddOnItem) => {
+    try {
+      const nextStatus = addon.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+      const res = await fetch("/api/admin/add-ons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "TOGGLE_ADDON",
+          id: addon.id,
+          status: nextStatus,
+        }),
+      });
+      if (res.ok) await fetchData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Filter Subscriptions for search query
+  const filteredSubscriptions = subscriptions.filter((sub) => {
+    const q = searchQuery.toLowerCase();
     return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-3">
-        <IconLoader2 className="size-8 animate-spin text-[#8FA28A]" />
-        <p className="text-sm font-bold text-gray-500">Memuat data paket langganan SaaS...</p>
-      </div>
+      sub.ownerName.toLowerCase().includes(q) ||
+      sub.ownerEmail.toLowerCase().includes(q) ||
+      sub.planName.toLowerCase().includes(q)
     );
-  }
+  });
+
+  const popularPlanName = React.useMemo(() => {
+    if (!plans || plans.length === 0) return "-";
+    const sorted = [...plans].sort((a, b) => (b.subscriberCount || 0) - (a.subscriberCount || 0));
+    if (sorted[0] && (sorted[0].subscriberCount || 0) > 0) {
+      return sorted[0].name;
+    }
+    const firstActive = plans.find((p) => p.status === "ACTIVE");
+    return firstActive ? firstActive.name : sorted[0]?.name || "-";
+  }, [plans]);
 
   return (
-    <div className="space-y-6">
-      {/* Top Breadcrumb & Title Bar */}
-      <div className="space-y-1">
-        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-          <span>PLATFORM ADMIN</span>
-          <span>/</span>
-          <span>SUBSCRIPTIONS & BILLING</span>
-          <span>/</span>
-          <span className="text-[#8FA28A]">SUBSCRIPTION PACKAGE</span>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-1">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-[#2F332E] dark:text-white tracking-tight">
-              Subscription Packages
-            </h1>
-            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-              Kelola paket langganan SaaS dan batas fitur untuk owner ARVENTA.
-            </p>
+    <div className="space-y-6 pb-12">
+      {/* --------------------------------------------------------------------- */}
+      {/* PAGE HEADER */}
+      {/* --------------------------------------------------------------------- */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold text-[#8FA28A] uppercase tracking-wider mb-1">
+            <IconSparkles className="h-4 w-4" />
+            <span>Platform Admin • Subscriptions & Billing</span>
           </div>
-          <Button
-            onClick={openCreateModal}
-            className="bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-bold text-xs gap-1.5 rounded-xl shadow-sm h-10 px-4 shrink-0"
-          >
-            <IconPlus className="size-4" /> Tambah Paket
-          </Button>
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+            Subscription Packages & Add-Ons
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            Kelola paket langganan SaaS, batas kuota, katalog master fitur, dan sistem Add-On ekosistem ARVENTA.
+          </p>
+        </div>
+
+        {/* Tab Actions */}
+        <div className="flex items-center gap-2">
+          {activeTab === "packages" && (
+            <Button onClick={openCreatePlanModal} className="bg-[#8FA28A] hover:bg-[#7D9178] text-white font-bold text-xs gap-1.5 shadow-md">
+              <IconPlus className="h-4 w-4" />
+              <span>Tambah Paket Baru</span>
+            </Button>
+          )}
+          {activeTab === "master_features" && (
+            <Button onClick={openCreateFeatureModal} className="bg-[#C8A96B] hover:bg-[#B39355] text-white font-bold text-xs gap-1.5 shadow-md">
+              <IconPlus className="h-4 w-4" />
+              <span>Tambah Fitur Master</span>
+            </Button>
+          )}
+          {activeTab === "add_ons" && (
+            <Button onClick={openCreateAddOnModal} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-md">
+              <IconPlus className="h-4 w-4" />
+              <span>Tambah Add-On Baru</span>
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Alert Banner Success */}
+      {/* Alerts */}
       {successMsg && (
-        <div className="flex items-center justify-between rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-xs font-bold text-emerald-600 dark:text-emerald-400">
-          <div className="flex items-center gap-2">
-            <IconCheck className="size-4 shrink-0" />
-            <span>{successMsg}</span>
-          </div>
-          <button onClick={() => setSuccessMsg(null)} className="hover:underline">
-            Tutup
-          </button>
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-800 flex items-center gap-2">
+          <IconCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs font-bold text-red-700 flex items-center gap-2">
+          <IconX className="h-4 w-4 text-red-600 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
-      {/* Top 4 Metrics Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: TOTAL PACKAGES */}
-        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-[#242823] text-white shadow-sm">
-          <CardContent className="p-5">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              TOTAL PACKAGES
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <p className="text-3xl font-black text-white">{plans.length}</p>
-            </div>
-            <p className="text-[11px] text-gray-400 font-semibold mt-1">Terdaftar di sistem</p>
-          </CardContent>
-        </Card>
+      {/* --------------------------------------------------------------------- */}
+      {/* NAVIGATION TABS BAR */}
+      {/* --------------------------------------------------------------------- */}
+      <div className="flex border-b border-border gap-2 sm:gap-6 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab("packages")}
+          className={`py-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 shrink-0 cursor-pointer ${
+            activeTab === "packages"
+              ? "border-[#8FA28A] text-[#8FA28A]"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <IconPackages className="h-4 w-4" />
+          <span>Paket Langganan Utama ({plans.length})</span>
+        </button>
 
-        {/* Card 2: ACTIVE PACKAGES */}
-        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-[#242823] text-white shadow-sm">
-          <CardContent className="p-5">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              ACTIVE PACKAGES
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <p className="text-3xl font-black text-white">
-                {plans.filter((p) => (p.status || "ACTIVE") === "ACTIVE").length}
-              </p>
-            </div>
-            <p className="text-[11px] text-gray-400 font-semibold mt-1">Tersedia untuk owner baru</p>
-          </CardContent>
-        </Card>
+        <button
+          onClick={() => setActiveTab("master_features")}
+          className={`py-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 shrink-0 cursor-pointer ${
+            activeTab === "master_features"
+              ? "border-[#C8A96B] text-[#C8A96B]"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <IconListCheck className="h-4 w-4" />
+          <span>Master Fitur Sistem ({masterFeatures.length})</span>
+        </button>
 
-        {/* Card 3: MOST POPULAR */}
-        <Card className="rounded-2xl border border-[#C8A96B]/50 bg-[#242823] text-white shadow-sm relative overflow-hidden">
-          <CardContent className="p-5">
-            <span className="text-[10px] font-bold text-[#C8A96B] uppercase tracking-wider">
-              MOST POPULAR
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <p className="text-3xl font-black text-[#C8A96B]">
-                {mostPopularPlan ? mostPopularPlan.name : "-"}
-              </p>
-            </div>
-            <p className="text-[11px] text-gray-400 font-semibold mt-1">High Conversion Plan</p>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: TOTAL SUBSCRIBERS */}
-        <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-[#242823] text-white shadow-sm">
-          <CardContent className="p-5">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-              TOTAL SUBSCRIBERS
-            </span>
-            <div className="mt-2 flex items-baseline justify-between">
-              <p className="text-3xl font-black text-white">{totalSubscribersCount}</p>
-            </div>
-            <p className="text-[11px] text-[#8FA28A] font-bold mt-1">Owner aktif berlangganan</p>
-          </CardContent>
-        </Card>
+        <button
+          onClick={() => setActiveTab("add_ons")}
+          className={`py-3 px-4 text-xs font-bold transition-all border-b-2 flex items-center gap-2 shrink-0 cursor-pointer ${
+            activeTab === "add_ons"
+              ? "border-emerald-600 text-emerald-600"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <IconPuzzle className="h-4 w-4" />
+          <span>Katalog Add-On Ekstra ({addOns.length})</span>
+        </button>
       </div>
 
-      {/* Section 1: Overview Card Paket Langganan Utama */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-[#2F332E] dark:text-white">
-            Overview Card Paket Langganan Utama
-          </h2>
-          <span className="text-xs font-bold text-gray-400">{plans.length} Paket Aktif</span>
+      {/* Loading Skeleton */}
+      {loading ? (
+        <div className="flex items-center justify-center p-12">
+          <IconLoader2 className="h-8 w-8 animate-spin text-[#8FA28A]" />
         </div>
+      ) : (
+        <>
+          {/* ================================================================= */}
+          {/* TAB 1: PAKET LANGGANAN UTAMA */}
+          {/* ================================================================= */}
+          {activeTab === "packages" && (
+            <div className="space-y-8">
+              {/* Stat Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <Card className="rounded-2xl border-border">
+                  <CardHeader className="py-3 px-4">
+                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Total Paket</CardDescription>
+                    <CardTitle className="text-2xl font-black">{plans.length}</CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="rounded-2xl border-border">
+                  <CardHeader className="py-3 px-4">
+                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Paket Aktif</CardDescription>
+                    <CardTitle className="text-2xl font-black text-emerald-600">
+                      {plans.filter((p) => p.status === "ACTIVE").length}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="rounded-2xl border-border">
+                  <CardHeader className="py-3 px-4">
+                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Paket Populer</CardDescription>
+                    <CardTitle className="text-xl font-black text-[#C8A96B] truncate" title={popularPlanName}>
+                      {popularPlanName}
+                    </CardTitle>
+                  </CardHeader>
+                </Card>
+                <Card className="rounded-2xl border-border">
+                  <CardHeader className="py-3 px-4">
+                    <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Total Subscriber</CardDescription>
+                    <CardTitle className="text-2xl font-black text-[#8FA28A]">{totalSubscribersCount}</CardTitle>
+                  </CardHeader>
+                </Card>
+              </div>
 
-        {/* Pricing Tier Cards Grid */}
-        <div className={`grid gap-6 ${plans.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"}`}>
-          {plans.map((plan) => {
-            const isPopular = plan.id === mostPopularPlan?.id;
-            const isActiveStatus = (plan.status || "ACTIVE") === "ACTIVE";
-
-            return (
-              <Card
-                key={plan.id}
-                className={`rounded-3xl border shadow-md relative flex flex-col justify-between transition-all ${
-                  isPopular
-                    ? "border-[#8FA28A] bg-white dark:bg-[#1E221E] ring-2 ring-[#8FA28A]/50"
-                    : "border-[#C7D3C0]/50 dark:border-[#383E36] bg-white dark:bg-[#242823]"
-                }`}
-              >
-                {/* Popular Top Floating Badge */}
-                {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#8FA28A] text-white text-[10px] font-black uppercase px-3 py-0.5 rounded-full tracking-wider shadow-sm">
-                    POPULAR
-                  </div>
-                )}
-
-                <CardContent className="p-6 space-y-5">
-                  {/* Card Header Title & Active Badge */}
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-black text-[#2F332E] dark:text-white">{plan.name}</h3>
-                    <Badge
-                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                        isActiveStatus
-                          ? "bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40"
-                          : "bg-amber-500/20 text-amber-500 border-amber-500/40"
-                      }`}
-                    >
-                      {isActiveStatus ? "Active" : "Inactive"}
-                    </Badge>
-                  </div>
-
-                  {/* Price */}
-                  <div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-black text-[#8FA28A]">{formatIDR(plan.priceMonthly)}</span>
-                      <span className="text-xs font-semibold text-gray-400">/ monthly</span>
-                    </div>
-                    {/* Limit Rooms Badge */}
-                    <div className="inline-flex items-center gap-1.5 mt-2 rounded-full border border-[#C7D3C0]/50 bg-[#F7F4ED] dark:bg-[#1E221E] px-3 py-1 text-xs font-bold text-gray-700 dark:text-gray-300">
-                      <IconBed className="size-3.5 text-[#C8A96B]" />
-                      <span>{getRoomLimitText(plan.maxUnits)}</span>
-                    </div>
-                  </div>
-
-                  {/* Target Text */}
-                  <p className="text-xs text-gray-500 dark:text-gray-400 italic">
-                    {getTargetText(plan.name)}
-                  </p>
-
-                  <div className="border-t border-[#C7D3C0]/30 dark:border-[#383E36] pt-4 space-y-2">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">
-                      FITUR YANG TERMASUK:
-                    </span>
-                    <div className="space-y-1.5 text-xs text-gray-700 dark:text-gray-300">
-                      {plan.features.map((feat) => (
-                        <div key={feat} className="flex items-start gap-2">
-                          <IconCheck className="size-4 text-[#8FA28A] shrink-0 mt-0.5" />
-                          <span>{feat}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-
-                {/* Card Bottom Footer */}
-                <div className="p-6 pt-0 border-t border-[#C7D3C0]/30 dark:border-[#383E36] mt-4 flex items-center justify-between pt-4">
-                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400">
-                    {plan.subscriberCount ?? 0} Subscribers
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => openEditModal(plan)}
-                    className="text-xs font-bold gap-1.5 rounded-xl border-[#383E36] hover:bg-[#8FA28A] hover:text-white transition-all h-8"
-                  >
-                    <IconPencil className="size-3.5" /> Edit Package
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Section 2: Package Configuration Table */}
-      <Card className="rounded-3xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
-        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <CardTitle className="text-base font-bold text-[#2F332E] dark:text-white">
-              Package Configuration
-            </CardTitle>
-            <CardDescription className="text-xs text-gray-500 dark:text-gray-400">
-              Tabel pengaturan lengkap paket langganan, billing, dan manajemen aksi admin.
-            </CardDescription>
-          </div>
-
-          {/* Search Bar */}
-          <div className="relative w-full sm:w-64">
-            <IconSearch className="absolute left-3 top-2.5 size-4 text-gray-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari paket..."
-              className="w-full rounded-xl border border-[#C7D3C0]/60 dark:border-[#383E36] bg-white dark:bg-[#1E221E] pl-9 pr-3 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-[#8FA28A]"
-            />
-          </div>
-        </CardHeader>
-
-        <CardContent>
-          <div className="rounded-2xl border border-[#C7D3C0]/40 dark:border-[#383E36] overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-[#F7F4ED] dark:bg-[#1E221E] text-gray-600 dark:text-gray-300 font-bold border-b border-[#C7D3C0]/40 dark:border-[#383E36]">
-                <tr>
-                  <th className="p-3.5">PACKAGE</th>
-                  <th className="p-3.5">PRICE</th>
-                  <th className="p-3.5">BILLING</th>
-                  <th className="p-3.5">ROOM LIMIT</th>
-                  <th className="p-3.5">ACTIVE SUBSCRIBERS</th>
-                  <th className="p-3.5">STATUS</th>
-                  <th className="p-3.5 text-right">ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#C7D3C0]/30 dark:divide-[#383E36]">
-                {filteredPlans.map((plan) => {
-                  const isPopular = plan.id === mostPopularPlan?.id;
-                  const isActiveStatus = (plan.status || "ACTIVE") === "ACTIVE";
+              {/* Plans Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {plans.map((plan) => {
+                  const isActive = plan.status === "ACTIVE";
 
                   return (
-                    <tr key={plan.id} className="hover:bg-[#F7F4ED]/50 dark:hover:bg-[#1E221E]/60 transition-colors">
-                      <td className="p-3.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-extrabold text-sm text-[#2F332E] dark:text-white">{plan.name}</span>
-                          {isPopular && (
-                            <Badge className="bg-[#8FA28A] text-white text-[9px] font-bold uppercase px-2 py-0.2">
-                              POPULAR
-                            </Badge>
-                          )}
+                    <div
+                      key={plan.id}
+                      className={`relative flex flex-col justify-between rounded-3xl border bg-card p-6 shadow-sm transition-all hover:shadow-xl ${
+                        isActive ? "border-border" : "border-red-200 bg-red-50/20"
+                      }`}
+                    >
+                      <div className="space-y-4">
+                        {/* Plan Header */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-lg font-black text-foreground">{plan.name}</h3>
+                              {plan.isDefault && (
+                                <Badge className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-300 font-extrabold text-[10px] gap-1 px-2 py-0.5">
+                                  <IconStar className="h-3 w-3 fill-amber-500 text-amber-600" /> Default
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground font-semibold">
+                              {plan.subscriberCount || 0} Owner Aktif
+                            </span>
+                          </div>
+                          <Badge variant={isActive ? "default" : "destructive"}>
+                            {isActive ? "Aktif" : "Nonaktif"}
+                          </Badge>
                         </div>
-                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
-                          {getTargetText(plan.name).replace("Target: ", "")}
-                        </p>
-                      </td>
-                      <td className="p-3.5 font-bold text-[#2F332E] dark:text-white">
-                        {formatIDR(plan.priceMonthly)}
-                      </td>
-                      <td className="p-3.5 text-gray-600 dark:text-gray-300">Monthly</td>
-                      <td className="p-3.5 font-semibold text-gray-700 dark:text-gray-300">
-                        {getRoomLimitText(plan.maxUnits).replace("Limit: ", "")}
-                      </td>
-                      <td className="p-3.5 font-bold text-[#8FA28A]">
-                        {plan.subscriberCount ?? 0} Owners
-                      </td>
-                      <td className="p-3.5">
-                        <Badge
-                          className={`text-[10px] font-bold ${
-                            isActiveStatus
-                              ? "bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40"
-                              : "bg-amber-500/20 text-amber-500 border-amber-500/40"
-                          }`}
+
+                        {/* Price */}
+                        <div>
+                          <div className="text-2xl font-black text-foreground">
+                            {formatIDR(plan.priceMonthly)}{" "}
+                            <span className="text-xs font-normal text-muted-foreground">/bulan</span>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground font-mono">
+                            {formatIDR(plan.priceYearly || plan.priceMonthly * 10)} /tahun
+                          </p>
+                        </div>
+
+                        {/* Package Limits Box */}
+                        <div className="rounded-2xl bg-muted/50 p-3 space-y-2 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5 text-muted-foreground font-semibold">
+                              <IconBuildingStore className="h-4 w-4 text-[#8FA28A]" />
+                              Maksimal Properti:
+                            </span>
+                            <span className="font-bold font-mono text-foreground">{plan.maxProperties} Properti</span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5 text-muted-foreground font-semibold">
+                              <IconBed className="h-4 w-4 text-[#C8A96B]" />
+                              Maksimal Unit/Kamar:
+                            </span>
+                            <span className="font-bold font-mono text-foreground">{plan.maxUnits} Kamar</span>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="flex items-center gap-1.5 text-muted-foreground font-semibold">
+                              <IconUserCheck className="h-4 w-4 text-emerald-600" />
+                              Akun Housekeeping:
+                            </span>
+                            <span className="font-bold font-mono text-foreground">{plan.maxHousekeeping} Akun</span>
+                          </div>
+                        </div>
+
+                        {/* Features List */}
+                        <div className="space-y-2 pt-2 border-t border-border">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                            FITUR YANG TERMASUK ({plan.features.length})
+                          </p>
+                          <ul className="space-y-1.5 text-xs text-foreground">
+                            {plan.features.map((feat, idx) => (
+                              <li key={idx} className="flex items-center gap-2">
+                                <IconCheck className="h-4 w-4 text-[#8FA28A] shrink-0" />
+                                <span>{feat}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      {/* Card Actions */}
+                      <div className="mt-6 pt-4 border-t border-border flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditPlanModal(plan)}
+                          className="flex-1 rounded-xl font-bold text-xs gap-1.5 cursor-pointer"
                         >
-                          {isActiveStatus ? "Active" : "Inactive"}
-                        </Badge>
-                      </td>
-                      <td className="p-3.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                          <IconPencil className="h-3.5 w-3.5" />
+                          <span>Edit Paket</span>
+                        </Button>
+
+                        {plan.isDefault ? (
+                          <Badge className="bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px] gap-1 px-3 py-1.5 shrink-0">
+                            <IconStar className="h-3.5 w-3.5 fill-amber-500 text-amber-600" /> Default Pendaftaran
+                          </Badge>
+                        ) : (
                           <Button
-                            size="sm"
                             variant="outline"
-                            onClick={() => openEditModal(plan)}
-                            className="h-7 text-xs font-bold gap-1 rounded-xl border-[#383E36]"
+                            size="sm"
+                            onClick={() => handleSetDefaultPlan(plan.id, plan.name)}
+                            disabled={isSubmitting}
+                            className="rounded-xl font-bold text-xs gap-1.5 border-amber-300 text-amber-900 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-950/40 cursor-pointer"
+                            title="Tetapkan sebagai paket default pendaftaran owner baru"
                           >
-                            <IconPencil className="size-3.5" /> Edit
+                            <IconStar className="h-3.5 w-3.5 text-amber-500" />
+                            <span>Set Default</span>
                           </Button>
-                        </div>
-                      </td>
-                    </tr>
+                        )}
+                      </div>
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+              </div>
 
-      {/* Modal Form Create / Edit SaaS Plan */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in">
-          <div className="w-full max-w-2xl rounded-3xl bg-[#242823] border border-[#383E36] text-white shadow-2xl p-6 sm:p-8 space-y-6 overflow-hidden max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#383E36] pb-4 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-2xl bg-[#8FA28A]/15 border border-[#8FA28A]/30 text-[#8FA28A]">
-                  <IconBuildingStore className="size-5" />
+              {/* --------------------------------------------------------------------- */}
+              {/* TABLE 1: RINGKASAN KAPASITAS & ADOPSI PAKET SAAS (RESTORED) */}
+              {/* --------------------------------------------------------------------- */}
+              <Card className="rounded-3xl border-border bg-card overflow-hidden shadow-2xs">
+                <CardHeader className="p-5 border-b border-border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-base font-black text-foreground flex items-center gap-2">
+                      <IconBuildingStore className="h-5 w-5 text-[#8FA28A]" />
+                      <span>Panduan Adopsi & Kapasitas Paket SaaS</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                      Panduan ringkasan batas kuota per paket serta total owner yang telah mengambil masing-masing paket.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs px-3 py-1">
+                      Total {plans.length} Tipe Paket
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted/50 text-[10px] uppercase font-bold text-muted-foreground tracking-wider border-b border-border">
+                      <tr>
+                        <th className="py-3.5 px-4">Nama Paket</th>
+                        <th className="py-3.5 px-4">Harga Bulanan</th>
+                        <th className="py-3.5 px-4">Batas Properti</th>
+                        <th className="py-3.5 px-4">Batas Unit/Kamar</th>
+                        <th className="py-3.5 px-4">Akun Housekeeping</th>
+                        <th className="py-3.5 px-4">Status Paket</th>
+                        <th className="py-3.5 px-4 text-center">Owner Berlangganan</th>
+                        <th className="py-3.5 px-4 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border font-medium">
+                      {plans.map((p) => {
+                        const count = p.subscriberCount || 0;
+                        return (
+                          <tr key={p.id} className="hover:bg-muted/40 transition-colors">
+                            <td className="py-3.5 px-4 font-bold text-foreground">
+                              {p.name}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-emerald-600">
+                              {formatIDR(p.priceMonthly)}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono">{p.maxProperties} Properti</td>
+                            <td className="py-3.5 px-4 font-mono">{p.maxUnits} Kamar</td>
+                            <td className="py-3.5 px-4 font-mono">{p.maxHousekeeping || 2} Akun</td>
+                            <td className="py-3.5 px-4">
+                              <Badge variant={p.status === "ACTIVE" ? "default" : "destructive"}>
+                                {p.status === "ACTIVE" ? "Aktif" : "Nonaktif"}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="inline-flex items-center justify-center px-3 py-1 rounded-xl bg-[#8FA28A]/15 text-[#6B7F66] font-bold font-mono text-xs">
+                                {count} Owner Aktif
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditPlanModal(p)}
+                                className="rounded-xl text-xs font-bold gap-1 cursor-pointer"
+                              >
+                                <IconPencil className="h-3.5 w-3.5" />
+                                <span>Edit</span>
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
+              </Card>
+
+              {/* --------------------------------------------------------------------- */}
+              {/* TABLE 2: DAFTAR OWNER BERLANGGANAN (REALTIME SYNCED) */}
+              {/* --------------------------------------------------------------------- */}
+              <Card className="rounded-3xl border-border bg-card overflow-hidden shadow-2xs">
+                <CardHeader className="p-5 border-b border-border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-base font-black text-foreground flex items-center gap-2">
+                      <IconUserCheck className="h-5 w-5 text-[#C8A96B]" />
+                      <span>Daftar Owner Berlangganan Aktif</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground mt-0.5">
+                      Daftar seluruh owner properti yang terdaftar dan sedang menggunakan paket SaaS ARVENTA.
+                    </CardDescription>
+                  </div>
+
+                  {/* Search Filter */}
+                  <div className="relative w-full sm:w-64">
+                    <IconSearch className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Cari nama owner / email / paket..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full rounded-xl border border-input bg-background pl-9 pr-3 py-1.5 text-xs font-medium focus:border-[#8FA28A] focus:outline-none"
+                    />
+                  </div>
+                </CardHeader>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted/50 text-[10px] uppercase font-bold text-muted-foreground tracking-wider border-b border-border">
+                      <tr>
+                        <th className="py-3.5 px-4">Nama Owner</th>
+                        <th className="py-3.5 px-4">Email</th>
+                        <th className="py-3.5 px-4">Paket SaaS</th>
+                        <th className="py-3.5 px-4">Status Langganan</th>
+                        <th className="py-3.5 px-4">Periode Masa Aktif</th>
+                        <th className="py-3.5 px-4">Invoice Terakhir</th>
+                        <th className="py-3.5 px-4 text-center">Auto-Renew</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border font-medium">
+                      {filteredSubscriptions.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="py-8 text-center text-muted-foreground text-xs">
+                            Tidak ada data owner berlangganan yang cocok dengan pencarian.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredSubscriptions.map((sub) => (
+                          <tr key={sub.id} className="hover:bg-muted/40 transition-colors">
+                            <td className="py-3.5 px-4 font-bold text-foreground">
+                              {sub.ownerName}
+                            </td>
+                            <td className="py-3.5 px-4 text-muted-foreground font-mono">
+                              {sub.ownerEmail}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className="font-bold text-[#8FA28A]">{sub.planName}</span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <Badge variant={sub.status === "ACTIVE" ? "default" : "destructive"}>
+                                {sub.status === "ACTIVE" ? "Aktif" : sub.status}
+                              </Badge>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-[11px] text-muted-foreground">
+                              {new Date(sub.startDate).toLocaleDateString("id-ID")} - {new Date(sub.endDate).toLocaleDateString("id-ID")}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-[11px]">
+                              <div>{sub.latestInvoiceNumber}</div>
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase">{sub.latestInvoiceStatus}</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center font-bold">
+                              {sub.autoRenew ? (
+                                <span className="text-emerald-600 font-mono">Ya</span>
+                              ) : (
+                                <span className="text-red-500 font-mono">Tidak</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB 2: MASTER FITUR SISTEM */}
+          {/* ================================================================= */}
+          {activeTab === "master_features" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-black text-white">
-                    {editingPlan ? `Edit Paket SaaS: ${editingPlan.name}` : "Tambah Paket Langganan Baru"}
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    Pengaturan batas properti, unit kamar, harga bulanan (Rupiah), status publikasi, dan daftar fitur akses SaaS.
+                  <h3 className="text-sm font-bold text-amber-900">Master Katalog Fitur Platform</h3>
+                  <p className="text-xs text-amber-700">
+                    Setiap fitur yang terdaftar di sini dapat dicentang dan dimasukkan ke dalam paket langganan SaaS.
                   </p>
                 </div>
+                <Button onClick={openCreateFeatureModal} size="sm" className="bg-[#C8A96B] hover:bg-[#B39355] text-white font-bold text-xs gap-1 cursor-pointer">
+                  <IconPlus className="h-4 w-4" />
+                  <span>Tambah Fitur</span>
+                </Button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="p-1.5 rounded-full text-gray-400 hover:text-white hover:bg-[#383E36] transition-colors"
-              >
-                <IconX className="size-5" />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {masterFeatures.map((feat) => (
+                  <div
+                    key={feat.id}
+                    className={`rounded-2xl border p-4 bg-card shadow-2xs space-y-3 ${
+                      feat.isEnabled ? "border-border" : "border-red-200 opacity-60"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] font-mono font-extrabold uppercase px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                          {feat.code}
+                        </span>
+                        <h4 className="text-sm font-bold text-foreground mt-1">{feat.name}</h4>
+                      </div>
+                      <Badge variant={feat.isEnabled ? "default" : "destructive"}>
+                        {feat.isEnabled ? "Aktif" : "Nonaktif"}
+                      </Badge>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {feat.description || "Tidak ada deskripsi."}
+                    </p>
+
+                    <div className="pt-2 border-t border-border flex items-center justify-between text-xs">
+                      <span className="text-[11px] text-muted-foreground font-semibold">
+                        Dipakai di {feat.assignedPlansCount || 0} paket
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleToggleFeature(feat)}
+                          className="p-1.5 rounded-lg border hover:bg-muted text-muted-foreground transition-all"
+                          title="Toggle Status"
+                        >
+                          <IconPower className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => openEditFeatureModal(feat)}
+                          className="p-1.5 rounded-lg border hover:bg-muted text-muted-foreground transition-all"
+                          title="Edit Fitur"
+                        >
+                          <IconPencil className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ================================================================= */}
+          {/* TAB 3: KATALOG ADD-ON SAAS */}
+          {/* ================================================================= */}
+          {activeTab === "add_ons" && (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-emerald-900">Katalog Add-On Kuota & Fitur Extras</h3>
+                  <p className="text-xs text-emerald-700">
+                    Add-On bersifat akumulatif (menambahkan kuota paket utama tanpa menimpa batas paket asli).
+                  </p>
+                </div>
+                <Button onClick={openCreateAddOnModal} size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1 cursor-pointer">
+                  <IconPlus className="h-4 w-4" />
+                  <span>Tambah Add-On</span>
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {addOns.map((addon) => {
+                  const isActive = addon.status === "ACTIVE";
+
+                  return (
+                    <div
+                      key={addon.id}
+                      className={`rounded-2xl border p-5 bg-card shadow-2xs space-y-4 flex flex-col justify-between ${
+                        isActive ? "border-border" : "border-red-200 bg-red-50/20"
+                      }`}
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <h4 className="text-base font-black text-foreground">{addon.name}</h4>
+                          <Badge variant={isActive ? "default" : "destructive"}>
+                            {isActive ? "Aktif" : "Nonaktif"}
+                          </Badge>
+                        </div>
+
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#8FA28A]/15 text-[#6B7F66] text-xs font-bold font-mono">
+                          <IconTag className="h-3.5 w-3.5" />
+                          <span>
+                            Kategori: {addon.category} ({addon.unitQuota > 0 ? `+${addon.unitQuota} Kuota` : "Fitur Extra"})
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-lg font-black text-emerald-600">
+                            {formatIDR(addon.priceMonthly)}{" "}
+                            <span className="text-xs font-normal text-muted-foreground">/bulan</span>
+                          </p>
+                          <p className="text-[11px] text-muted-foreground font-mono">
+                            {formatIDR(addon.priceYearly)} /tahun
+                          </p>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {addon.description || "Tidak ada deskripsi khusus."}
+                        </p>
+                      </div>
+
+                      <div className="pt-3 border-t border-border flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleAddOnStatus(addon)}
+                          className="rounded-xl text-xs font-bold gap-1 cursor-pointer"
+                        >
+                          <IconPower className="h-3.5 w-3.5" />
+                          <span>{isActive ? "Nonaktifkan" : "Aktifkan"}</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditAddOnModal(addon)}
+                          className="rounded-xl text-xs font-bold gap-1 cursor-pointer"
+                        >
+                          <IconPencil className="h-3.5 w-3.5" />
+                          <span>Edit</span>
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* MODAL 1: CREATE / EDIT SAAS PLAN */}
+      {/* --------------------------------------------------------------------- */}
+      {showPlanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-card border border-border p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground">
+                {editingPlan ? `Edit Paket SaaS (${editingPlan.name})` : "Tambah Paket SaaS Baru"}
+              </h3>
+              <button onClick={() => setShowPlanModal(false)} className="rounded-full p-1 text-muted-foreground hover:bg-muted">
+                <IconX className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Modal Scrollable Content */}
-            <form onSubmit={handleSavePlan} className="space-y-5 text-xs overflow-y-auto pr-1 flex-1">
-              {/* Status Paket Toggle Section */}
-              {(() => {
-                const hasSubscribers = editingPlan ? (editingPlan.subscriberCount || 0) > 0 : false;
-
-                return (
-                  <div className="rounded-2xl border border-[#383E36] bg-[#1E221E] p-4 space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div>
-                        <span className="font-bold text-white text-xs block">Status Publikasi Paket SaaS</span>
-                        <span className="text-[11px] text-gray-400 block mt-0.5">
-                          {formStatus === "ACTIVE"
-                            ? "Paket ini aktif dan dapat dipilih oleh calon owner baru"
-                            : "Paket ini non-aktif dan disembunyikan dari pilihan owner baru"}
-                        </span>
-                      </div>
-                      <Button
-                        type="button"
-                        disabled={hasSubscribers && formStatus === "ACTIVE"}
-                        onClick={() => {
-                          if (hasSubscribers && formStatus === "ACTIVE") return;
-                          setFormStatus(formStatus === "ACTIVE" ? "INACTIVE" : "ACTIVE");
-                        }}
-                        className={`font-bold text-xs rounded-2xl px-4 py-2 gap-1.5 transition-all shrink-0 ${
-                          hasSubscribers && formStatus === "ACTIVE"
-                            ? "bg-gray-700/50 text-gray-400 border border-gray-600 cursor-not-allowed opacity-70"
-                            : formStatus === "ACTIVE"
-                            ? "bg-[#8FA28A]/20 text-[#8FA28A] border border-[#8FA28A]/40 hover:bg-amber-500/20 hover:text-amber-400 hover:border-amber-500/40"
-                            : "bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-[#8FA28A]/20 hover:text-[#8FA28A] hover:border-[#8FA28A]/40"
-                        }`}
-                      >
-                        {formStatus === "ACTIVE" ? (
-                          <>
-                            <IconCheck className="size-4" /> Status: Aktif {hasSubscribers ? "(Terkunci)" : "(Klik untuk Nonaktifkan)"}
-                          </>
-                        ) : (
-                          <>
-                            <IconPower className="size-4" /> Status: Non-Aktif (Klik untuk Aktifkan)
-                          </>
-                        )}
-                      </Button>
-                    </div>
-
-                    {hasSubscribers && (
-                      <p className="text-[11px] font-bold text-amber-400 flex items-center gap-1 pt-1 border-t border-[#383E36]">
-                        ⚠️ Paket ini sudah memiliki {editingPlan?.subscriberCount} subscriber aktif, sehingga status paket tidak dapat dinonaktifkan.
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* Nama Paket SaaS */}
-              <div className="space-y-1.5">
-                <label className="block font-bold text-gray-300">
-                  Nama Paket SaaS <span className="text-red-500">*</span>
+            <form onSubmit={handleSavePlan} className="space-y-4 overflow-y-auto pr-1">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Nama Paket <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  required
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Contoh: Enterprise / Business Plus"
-                  className="w-full rounded-2xl border border-[#383E36] bg-[#1E221E] px-4 py-3 text-xs text-white placeholder-gray-500 focus:border-[#8FA28A] focus:outline-none transition-colors"
+                  placeholder="Contoh: Business Tier..."
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none"
+                  required
                 />
               </div>
 
-              {/* Grid 3 Kolom: Harga, Batas Kamar, Batas Properti */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <label className="block font-bold text-gray-300">
-                    Harga (IDR / bln) <span className="text-red-500">*</span>
+              {/* Limits Configuration */}
+              <div className="grid grid-cols-3 gap-3 p-3 rounded-2xl bg-muted/40 border border-border">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                    Max Properti
                   </label>
                   <input
-                    type="text"
-                    required
-                    value={formPriceMonthly}
-                    onChange={(e) => {
-                      setFormPriceMonthly(formatRupiahInput(e.target.value));
-                    }}
-                    placeholder="Rp 199.000"
-                    className="w-full rounded-2xl border border-[#383E36] bg-[#1E221E] px-4 py-3 text-xs text-[#8FA28A] font-extrabold focus:border-[#8FA28A] focus:outline-none transition-colors"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block font-bold text-gray-300">Batas Kamar (Units) <span className="text-red-500">*</span></label>
-                  <input
                     type="number"
                     min="0"
-                    required
-                    value={formMaxUnits}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const parsed = parseInt(val, 10);
-                      if (isNaN(parsed) || parsed < 0) {
-                        setFormMaxUnits("0");
-                      } else {
-                        setFormMaxUnits(parsed.toString());
-                      }
-                    }}
-                    placeholder="15 (Isi 99999 untuk Unlimited)"
-                    className="w-full rounded-2xl border border-[#383E36] bg-[#1E221E] px-4 py-3 text-xs text-white focus:border-[#8FA28A] focus:outline-none transition-colors"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block font-bold text-gray-300">Batas Properti <span className="text-red-500">*</span></label>
-                  <input
-                    type="number"
-                    min="0"
-                    required
                     value={formMaxProperties}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      const parsed = parseInt(val, 10);
-                      if (isNaN(parsed) || parsed < 0) {
-                        setFormMaxProperties("0");
-                      } else {
-                        setFormMaxProperties(parsed.toString());
-                      }
+                      const parsed = parseInt(e.target.value || "0", 10);
+                      setFormMaxProperties(String(isNaN(parsed) || parsed < 0 ? 0 : parsed));
                     }}
-                    placeholder="1"
-                    className="w-full rounded-2xl border border-[#383E36] bg-[#1E221E] px-4 py-3 text-xs text-white focus:border-[#8FA28A] focus:outline-none transition-colors"
+                    className="w-full rounded-xl border border-input px-3 py-1.5 text-xs font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                    Max Unit Kamar
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formMaxUnits}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value || "0", 10);
+                      setFormMaxUnits(String(isNaN(parsed) || parsed < 0 ? 0 : parsed));
+                    }}
+                    className="w-full rounded-xl border border-input px-3 py-1.5 text-xs font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                    Max Housekeeping
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formMaxHousekeeping}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value || "0", 10);
+                      setFormMaxHousekeeping(String(isNaN(parsed) || parsed < 0 ? 0 : parsed));
+                    }}
+                    className="w-full rounded-xl border border-input px-3 py-1.5 text-xs font-mono font-bold"
                   />
                 </div>
               </div>
 
-              {/* Dynamic Feature Item List Section */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <label className="block font-bold text-gray-300 flex items-center gap-1.5">
-                    <IconSparkles className="size-4 text-[#C8A96B]" />
-                    Daftar Fitur Akses Paket ({formFeatures.length} Fitur)
+              {/* Price Inputs */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Harga Bulanan
                   </label>
-                  <span className="text-[11px] text-gray-400">Tiap fitur tampil sebagai 1 baris terpisah</span>
-                </div>
-
-                {/* Input Add New Feature Bar */}
-                <div className="flex gap-2">
                   <input
                     type="text"
-                    value={newFeatureInput}
-                    onChange={(e) => setNewFeatureInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddFeature();
-                      }
-                    }}
-                    placeholder="Tulis nama fitur baru lalu klik 'Tambah Fitur'..."
-                    className="flex-1 rounded-2xl border border-[#383E36] bg-[#1E221E] px-4 py-2.5 text-xs text-white placeholder-gray-500 focus:border-[#8FA28A] focus:outline-none transition-colors"
+                    value={formPriceMonthly}
+                    onChange={(e) => setFormPriceMonthly(formatRupiahInput(e.target.value))}
+                    className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-mono font-bold"
                   />
-                  <Button
-                    type="button"
-                    onClick={handleAddFeature}
-                    className="bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-bold text-xs rounded-2xl px-4 shrink-0 gap-1"
-                  >
-                    <IconPlus className="size-4" /> Tambah Fitur
-                  </Button>
                 </div>
-                <p className="text-[11px] text-[#8FA28A] font-bold flex items-center gap-1">
-                  💡 Tap / klik pada teks fitur di bawah untuk mengedit fitur langsung
-                </p>
-
-                {/* Dynamic Features List Container */}
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {formFeatures.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-[#383E36] p-4 text-center text-xs text-gray-500">
-                      Belum ada fitur ditambahkan. Tuliskan nama fitur di atas lalu klik &apos;Tambah Fitur&apos;.
-                    </div>
-                  ) : (
-                    formFeatures.map((feat, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center gap-2 rounded-2xl border border-[#383E36] bg-[#1E221E] px-3.5 py-2 transition-all hover:border-[#8FA28A]/50"
-                      >
-                        <div className="size-5 rounded-full bg-[#8FA28A]/20 text-[#8FA28A] flex items-center justify-center shrink-0">
-                          <IconCheck className="size-3.5" />
-                        </div>
-                        <input
-                          type="text"
-                          value={feat}
-                          onChange={(e) => handleFeatureChange(idx, e.target.value)}
-                          className="flex-1 bg-transparent text-xs text-white focus:outline-none font-medium"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFeature(idx)}
-                          className="p-1 rounded-xl text-gray-400 hover:text-rose-400 hover:bg-rose-500/20 transition-colors"
-                          title="Hapus fitur ini"
-                        >
-                          <IconTrash className="size-4" />
-                        </button>
-                      </div>
-                    ))
-                  )}
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Harga Tahunan
+                  </label>
+                  <input
+                    type="text"
+                    value={formPriceYearly}
+                    onChange={(e) => setFormPriceYearly(formatRupiahInput(e.target.value))}
+                    className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-mono font-bold"
+                  />
                 </div>
               </div>
 
-              {/* Modal Footer Actions */}
-              <div className="flex justify-end gap-2 pt-4 border-t border-[#383E36] shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowModal(false)}
-                  className="rounded-2xl border-[#383E36] text-gray-300 hover:bg-[#383E36] hover:text-white px-5"
+              {/* Feature Checklist from Master Features */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Fitur Master Termasuk ({selectedFeatureIds.length})
+                </label>
+                <div className="max-h-40 overflow-y-auto space-y-1.5 p-3 rounded-2xl border border-border bg-card">
+                  {masterFeatures.map((feat) => {
+                    const isChecked = selectedFeatureIds.includes(feat.id);
+                    return (
+                      <label key={feat.id} className="flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer hover:bg-muted p-1 rounded-lg">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedFeatureIds([...selectedFeatureIds, feat.id]);
+                              if (!formCustomFeatures.includes(feat.name)) {
+                                setFormCustomFeatures([...formCustomFeatures, feat.name]);
+                              }
+                            } else {
+                              setSelectedFeatureIds(selectedFeatureIds.filter((id) => id !== feat.id));
+                              setFormCustomFeatures(formCustomFeatures.filter((name) => name !== feat.name));
+                            }
+                          }}
+                          className="rounded text-[#8FA28A]"
+                        />
+                        <span>{feat.name}</span>
+                        <span className="text-[10px] font-mono text-muted-foreground ml-auto">({feat.code})</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Status Selector */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Status Paket
+                </label>
+                <select
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value as "ACTIVE" | "INACTIVE")}
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-bold"
                 >
+                  <option value="ACTIVE">Aktif (Dapat dipilih owner)</option>
+                  <option value="INACTIVE">Nonaktif (Disembunyikan)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <Button type="button" variant="outline" onClick={() => setShowPlanModal(false)} disabled={isSubmitting}>
                   Batal
                 </Button>
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-bold rounded-2xl px-6 gap-1.5 shadow-md"
+                <Button type="submit" disabled={isSubmitting} className="bg-[#8FA28A] hover:bg-[#7D9178] text-white font-bold">
+                  {isSubmitting ? <IconLoader2 className="h-4 w-4 animate-spin" /> : "Simpan Paket"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* MODAL 2: CREATE / EDIT MASTER FEATURE */}
+      {/* --------------------------------------------------------------------- */}
+      {showFeatureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-card border border-border p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground">
+                {editingFeature ? "Edit Fitur Master" : "Tambah Fitur Master Baru"}
+              </h3>
+              <button onClick={() => setShowFeatureModal(false)} className="rounded-full p-1 text-muted-foreground hover:bg-muted">
+                <IconX className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveFeature} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Kode Fitur (Unique Key) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={featureCode}
+                  onChange={(e) => setFeatureCode(e.target.value)}
+                  placeholder="Contoh: OCR_KTP..."
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-mono font-bold uppercase"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Nama Fitur <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={featureName}
+                  onChange={(e) => setFeatureName(e.target.value)}
+                  placeholder="Contoh: Auto Scan KTP OCR..."
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-bold"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Kategori Fitur
+                </label>
+                <select
+                  value={featureCategory}
+                  onChange={(e) => setFeatureCategory(e.target.value)}
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-bold"
                 >
-                  {isSubmitting ? (
-                    <IconLoader2 className="size-4 animate-spin" />
-                  ) : (
-                    <>
-                      <IconCheck className="size-4" /> Simpan Paket
-                    </>
-                  )}
+                  <option value="OPERATIONAL">Operational</option>
+                  <option value="FINANCIAL">Financial</option>
+                  <option value="COMMUNITY">Community</option>
+                  <option value="SYSTEM">System</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Deskripsi
+                </label>
+                <textarea
+                  value={featureDescription}
+                  onChange={(e) => setFeatureDescription(e.target.value)}
+                  placeholder="Penjelasan fungsi fitur..."
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-medium h-20"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <Button type="button" variant="outline" onClick={() => setShowFeatureModal(false)} disabled={isSubmitting}>
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSubmitting} className="bg-[#C8A96B] hover:bg-[#B39355] text-white font-bold">
+                  {isSubmitting ? <IconLoader2 className="h-4 w-4 animate-spin" /> : "Simpan Fitur"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --------------------------------------------------------------------- */}
+      {/* MODAL 3: CREATE / EDIT SAAS ADD-ON */}
+      {/* --------------------------------------------------------------------- */}
+      {showAddOnModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-card border border-border p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground">
+                {editingAddOn ? "Edit Add-On SaaS" : "Tambah Add-On Baru"}
+              </h3>
+              <button onClick={() => setShowAddOnModal(false)} className="rounded-full p-1 text-muted-foreground hover:bg-muted">
+                <IconX className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAddOn} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Nama Add-On <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={addOnName}
+                  onChange={(e) => setAddOnName(e.target.value)}
+                  placeholder="Contoh: +10 Extra Unit Kamar..."
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-bold"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                    Kategori
+                  </label>
+                  <select
+                    value={addOnCategory}
+                    onChange={(e) => setAddOnCategory(e.target.value as any)}
+                    className="w-full rounded-xl border border-input px-3 py-2 text-xs font-bold"
+                  >
+                    <option value="UNIT">Unit / Kamar</option>
+                    <option value="PROPERTY">Properti</option>
+                    <option value="HOUSEKEEPING">Housekeeping</option>
+                    <option value="FEATURE">Fitur Extra</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1">
+                    Tambahan Kuota
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={addOnUnitQuota}
+                    onChange={(e) => {
+                      const parsed = parseInt(e.target.value || "0", 10);
+                      setAddOnUnitQuota(String(isNaN(parsed) || parsed < 0 ? 0 : parsed));
+                    }}
+                    className="w-full rounded-xl border border-input px-3 py-2 text-xs font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Harga Bulanan
+                  </label>
+                  <input
+                    type="text"
+                    value={addOnPriceMonthly}
+                    onChange={(e) => setAddOnPriceMonthly(formatRupiahInput(e.target.value))}
+                    className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                    Harga Tahunan
+                  </label>
+                  <input
+                    type="text"
+                    value={addOnPriceYearly}
+                    onChange={(e) => setAddOnPriceYearly(formatRupiahInput(e.target.value))}
+                    className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">
+                  Deskripsi Add-On
+                </label>
+                <textarea
+                  value={addOnDescription}
+                  onChange={(e) => setAddOnDescription(e.target.value)}
+                  placeholder="Penjelasan benefit Add-On..."
+                  className="w-full rounded-xl border border-input px-3.5 py-2 text-xs font-medium h-20"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <Button type="button" variant="outline" onClick={() => setShowAddOnModal(false)} disabled={isSubmitting}>
+                  Batal
+                </Button>
+                <Button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold">
+                  {isSubmitting ? <IconLoader2 className="h-4 w-4 animate-spin" /> : "Simpan Add-On"}
                 </Button>
               </div>
             </form>
@@ -823,58 +1445,3 @@ export function SubscriptionPackageManager() {
     </div>
   );
 }
-
-// Fallback seed plans if database initially has no SaaSPlan records
-const DEFAULT_FALLBACK_PLANS: SaaSPlanItem[] = [
-  {
-    id: "plan-basic-id",
-    name: "Basic",
-    maxProperties: 1,
-    maxUnits: 15,
-    priceMonthly: 99000,
-    priceYearly: 990000,
-    subscriberCount: 42,
-    status: "ACTIVE",
-    features: [
-      "Property Management",
-      "Tenant Management",
-      "Invoice & Payment",
-      "WhatsApp Payment Reminder",
-    ],
-  },
-  {
-    id: "plan-business-id",
-    name: "Business",
-    maxProperties: 5,
-    maxUnits: 50,
-    priceMonthly: 249000,
-    priceYearly: 2490000,
-    subscriberCount: 67,
-    status: "ACTIVE",
-    features: [
-      "Property Management",
-      "Tenant Management",
-      "Housekeeping",
-      "OpEx Management",
-      "AI Financial Insight",
-      "Multi-Staff Role Access",
-    ],
-  },
-  {
-    id: "plan-pro-id",
-    name: "Pro",
-    maxProperties: 99,
-    maxUnits: 99999,
-    priceMonthly: 499000,
-    priceYearly: 4990000,
-    subscriberCount: 19,
-    status: "ACTIVE",
-    features: [
-      "Semua fitur Business",
-      "Unlimited Kamar & Properti",
-      "Custom Workflow",
-      "Advanced Audit Log",
-      "Priority Support",
-    ],
-  },
-];

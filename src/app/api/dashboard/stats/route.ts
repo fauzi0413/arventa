@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       ] = await Promise.all([
         prisma.property.count(),
         prisma.unit.count(),
-        prisma.ownerSubscription.count({ where: { status: "ACTIVE" } }),
+        prisma.user.count({ where: { role: UserRole.OWNER, isActive: true } }),
         prisma.saaSInvoice.findMany({
           orderBy: { createdAt: "desc" },
           take: 5,
@@ -83,6 +83,47 @@ export async function GET(request: NextRequest) {
         where: { status: "PAID" },
       });
 
+      const totalSubCount = await prisma.ownerSubscription.count();
+      const activeSubCount = await prisma.ownerSubscription.count({
+        where: { status: { in: ["ACTIVE", "TRIAL"] } },
+      });
+      const paidSubscriptionsCount = activeSubCount > 0 ? activeSubCount : totalSubCount;
+
+      // Determine Most Popular Plan by grouping active subscriptions
+      let mostPopularPlan = "-";
+      try {
+        const planSubCounts = await prisma.ownerSubscription.groupBy({
+          by: ["planId"],
+          _count: { id: true },
+          orderBy: { _count: { id: "desc" } },
+        });
+
+        if (planSubCounts.length > 0 && planSubCounts[0].planId) {
+          const topPlan = await prisma.saaSPlan.findUnique({
+            where: { id: planSubCounts[0].planId },
+            select: { name: true },
+          });
+          if (topPlan) {
+            mostPopularPlan = topPlan.name;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not calculate popular plan via groupBy:", e);
+      }
+
+      // Fallback: If no subscription rows exist yet or query failed, pick highest subscriber count plan or first active plan
+      if (mostPopularPlan === "-") {
+        const sortedPlansBySubscribers = [...saasPlans].sort(
+          (a, b) => (b._count?.subscriptions || 0) - (a._count?.subscriptions || 0)
+        );
+        if (sortedPlansBySubscribers.length > 0) {
+          mostPopularPlan = sortedPlansBySubscribers[0].name;
+        } else {
+          const activePlan = saasPlans.find((p) => p.status === "ACTIVE");
+          mostPopularPlan = activePlan ? activePlan.name : "-";
+        }
+      }
+
       return ApiResponse.success({
         message: "Stats platform admin berhasil dimuat",
         data: {
@@ -90,6 +131,8 @@ export async function GET(request: NextRequest) {
           user: { fullName: dbUser.fullName, email: dbUser.email },
           totalRevenue: Number(paidInvoicesSum._sum.amount || 0),
           activeSubscriptionsCount,
+          paidSubscriptionsCount,
+          mostPopularPlan,
           totalProperties,
           totalUnits,
           systemHealth: {
