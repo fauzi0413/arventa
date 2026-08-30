@@ -1,3 +1,7 @@
+"use client";
+
 import DashboardPage from "@/app/(dashboard)/page";
 
-export default DashboardPage;
+export default function PlatformDashboardRoute() {
+  return <DashboardPage />;
+}

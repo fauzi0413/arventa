@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ApiResponse } from "@/lib/api-response";
-import { LeaseStatus, RentalPeriodType, UnitStatus, UserRole } from "@/generated/prisma/client";
+import { LeaseStatus, RentalPeriodType, UnitStatus } from "@/generated/prisma/client";
+import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { UserRole } from "@/types/roles";
 
 /**
  * GET /api/contracts
- * Fetch all leases/contracts with tenant, unit, and property info.
+ * Fetch all leases/contracts scoped to the current authenticated user/owner.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -14,6 +16,8 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get("status") || undefined;
     const propertyId = searchParams.get("propertyId") || undefined;
 
+    const authUser = await getAuthenticatedUser(request);
+
     const where: any = {};
 
     if (statusParam && statusParam !== "ALL") {
@@ -21,7 +25,47 @@ export async function GET(request: NextRequest) {
     }
 
     if (propertyId) {
-      where.unit = { propertyId };
+      where.unit = { ...(where.unit || {}), propertyId };
+    }
+
+    if (authUser) {
+      if (authUser.role === UserRole.OWNER) {
+        const ownerProperties = await prisma.property.findMany({
+          where: {
+            OR: [
+              { ownerId: authUser.id },
+              { owner: { email: authUser.email } },
+            ],
+          },
+          select: { id: true },
+        });
+
+        const ownerPropIds = ownerProperties.map((p) => p.id);
+
+        if (ownerPropIds.length > 0) {
+          where.unit = {
+            ...(where.unit || {}),
+            propertyId: { in: ownerPropIds },
+          };
+        } else {
+          return ApiResponse.success({
+            message: "Daftar kontrak penyewa berhasil diambil",
+            data: [],
+          });
+        }
+      } else if (authUser.role === UserRole.HOUSEKEEPING) {
+        const assignments = await prisma.housekeepingAssignment.findMany({
+          where: { userId: authUser.id },
+          select: { propertyId: true },
+        });
+        const propertyIds = assignments.map((a) => a.propertyId);
+        where.unit = {
+          ...(where.unit || {}),
+          propertyId: { in: propertyIds },
+        };
+      } else if (authUser.role === UserRole.USER || authUser.role === UserRole.TENANT) {
+        where.tenant = { userId: authUser.id };
+      }
     }
 
     if (search) {
