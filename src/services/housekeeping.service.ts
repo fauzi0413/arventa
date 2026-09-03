@@ -19,16 +19,22 @@ export class HousekeepingService {
    * Get housekeeping team list for a specific owner with proper relational mapping & pagination
    * Optimized with single-roundtrip includes to prevent N+1 query overhead.
    */
-  static async getHousekeepingTeam(ownerId: string, params: HousekeepingFilterParams) {
+  static async getHousekeepingTeam(
+    ownerId: string,
+    params: HousekeepingFilterParams,
+    isPlatformAdmin: boolean = false
+  ) {
     const page = Math.max(1, params.page || 1);
     const limit = Math.min(50, Math.max(1, params.limit || 10));
     const skip = (page - 1) * limit;
 
-    // Base query: Housekeeping users who are assigned to properties owned by this owner
-    // or unassigned housekeeping users in demo mode
+    // Base query: Housekeeping users
     const where: any = {
       role: UserRole.HOUSEKEEPING,
-      housekeepingAssignments: {
+    };
+
+    if (!isPlatformAdmin) {
+      where.housekeepingAssignments = {
         some: {
           property: {
             ownerId,
@@ -37,8 +43,14 @@ export class HousekeepingService {
               : {}),
           },
         },
-      },
-    };
+      };
+    } else if (params.propertyId && params.propertyId !== "all") {
+      where.housekeepingAssignments = {
+        some: {
+          property: { id: params.propertyId },
+        },
+      };
+    }
 
     if (params.search) {
       where.OR = [
@@ -129,17 +141,26 @@ export class HousekeepingService {
   /**
    * Get single Housekeeping staff profile by ID
    */
-  static async getHousekeepingById(ownerId: string, staffId: string) {
-    const staff = await prisma.user.findFirst({
-      where: {
-        id: staffId,
-        role: UserRole.HOUSEKEEPING,
-        housekeepingAssignments: {
-          some: {
-            property: { ownerId },
-          },
+  static async getHousekeepingById(
+    ownerId: string,
+    staffId: string,
+    isPlatformAdmin: boolean = false
+  ) {
+    const where: any = {
+      id: staffId,
+      role: UserRole.HOUSEKEEPING,
+    };
+
+    if (!isPlatformAdmin) {
+      where.housekeepingAssignments = {
+        some: {
+          property: { ownerId },
         },
-      },
+      };
+    }
+
+    const staff = await prisma.user.findFirst({
+      where,
       select: {
         id: true,
         fullName: true,
@@ -151,7 +172,11 @@ export class HousekeepingService {
         createdAt: true,
         updatedAt: true,
         housekeepingAssignments: {
-          where: { property: { ownerId } },
+          where: isPlatformAdmin
+            ? {}
+            : {
+                property: { ownerId },
+              },
           include: {
             property: {
               select: {
@@ -160,37 +185,15 @@ export class HousekeepingService {
                 type: true,
                 address: true,
                 city: true,
-                _count: { select: { units: true } },
               },
             },
-          },
-        },
-        unitStatusLogs: {
-          orderBy: { createdAt: "desc" },
-          take: 10,
-          include: {
-            unit: {
-              select: {
-                id: true,
-                unitNumber: true,
-                property: { select: { id: true, name: true } },
-              },
-            },
-          },
-        },
-        expensesCreated: {
-          orderBy: { expenseDate: "desc" },
-          take: 10,
-          include: {
-            property: { select: { id: true, name: true } },
-            unit: { select: { id: true, unitNumber: true } },
           },
         },
       },
     });
 
     if (!staff) {
-      throw new Error("Staf housekeeping tidak ditemukan atau Anda tidak memiliki akses");
+      throw new Error("Staf housekeeping tidak ditemukan.");
     }
 
     return {
@@ -202,12 +205,16 @@ export class HousekeepingService {
   /**
    * Create new housekeeping staff with verified property assignments
    */
-  static async createHousekeeping(ownerId: string, data: CreateHousekeepingInput) {
-    // 1. Verify that all target properties belong to this owner
+  static async createHousekeeping(
+    ownerId: string,
+    data: CreateHousekeepingInput,
+    isPlatformAdmin: boolean = false
+  ) {
+    // 1. Verify that all target properties belong to this owner (unless admin)
     const validProperties = await prisma.property.findMany({
       where: {
         id: { in: data.propertyIds },
-        ownerId,
+        ...(isPlatformAdmin ? {} : { ownerId }),
       },
       select: { id: true, name: true },
     });
@@ -314,17 +321,23 @@ export class HousekeepingService {
   static async updateHousekeeping(
     ownerId: string,
     staffId: string,
-    data: UpdateHousekeepingInput
+    data: UpdateHousekeepingInput,
+    isPlatformAdmin: boolean = false
   ) {
     // Verify ownership
+    const whereCondition: any = {
+      id: staffId,
+      role: UserRole.HOUSEKEEPING,
+    };
+
+    if (!isPlatformAdmin) {
+      whereCondition.housekeepingAssignments = {
+        some: { property: { ownerId } },
+      };
+    }
+
     const staff = await prisma.user.findFirst({
-      where: {
-        id: staffId,
-        role: UserRole.HOUSEKEEPING,
-        housekeepingAssignments: {
-          some: { property: { ownerId } },
-        },
-      },
+      where: whereCondition,
     });
 
     if (!staff) {
@@ -348,7 +361,7 @@ export class HousekeepingService {
         const validProperties = await tx.property.findMany({
           where: {
             id: { in: data.propertyIds },
-            ownerId,
+            ...(isPlatformAdmin ? {} : { ownerId }),
           },
           select: { id: true },
         });
@@ -357,9 +370,9 @@ export class HousekeepingService {
           throw new Error("Satu atau lebih properti tidak valid.");
         }
 
-        // Delete previous assignments for this owner's properties
+        // Delete previous assignments for this owner's properties (or all if admin)
         const ownerProperties = await tx.property.findMany({
-          where: { ownerId },
+          where: isPlatformAdmin ? {} : { ownerId },
           select: { id: true },
         });
         const ownerPropertyIds = ownerProperties.map((p) => p.id);
@@ -402,15 +415,25 @@ export class HousekeepingService {
   /**
    * Toggle staff active / nonactive status
    */
-  static async toggleStaffStatus(ownerId: string, staffId: string, isActive?: boolean) {
+  static async toggleStaffStatus(
+    ownerId: string,
+    staffId: string,
+    isActive?: boolean,
+    isPlatformAdmin: boolean = false
+  ) {
+    const whereCondition: any = {
+      id: staffId,
+      role: UserRole.HOUSEKEEPING,
+    };
+
+    if (!isPlatformAdmin) {
+      whereCondition.housekeepingAssignments = {
+        some: { property: { ownerId } },
+      };
+    }
+
     const staff = await prisma.user.findFirst({
-      where: {
-        id: staffId,
-        role: UserRole.HOUSEKEEPING,
-        housekeepingAssignments: {
-          some: { property: { ownerId } },
-        },
-      },
+      where: whereCondition,
     });
 
     if (!staff) {
@@ -440,19 +463,29 @@ export class HousekeepingService {
   /**
    * Reset housekeeping password securely
    */
-  static async resetStaffPassword(ownerId: string, staffId: string, newPassword?: string) {
+  static async resetStaffPassword(
+    ownerId: string,
+    staffId: string,
+    newPassword?: string,
+    isPlatformAdmin: boolean = false
+  ) {
+    const whereCondition: any = {
+      id: staffId,
+      role: UserRole.HOUSEKEEPING,
+    };
+
+    if (!isPlatformAdmin) {
+      whereCondition.housekeepingAssignments = {
+        some: { property: { ownerId } },
+      };
+    }
+
     const staff = await prisma.user.findFirst({
-      where: {
-        id: staffId,
-        role: UserRole.HOUSEKEEPING,
-        housekeepingAssignments: {
-          some: { property: { ownerId } },
-        },
-      },
+      where: whereCondition,
     });
 
     if (!staff) {
-      throw new Error("Staf housekeeping tidak ditemukan.");
+      throw new Error("Staf housekeeping tidak ditemukan atau bukan milik properti Anda.");
     }
 
     const resetPass = newPassword || "Housekeeping123!";
@@ -468,15 +501,27 @@ export class HousekeepingService {
           { auth: { autoRefreshToken: false, persistSession: false } }
         );
 
+        let supabaseSuccess = false;
+
         if (staff.supabaseAuthId) {
-          await supabaseAdmin.auth.admin.updateUserById(staff.supabaseAuthId, {
-            password: resetPass,
-            email_confirm: true,
-          });
-        } else {
+          const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+            staff.supabaseAuthId,
+            {
+              password: resetPass,
+              email_confirm: true,
+            }
+          );
+          if (!updateError) {
+            supabaseSuccess = true;
+          } else {
+            console.warn("Supabase updateUserById error, attempting email fallback:", updateError.message);
+          }
+        }
+
+        if (!supabaseSuccess) {
           const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
           const target = listData?.users?.find(
-            (u) => u.email === staff.email.toLowerCase().trim()
+            (u) => u.email?.toLowerCase().trim() === staff.email.toLowerCase().trim()
           );
 
           if (target) {
@@ -484,10 +529,12 @@ export class HousekeepingService {
               password: resetPass,
               email_confirm: true,
             });
-            await prisma.user.update({
-              where: { id: staff.id },
-              data: { supabaseAuthId: target.id },
-            });
+            if (staff.supabaseAuthId !== target.id) {
+              await prisma.user.update({
+                where: { id: staff.id },
+                data: { supabaseAuthId: target.id },
+              });
+            }
           } else {
             const { data: createData } = await supabaseAdmin.auth.admin.createUser({
               email: staff.email.toLowerCase().trim(),
@@ -534,14 +581,18 @@ export class HousekeepingService {
    * Aggregates activity logs from UnitStatusLog, Expense, and LeaseLog/AuditLog
    * for all properties owned by this owner.
    */
-  static async getHousekeepingActivities(ownerId: string, filters: ActivityFilterInput) {
+  static async getHousekeepingActivities(
+    ownerId: string,
+    filters: ActivityFilterInput,
+    isPlatformAdmin: boolean = false
+  ) {
     const page = Math.max(1, filters.page || 1);
     const limit = Math.min(100, Math.max(1, filters.limit || 20));
 
-    // Get owner's properties
+    // Get properties
     const ownerProperties = await prisma.property.findMany({
       where: {
-        ownerId,
+        ...(isPlatformAdmin ? {} : { ownerId }),
         ...(filters.propertyId && filters.propertyId !== "all"
           ? { id: filters.propertyId }
           : {}),
