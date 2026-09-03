@@ -84,7 +84,10 @@ import {
   IconChevronDown,
   IconChevronRight,
   IconSparkles,
+  IconX,
 } from "@tabler/icons-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useUIStore } from "@/store/use-ui-store";
 import { cn } from "@/lib/utils";
 import { UserRole } from "@/types/roles";
 
@@ -448,13 +451,35 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
     }
   };
 
-  return (
-    <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border min-h-screen flex flex-col justify-between p-4 shrink-0 shadow-sm font-sans hidden lg:flex overflow-x-hidden transition-colors">
+  const { mobileMenuOpen, setMobileMenuOpen } = useUIStore();
+
+  // Auto-close mobile menu on route changes
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname, setMobileMenuOpen]);
+
+  // Close mobile drawer on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mobileMenuOpen, setMobileMenuOpen]);
+
+  const renderSidebarContent = (isMobile: boolean = false) => (
+    <>
       {/* Upper Brand & Navigation */}
       <div className="space-y-6">
         {/* App Brand Header */}
-        <div className="border-b border-sidebar-border pb-4 px-1 space-y-3">
-          <Link href="/" className="flex items-center gap-2.5 group">
+        <div className="border-b border-sidebar-border pb-4 px-1 flex items-center justify-between gap-2">
+          <Link
+            href="/"
+            onClick={() => isMobile && setMobileMenuOpen(false)}
+            className="flex items-center gap-2.5 group min-w-0 flex-1"
+          >
             <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-[#8FA28A] to-[#C8A96B] p-0.5 shadow-md group-hover:scale-105 transition-transform duration-200 shrink-0">
               <div className="h-full w-full bg-sidebar rounded-[10px] flex items-center justify-center">
                 <IconBuildingStore className="h-5 w-5 text-[#C8A96B]" />
@@ -470,6 +495,17 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
             </div>
           </Link>
 
+          {/* Close button on mobile drawer */}
+          {isMobile && (
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-1.5 rounded-xl hover:bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors cursor-pointer shrink-0"
+              aria-label="Tutup menu"
+            >
+              <IconX className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
         {/* Grouped Sidebar Navigation */}
@@ -546,14 +582,15 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                                     <button
                                       key={child.id}
                                       type="button"
-                                      onClick={() =>
+                                      onClick={() => {
+                                        if (isMobile) setMobileMenuOpen(false);
                                         setLockedFeatureModal({
                                           featureName: childReqFeat.label,
                                           featureCode: childReqFeat.code,
                                           requiredPlan: targetPlan,
                                           route: child.href,
-                                        })
-                                      }
+                                        });
+                                      }}
                                       className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 text-left opacity-75 hover:opacity-100 bg-sidebar-accent/30 text-sidebar-foreground/60 cursor-pointer"
                                     >
                                       <div className="flex items-center gap-2.5">
@@ -571,6 +608,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                                   <Link
                                     key={child.id}
                                     href={child.href}
+                                    onClick={() => isMobile && setMobileMenuOpen(false)}
                                     className={cn(
                                       "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 text-left",
                                       isChildActive
@@ -604,14 +642,15 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                         <button
                           key={item.id}
                           type="button"
-                          onClick={() =>
+                          onClick={() => {
+                            if (isMobile) setMobileMenuOpen(false);
                             setLockedFeatureModal({
                               featureName: requiredFeat.label,
                               featureCode: requiredFeat.code,
                               requiredPlan: targetPlan,
                               route: item.href,
-                            })
-                          }
+                            });
+                          }}
                           className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group text-left opacity-75 hover:opacity-100 bg-sidebar-accent/30 text-sidebar-foreground/60 border border-transparent hover:border-amber-300 dark:hover:border-amber-800 cursor-pointer"
                         >
                           <div className="flex items-center gap-3">
@@ -629,6 +668,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                       <Link
                         key={item.id}
                         href={item.href}
+                        onClick={() => isMobile && setMobileMenuOpen(false)}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group",
                           isParentActive
@@ -656,7 +696,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
       </div>
 
       {/* Footer Info & Version */}
-      <div className="border-t border-sidebar-border pt-4 px-2 space-y-2">
+      <div className="border-t border-sidebar-border pt-4 px-2 space-y-2 mt-6">
         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
           <span>Versi App</span>
           <span className="font-mono font-bold text-sidebar-foreground">v{packageJson.version}</span>
@@ -665,8 +705,48 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
           © 2026 Arventa SaaS Property. All rights reserved.
         </p>
       </div>
+    </>
+  );
 
-      {/* Locked Feature Upgrade Modal */}
+  return (
+    <>
+      {/* 1. Desktop Sidebar */}
+      <aside className="w-64 bg-sidebar text-sidebar-foreground border-r border-sidebar-border min-h-screen flex flex-col justify-between p-4 shrink-0 shadow-sm font-sans hidden lg:flex overflow-x-hidden transition-colors">
+        {renderSidebarContent(false)}
+      </aside>
+
+      {/* 2. Mobile Responsive Slide-Over Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            {/* Backdrop Overlay */}
+            <motion.div
+              key="mobile-sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs lg:hidden"
+              aria-hidden="true"
+            />
+
+            {/* Slide-in Drawer Sheet */}
+            <motion.aside
+              key="mobile-sidebar-drawer"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 28, stiffness: 280 }}
+              className="fixed inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] bg-sidebar text-sidebar-foreground border-r border-sidebar-border flex flex-col justify-between p-4 shadow-2xl font-sans lg:hidden overflow-x-hidden overflow-y-auto"
+            >
+              {renderSidebarContent(true)}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* 3. Locked Feature Upgrade Modal */}
       {lockedFeatureModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-card border border-border p-6 shadow-2xl space-y-4 text-center">
@@ -708,6 +788,6 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
           </div>
         </div>
       )}
-    </aside>
+    </>
   );
 }
