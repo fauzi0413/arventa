@@ -1,55 +1,9 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
 import { ApiResponse } from "@/lib/api-response";
 import { HousekeepingService } from "@/services/housekeeping.service";
 import { resetHousekeepingPasswordSchema } from "@/lib/validations/housekeeping.schema";
+import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
 import { UserRole } from "@/types/roles";
-
-async function getAuthenticatedOwnerId(request: NextRequest): Promise<string | null> {
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user: authUser },
-    } = await supabase.auth.getUser();
-
-    let authEmail = authUser?.email;
-    let authId = authUser?.id;
-
-    if (!authEmail && !authId) {
-      const sessionCookie = request.cookies.get("arventa_session")?.value;
-      const userEmailCookie = request.cookies.get("arventa_user_email")?.value;
-
-      if (userEmailCookie) {
-        authEmail = userEmailCookie;
-      } else if (sessionCookie === "true" || request.headers.get("cookie")?.includes("arventa_session=true")) {
-        authEmail = "budi@kostsejahtera.com";
-      }
-    }
-
-    if (authEmail || authId) {
-      const dbUser = await prisma.user.findFirst({
-        where: {
-          OR: [
-            ...(authId ? [{ supabaseAuthId: authId }] : []),
-            ...(authEmail ? [{ email: authEmail }] : []),
-          ],
-        },
-        select: { id: true },
-      });
-
-      if (dbUser) return dbUser.id;
-    }
-
-    const firstOwner = await prisma.user.findFirst({
-      where: { role: UserRole.OWNER },
-      select: { id: true },
-    });
-    return firstOwner?.id || "owner-head-1";
-  } catch (error) {
-    return "owner-head-1";
-  }
-}
 
 /**
  * POST /api/operations/housekeeping/[id]/reset-password
@@ -60,10 +14,18 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const ownerId = await getAuthenticatedOwnerId(request);
-    if (!ownerId) {
-      return ApiResponse.error({ message: "Unauthorized", status: 401 });
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser) {
+      return ApiResponse.unauthorized("Sesi tidak valid atau telah berakhir. Silakan login kembali.");
     }
+
+    // Role check: must be OWNER or PLATFORM_ADMIN
+    if (authUser.role !== UserRole.OWNER && authUser.role !== UserRole.PLATFORM_ADMIN) {
+      return ApiResponse.forbidden("Hanya owner atau admin yang memiliki wewenang mereset password staf.");
+    }
+
+    const isPlatformAdmin = authUser.role === UserRole.PLATFORM_ADMIN;
+    const ownerId = authUser.id;
 
     const { id } = await context.params;
     const body = await request.json().catch(() => ({}));
@@ -79,7 +41,8 @@ export async function POST(
     const result = await HousekeepingService.resetStaffPassword(
       ownerId,
       id,
-      validation.data.password
+      validation.data.password,
+      isPlatformAdmin
     );
 
     return ApiResponse.success({
@@ -87,6 +50,7 @@ export async function POST(
       data: result,
     });
   } catch (error: any) {
+    console.error("POST /api/operations/housekeeping/[id]/reset-password error:", error);
     return ApiResponse.error({
       message: error?.message || "Gagal melakukan reset password",
       error: error?.message || error,

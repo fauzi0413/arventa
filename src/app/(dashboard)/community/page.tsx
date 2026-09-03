@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function HousekeepingCommunityPage() {
+export default function CommunityPage() {
   redirect("/community/announcements");
 }
