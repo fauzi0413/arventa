@@ -320,13 +320,20 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
             .sort((a: any, b: any) => a.order - b.order);
 
           const childItems = rawItems.filter((m: any) => Boolean(m.parentId));
+          const attachedChildIds = new Set<string>();
 
           // Build tree hierarchy
           const tree: NavItem[] = rootItems.map((root: any) => {
             const rootGroup = resolveGroup(root.path, root.group);
 
             const childrenForRoot = childItems
-              .filter((child: any) => child.parentId === root.id)
+              .filter((child: any) => {
+                if (child.parentId === root.id) {
+                  attachedChildIds.add(child.id);
+                  return true;
+                }
+                return false;
+              })
               .sort((a: any, b: any) => a.order - b.order)
               .map((child: any) => ({
                 id: child.id,
@@ -347,6 +354,42 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
               children: childrenForRoot.length > 0 ? childrenForRoot : undefined,
             };
           });
+
+          // Unattached / Orphan children fallback
+          const unattachedChildItems = childItems.filter((c: any) => !attachedChildIds.has(c.id));
+
+          for (const child of unattachedChildItems) {
+            // Find root item in tree with matching group or matching path prefix
+            const parentRoot = tree.find(
+              (t) =>
+                t.id === child.parentId ||
+                (t.href !== "/" && child.path.startsWith(t.href)) ||
+                t.group === resolveGroup(child.path, child.group)
+            );
+
+            if (parentRoot) {
+              if (!parentRoot.children) parentRoot.children = [];
+              parentRoot.children.push({
+                id: child.id,
+                href: child.path,
+                label: child.title,
+                icon: ICON_MAP[child.icon] || IconRoute,
+                group: resolveGroup(child.path, child.group || parentRoot.group),
+                parentId: parentRoot.id,
+              });
+            } else {
+              // Add as a root nav item so it NEVER gets hidden!
+              const itemGroup = resolveGroup(child.path, child.group);
+              tree.push({
+                id: child.id,
+                href: child.path,
+                label: child.title,
+                icon: ICON_MAP[child.icon] || IconRoute,
+                group: itemGroup,
+                parentId: null,
+              });
+            }
+          }
 
           setDynamicNavItems(tree);
           return;

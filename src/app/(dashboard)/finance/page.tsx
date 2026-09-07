@@ -1,22 +1,11 @@
 import type { Metadata } from "next";
-import { DeveloperModePlaceholder } from "@/components/shared/developer-mode";
+import { InvoiceManagementView } from "@/components/finance/invoice-management-view";
 
 export const metadata: Metadata = {
-  title: "Keuangan & Penagihan",
-  description: "Kelola invoice tagihan, pendapatan sewa, dan pengeluaran operasional.",
+  title: "Keuangan & Penagihan | ARVENTA",
+  description: "Manajemen invoice tagihan sewa unit properti, status pembayaran, dan penagihan.",
 };
 
 export default function FinancePage() {
-  return (
-    <DeveloperModePlaceholder
-      title="Keuangan & Penagihan Properti"
-      path="/finance"
-      description="Manajemen invoice tagihan sewa, rekonsiliasi pembayaran otomatis, laporan arus kas (pemasukan/pengeluaran), serta penagihan otomatis via WhatsApp."
-      features={[
-        "Automatic Invoice Generator",
-        "Payment Gateway & Proof Verification",
-        "Cashflow & Financial Reports",
-      ]}
-    />
-  );
+  return <InvoiceManagementView />;
 }
