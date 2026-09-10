@@ -214,6 +214,7 @@ const ownerNavItems: NavItem[] = [
       { id: "owner-6-4", href: "/reports", label: "Laporan & Analytics", icon: IconChartBar, group: "PENYEWA & KEUANGAN" },
     ],
   },
+  { id: "owner-community", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "PENYEWA & KEUANGAN" },
   { id: "owner-7", href: "/owner/faq", label: "FAQ & Bantuan", icon: IconHelpCircle, group: "BANTUAN" },
 ];
 
