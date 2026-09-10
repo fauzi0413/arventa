@@ -7,6 +7,39 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
+    // Auto-heal orphan or misassigned finance submenus
+    const financeRoot = await prisma.menuItem.findFirst({
+      where: {
+        OR: [{ path: "/finance" }, { path: "/finances" }],
+        parentId: null,
+      },
+    });
+
+    if (financeRoot) {
+      if (financeRoot.path !== "/finance") {
+        await prisma.menuItem.update({
+          where: { id: financeRoot.id },
+          data: { path: "/finance" },
+        });
+      }
+
+      const invoiceSubmenus = await prisma.menuItem.findMany({
+        where: {
+          path: "/finance",
+          id: { not: financeRoot.id },
+        },
+      });
+
+      for (const invMenu of invoiceSubmenus) {
+        if (invMenu.parentId !== financeRoot.id) {
+          await prisma.menuItem.update({
+            where: { id: invMenu.id },
+            data: { parentId: financeRoot.id },
+          });
+        }
+      }
+    }
+
     // 1. Fetch all Menu Items with Role Mappings
     const menuItems = await prisma.menuItem.findMany({
       include: {
@@ -233,6 +266,13 @@ export async function POST(req: Request) {
         });
       }
 
+      if (!roleCodes || !Array.isArray(roleCodes) || roleCodes.length === 0) {
+        return ApiResponse.error({
+          message: "Pilih minimal 1 role untuk menu ini (role tidak boleh kosong)",
+          status: 400,
+        });
+      }
+
       const existing = await prisma.menuItem.findFirst({ where: { path } });
       if (existing) {
         return ApiResponse.error({
@@ -287,6 +327,13 @@ export async function POST(req: Request) {
       if (!menuItemId || !title || !path) {
         return ApiResponse.error({
           message: "menuItemId, Judul, dan Path menu wajib diisi",
+          status: 400,
+        });
+      }
+
+      if (!roleCodes || !Array.isArray(roleCodes) || roleCodes.length === 0) {
+        return ApiResponse.error({
+          message: "Pilih minimal 1 role untuk menu ini (role tidak boleh kosong)",
           status: 400,
         });
       }

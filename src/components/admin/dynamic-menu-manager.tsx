@@ -241,6 +241,7 @@ export function DynamicMenuManager() {
   // Delete Confirmation Modal State
   const [deleteConfirmItem, setDeleteConfirmItem] = useState<{ id: string; title: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [swappingItemIds, setSwappingItemIds] = useState<string[]>([]);
 
   // Menu Form Modal State (Supports Create & Edit)
   const [showMenuModal, setShowMenuModal] = useState(false);
@@ -461,6 +462,11 @@ export function DynamicMenuManager() {
       return;
     }
 
+    if (!selectedRoles || selectedRoles.length === 0) {
+      setModalErrorMsg("Pilih minimal 1 role untuk menu ini (role tidak boleh kosong)");
+      return;
+    }
+
     setIsSubmitting(true);
     setModalErrorMsg(null);
     setErrorMsg(null);
@@ -508,6 +514,7 @@ export function DynamicMenuManager() {
 
   const handleSwapOrder = async (item1Id: string, item2Id: string) => {
     setErrorMsg(null);
+    setSwappingItemIds([item1Id, item2Id]);
     try {
       const res = await fetch("/api/admin/menus-flags", {
         method: "POST",
@@ -530,6 +537,7 @@ export function DynamicMenuManager() {
             })
             .sort((a, b) => a.order - b.order)
         );
+        fetchData();
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("menu-updated"));
         }
@@ -539,6 +547,8 @@ export function DynamicMenuManager() {
     } catch (err) {
       console.error("Failed to swap menu order:", err);
       setErrorMsg("Terjadi kesalahan sistem saat mengubah urutan menu.");
+    } finally {
+      setSwappingItemIds([]);
     }
   };
 
@@ -579,28 +589,17 @@ export function DynamicMenuManager() {
     }
   };
 
-  // Helper to ensure submenus are placed directly underneath their parent menu
-  const sortHierarchically = (items: MenuItem[]) => {
-    const sorted = [...items].sort((a, b) => a.order - b.order);
-    const result: MenuItem[] = [];
-
-    const roots = sorted.filter((m) => !m.parentId);
-    roots.forEach((root) => {
-      result.push(root);
-      const kids = sorted.filter((c) => c.parentId === root.id);
-      result.push(...kids);
-    });
-
-    sorted.forEach((item) => {
-      if (!result.some((r) => r.id === item.id)) {
-        result.push(item);
+  // Helper to ensure menu items are strictly sorted by order property
+  const sortByOrder = (items: MenuItem[]) => {
+    return [...items].sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
       }
+      return a.title.localeCompare(b.title);
     });
-
-    return result;
   };
 
-  const filteredMenuItems = sortHierarchically(
+  const filteredMenuItems = sortByOrder(
     menuItems.filter((m) => m.roles.some((r) => r.code === roleFilter))
   );
 
@@ -613,7 +612,7 @@ export function DynamicMenuManager() {
   }, {} as Record<string, MenuItem[]>);
 
   Object.keys(groupedMenuItems).forEach((groupKey) => {
-    groupedMenuItems[groupKey] = sortHierarchically(groupedMenuItems[groupKey]);
+    groupedMenuItems[groupKey] = sortByOrder(groupedMenuItems[groupKey]);
   });
 
   const getRoleBadgeLabel = (code: string) => {
@@ -787,111 +786,156 @@ export function DynamicMenuManager() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {Object.entries(groupedMenuItems).map(([groupTitle, groupItems]) => (
-              <div key={groupTitle} className="space-y-2">
-                {/* Group Section Header Badge */}
-                <div className="flex items-center gap-2 px-1 pt-2">
-                  <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
-                    <IconFolder className="size-4" />
-                    <span>{groupTitle}</span>
-                    <Badge variant="secondary" className="text-[10px] ml-1 bg-amber-500/20">
-                      {groupItems.length} Menu
-                    </Badge>
+            {(() => {
+              const groupEntries = Object.entries(groupedMenuItems);
+              let globalVisualIdx = 0;
+
+              return groupEntries.map(([groupTitle, groupItems], groupIdx) => (
+                <div key={groupTitle} className="space-y-2">
+                  {/* Group Section Header Badge */}
+                  <div className="flex items-center gap-2 px-1 pt-2">
+                    <div className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20">
+                      <IconFolder className="size-4" />
+                      <span>{groupTitle}</span>
+                      <Badge variant="secondary" className="text-[10px] ml-1 bg-amber-500/20">
+                        {groupItems.length} Menu
+                      </Badge>
+                    </div>
+                    <div className="h-px flex-1 bg-border/60" />
                   </div>
-                  <div className="h-px flex-1 bg-border/60" />
-                </div>
 
-                {/* Menu Items Grid for this Group */}
-                <div className="divide-y rounded-xl border bg-card/60">
-                  {groupItems.map((item) => {
-                    globalRunningIndex += 1;
-                    const itemGlobalIdx = filteredMenuItems.findIndex((m) => m.id === item.id);
-                    const canMoveUp = itemGlobalIdx > 0;
-                    const canMoveDown = itemGlobalIdx < filteredMenuItems.length - 1;
+                  {/* Menu Items Grid for this Group */}
+                  <div className="divide-y rounded-xl border bg-card/60">
+                    {groupItems.map((item, itemGroupIdx) => {
+                      globalVisualIdx += 1;
+                      const displayIdx = globalVisualIdx;
 
-                    const parentMenu = item.parentId ? menuItems.find((m) => m.id === item.parentId) : null;
-                    const isSubmenu = Boolean(parentMenu);
+                      // Determine visual previous item (above) and next item (below)
+                      let targetPrevItem: MenuItem | null = null;
+                      if (itemGroupIdx > 0) {
+                        targetPrevItem = groupItems[itemGroupIdx - 1];
+                      } else if (groupIdx > 0) {
+                        const prevGroupItems = groupEntries[groupIdx - 1][1];
+                        if (prevGroupItems.length > 0) {
+                          targetPrevItem = prevGroupItems[prevGroupItems.length - 1];
+                        }
+                      }
 
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-all ${
-                          isSubmenu
-                            ? "ml-4 sm:ml-8 my-1.5 p-3 rounded-r-xl border-l-4 border-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.07] hover:bg-amber-500/[0.09] shadow-xs"
-                            : "p-3.5 bg-card/90 hover:bg-muted/30"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          {isSubmenu ? (
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <IconCornerDownRight className="size-4 text-amber-500 shrink-0" />
-                              <div className="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-[11px] border border-amber-500/20">
-                                #{itemGlobalIdx + 1}
+                      let targetNextItem: MenuItem | null = null;
+                      if (itemGroupIdx < groupItems.length - 1) {
+                        targetNextItem = groupItems[itemGroupIdx + 1];
+                      } else if (groupIdx < groupEntries.length - 1) {
+                        const nextGroupItems = groupEntries[groupIdx + 1][1];
+                        if (nextGroupItems.length > 0) {
+                          targetNextItem = nextGroupItems[0];
+                        }
+                      }
+
+                      const canMoveUp = Boolean(targetPrevItem);
+                      const canMoveDown = Boolean(targetNextItem);
+
+                      const parentMenu = item.parentId ? menuItems.find((m) => m.id === item.parentId) : null;
+                      const isSubmenu = Boolean(parentMenu);
+                      const isSwappingThisItem = swappingItemIds.includes(item.id);
+                      const isAnySwapping = swappingItemIds.length > 0;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-all ${
+                            isSwappingThisItem
+                              ? "border-2 border-amber-500/60 bg-amber-500/10 dark:bg-amber-500/15 p-3.5 rounded-xl animate-pulse shadow-md"
+                              : isSubmenu
+                              ? "ml-4 sm:ml-8 my-1.5 p-3 rounded-r-xl border-l-4 border-amber-500 bg-amber-500/[0.04] dark:bg-amber-500/[0.07] hover:bg-amber-500/[0.09] shadow-xs"
+                              : "p-3.5 bg-card/90 hover:bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {isSubmenu ? (
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <IconCornerDownRight className="size-4 text-amber-500 shrink-0" />
+                                <div className="flex size-7 items-center justify-center rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-[11px] border border-amber-500/20">
+                                  {isSwappingThisItem ? (
+                                    <IconLoader2 className="size-3.5 animate-spin text-amber-500" />
+                                  ) : (
+                                    `#${displayIdx}`
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex size-8 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 font-black text-xs shrink-0 shadow-2xs">
+                                {isSwappingThisItem ? (
+                                  <IconLoader2 className="size-4 animate-spin text-amber-500" />
+                                ) : (
+                                  `#${displayIdx}`
+                                )}
+                              </div>
+                            )}
+
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className={isSubmenu ? "font-bold text-xs text-foreground/90" : "font-extrabold text-sm text-foreground"}>
+                                  {item.title}
+                                </p>
+                                {isSubmenu ? (
+                                  <Badge className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-bold px-2 py-0.5 shadow-2xs">
+                                    ↳ Submenu dari: {parentMenu?.title}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[9px] font-mono border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 font-semibold">
+                                    {item.group || "UTAMA"} (Main Menu)
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="font-mono text-[11px] text-muted-foreground mt-0.5">Path: {item.path} • Icon: {item.icon || "IconRoute"}</p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {item.roles.map((r) => (
+                                  <Badge key={r.id} variant="secondary" className="text-[9px]">
+                                    {r.code}
+                                  </Badge>
+                                ))}
                               </div>
                             </div>
-                          ) : (
-                            <div className="flex size-8 items-center justify-center rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 font-black text-xs shrink-0 shadow-2xs">
-                              #{itemGlobalIdx + 1}
-                            </div>
-                          )}
+                          </div>
 
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className={isSubmenu ? "font-bold text-xs text-foreground/90" : "font-extrabold text-sm text-foreground"}>
-                                {item.title}
-                              </p>
-                              {isSubmenu ? (
-                                <Badge className="text-[10px] bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 font-bold px-2 py-0.5 shadow-2xs">
-                                  ↳ Submenu dari: {parentMenu?.title}
-                                </Badge>
+                          <div className="flex items-center gap-2">
+                            {/* 1-to-1 Position Swapping Order Control */}
+                            <div className={`flex items-center gap-1 border rounded-lg p-1 transition-all ${isSwappingThisItem ? "bg-amber-500/20 border-amber-500/50" : "bg-muted/40"}`}>
+                              {isSwappingThisItem ? (
+                                <div className="flex items-center gap-1.5 px-2 py-0.5 text-amber-700 dark:text-amber-300 font-bold text-xs">
+                                  <IconLoader2 className="size-3.5 animate-spin text-amber-500" />
+                                  <span>Memindahkan...</span>
+                                </div>
                               ) : (
-                                <Badge variant="outline" className="text-[9px] font-mono border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-500/5 font-semibold">
-                                  {item.group || "UTAMA"} (Main Menu)
-                                </Badge>
+                                <>
+                                  <button
+                                    disabled={!canMoveUp || isAnySwapping}
+                                    onClick={() => {
+                                      if (canMoveUp && targetPrevItem && !isAnySwapping) {
+                                        handleSwapOrder(item.id, targetPrevItem.id);
+                                      }
+                                    }}
+                                    className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                    title="Tukar posisi dengan menu di atasnya (Naikkan)"
+                                  >
+                                    <IconArrowUp className="size-3.5" />
+                                  </button>
+                                  <span className="font-mono font-bold px-1 text-xs">{displayIdx}</span>
+                                  <button
+                                    disabled={!canMoveDown || isAnySwapping}
+                                    onClick={() => {
+                                      if (canMoveDown && targetNextItem && !isAnySwapping) {
+                                        handleSwapOrder(item.id, targetNextItem.id);
+                                      }
+                                    }}
+                                    className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+                                    title="Tukar posisi dengan menu di bawahnya (Turunkan)"
+                                  >
+                                    <IconArrowDown className="size-3.5" />
+                                  </button>
+                                </>
                               )}
                             </div>
-                            <p className="font-mono text-[11px] text-muted-foreground mt-0.5">Path: {item.path} • Icon: {item.icon || "IconRoute"}</p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {item.roles.map((r) => (
-                                <Badge key={r.id} variant="secondary" className="text-[9px]">
-                                  {r.code}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {/* 1-to-1 Position Swapping Order Control */}
-                          <div className="flex items-center gap-1 border rounded-lg p-1 bg-muted/40">
-                            <button
-                              disabled={!canMoveUp}
-                              onClick={() => {
-                                if (canMoveUp) {
-                                  const prevItem = filteredMenuItems[itemGlobalIdx - 1];
-                                  handleSwapOrder(item.id, prevItem.id);
-                                }
-                              }}
-                              className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-                              title="Tukar posisi dengan menu di atasnya (Naikkan)"
-                            >
-                              <IconArrowUp className="size-3.5" />
-                            </button>
-                            <span className="font-mono font-bold px-1 text-xs">{itemGlobalIdx + 1}</span>
-                            <button
-                              disabled={!canMoveDown}
-                              onClick={() => {
-                                if (canMoveDown) {
-                                  const nextItem = filteredMenuItems[itemGlobalIdx + 1];
-                                  handleSwapOrder(item.id, nextItem.id);
-                                }
-                              }}
-                              className="p-1 hover:bg-background rounded text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent"
-                              title="Tukar posisi dengan menu di bawahnya (Turunkan)"
-                            >
-                              <IconArrowDown className="size-3.5" />
-                            </button>
-                          </div>
 
                           {/* Edit Button */}
                           <Button
@@ -920,7 +964,8 @@ export function DynamicMenuManager() {
                   })}
                 </div>
               </div>
-            ))}
+            ));
+          })()}
           </CardContent>
         </Card>
       )}
@@ -1135,7 +1180,9 @@ export function DynamicMenuManager() {
               </div>
 
               <div>
-                <label className="font-bold block mb-1">Tautkan ke Role:</label>
+                <label className="font-bold block mb-1">
+                  Tautkan ke Role <span className="text-red-500 font-extrabold">* (Wajib pilih min. 1)</span>:
+                </label>
                 <div className="flex flex-wrap gap-2 pt-1">
                   {["PLATFORM_ADMIN", "OWNER", "HOUSEKEEPING", "USER"].map((code) => {
                     const isChecked = selectedRoles.includes(code);
@@ -1144,6 +1191,11 @@ export function DynamicMenuManager() {
                         type="button"
                         key={code}
                         onClick={() => {
+                          if (isChecked && selectedRoles.length === 1) {
+                            setModalErrorMsg("Role tidak boleh kosong. Minimal 1 role wajib dipilih untuk menu ini.");
+                            return;
+                          }
+                          setModalErrorMsg(null);
                           const nextRoles = isChecked
                             ? selectedRoles.filter((c) => c !== code)
                             : [...selectedRoles, code];
@@ -1154,8 +1206,10 @@ export function DynamicMenuManager() {
                             setNewOrder(String(nextOrder));
                           }
                         }}
-                        className={`px-2.5 py-1 rounded border text-[11px] font-bold ${
-                          isChecked ? "bg-amber-500 text-slate-950 border-amber-500" : "bg-muted text-muted-foreground"
+                        className={`px-2.5 py-1 rounded border text-[11px] font-bold transition-all ${
+                          isChecked
+                            ? "bg-amber-500 text-slate-950 border-amber-500 shadow-xs"
+                            : "bg-muted text-muted-foreground hover:bg-muted/80"
                         }`}
                       >
                         {code}
@@ -1163,6 +1217,11 @@ export function DynamicMenuManager() {
                     );
                   })}
                 </div>
+                {selectedRoles.length === 0 && (
+                  <p className="text-[10px] text-red-500 font-bold mt-1">
+                    ⚠️ Role wajib dipilih minimal 1. Tidak boleh kosong.
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">

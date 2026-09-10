@@ -1,0 +1,233 @@
+
+> arventa@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.37:3000
+- Environments: .env
+✓ Ready in 1253ms
+✓ Running next.config.ts took 205ms
+
+ GET /platform/feature-showcase 200 in 9.7s (next.js: 1935ms, proxy.ts: 2.8s, application-code: 5.0s)
+ GET /api/auth/me 200 in 3.0s (next.js: 8ms, proxy.ts: 446ms, application-code: 2.6s)
+ GET /api/auth/me 200 in 3.2s (next.js: 8ms, proxy.ts: 438ms, application-code: 2.8s)
+ GET /api/feature-showcase 200 in 1310ms (next.js: 61ms, proxy.ts: 4ms, application-code: 1244ms)
+ GET /api/auth/me 200 in 410ms (next.js: 4ms, proxy.ts: 173ms, application-code: 233ms)
+ GET /api/admin/menus-flags 200 in 1643ms (next.js: 78ms, proxy.ts: 168ms, application-code: 1397ms)
+ GET /api/auth/me 200 in 25.5s (next.js: 183ms, proxy.ts: 622ms, application-code: 24.7s)
+ GET /api/admin/feature-showcase 200 in 25.6s (next.js: 158ms, proxy.ts: 392ms, application-code: 25.0s)
+⨯ Error [PrismaClientKnownRequestError]: 
+Invalid `{imported module ./src/lib/prisma.ts}["prisma"].user.findFirst()` invocation in
+D:\All About Project\arventa\arventa\.next\dev\server\chunks\[root-of-the-server]__1drp1m6._.js:1524:160
+
+  1521     return null;
+  1522 }
+  1523 // Fetch DB User from Prisma
+→ 1524 const dbUser = await {imported module ./src/lib/prisma.ts}["prisma"].user.findFirst(
+Database error. Code: `08006`. Message: `(EAUTHTIMEOUT) timeout while waiting for message`
+    at <unknown> (src\lib\auth\get-authenticated-user.ts:73:36)
+    at async getAuthenticatedUser (src\lib\auth\get-authenticated-user.ts:73:18)
+    at async ensurePlatformAdmin (src\app\api\admin\feature-showcase\route.ts:22:20)
+    at async GET (src\app\api\admin\feature-showcase\route.ts:64:17)
+  71 |
+  72 |   // Fetch DB User from Prisma
+> 73 |   const dbUser = await prisma.user.findFirst({
+     |                                    ^
+  74 |     where: {
+  75 |       OR: [
+  76 |         ...(authUserId ? [{ id: authUserId }, { supabaseAuthId: authUserId }] : []), {
+  code: 'P2039',
+  meta: {
+    modelName: 'User',
+    driverAdapterError: Error [DriverAdapterError]: (EAUTHTIMEOUT) timeout while waiting for message
+        at async getAuthenticatedUser (src\lib\auth\get-authenticated-user.ts:73:18)
+        at async ensurePlatformAdmin (src\app\api\admin\feature-showcase\route.ts:22:20)
+        at async GET (src\app\api\admin\feature-showcase\route.ts:64:17)
+      71 |
+      72 |   // Fetch DB User from Prisma
+    > 73 |   const dbUser = await prisma.user.findFirst({
+         |                  ^
+      74 |     where: {
+      75 |       OR: [
+      76 |         ...(authUserId ? [{ id: authUserId }, { supabaseAuthId: authUserId }] : []), {
+      [cause]: [Object]
+    }
+  },
+  clientVersion: '7.9.1'
+}
+ GET /api/admin/feature-showcase 500 in 26.9s (next.js: 87ms, proxy.ts: 575ms, application-code: 26.2s)
+ GET /api/admin/menus-flags 200 in 1702ms (next.js: 3ms, proxy.ts: 217ms, application-code: 1483ms)
+ GET /api/owner/saas-status 200 in 4.7s (next.js: 5ms, proxy.ts: 182ms, application-code: 4.5s)
+ GET /api/owner/saas-status 200 in 27.9s (next.js: 278ms, proxy.ts: 396ms, application-code: 27.3s)
+ GET / 200 in 227ms (next.js: 44ms, proxy.ts: 3ms, application-code: 180ms)
+ GET /api/feature-showcase 200 in 2.0s (next.js: 7ms, proxy.ts: 7ms, application-code: 1992ms)
+[browser] Failed to load feature showcase: SyntaxError: Failed to execute 'json' on 'Response': Unexpected end of JSON input
+    at FeatureShowcaseManager.useCallback[fetchData] (src/components/admin/feature-showcase-manager.tsx:85:30)
+  83 |     try {
+  84 |       const res = await fetch("/api/admin/feature-showcase", { cache: "no-store" });
+> 85 |       const json = await res.json();
+     |                              ^
+  86 |       if (json.success) {
+  87 |         setSlides(json.data.slides);
+  88 |         setStats(json.data.stats); (src/components/admin/feature-showcase-manager.tsx:93:15)
+ GET /platform/feature-showcase 200 in 2.9s (next.js: 24ms, proxy.ts: 545ms, application-code: 2.3s)
+ GET /api/auth/me 200 in 4.4s (next.js: 4ms, proxy.ts: 419ms, application-code: 4.0s)
+ GET /api/auth/me 200 in 929ms (next.js: 505ms, proxy.ts: 172ms, application-code: 251ms)
+ GET /api/auth/me 200 in 917ms (next.js: 265ms, proxy.ts: 400ms, application-code: 251ms)
+ GET /api/admin/feature-showcase 200 in 6.7s (next.js: 3ms, proxy.ts: 534ms, application-code: 6.1s)
+ GET /dashboard 404 in 2.4s (next.js: 2.2s, proxy.ts: 157ms, application-code: 22ms)
+ GET /api/admin/feature-showcase 200 in 7.0s (next.js: 3ms, proxy.ts: 367ms, application-code: 6.6s)
+ GET /dashboard 404 in 344ms (next.js: 9ms, proxy.ts: 313ms, application-code: 21ms)
+ GET /api/auth/me 200 in 599ms (next.js: 2ms, proxy.ts: 303ms, application-code: 293ms)
+ GET /dashboard 404 in 232ms (next.js: 7ms, proxy.ts: 192ms, application-code: 33ms)
+ GET /api/admin/menus-flags 200 in 3.0s (next.js: 215ms, proxy.ts: 603ms, application-code: 2.2s)
+ GET /api/admin/menus-flags 200 in 860ms (next.js: 3ms, proxy.ts: 263ms, application-code: 594ms)
+ GET /api/owner/saas-status 200 in 7.5s (next.js: 3ms, proxy.ts: 815ms, application-code: 6.7s)
+ GET /dashboard 404 in 414ms (next.js: 12ms, proxy.ts: 330ms, application-code: 72ms)
+ GET / 200 in 1587ms (next.js: 724ms, proxy.ts: 825ms, application-code: 38ms)
+ GET /api/feature-showcase 200 in 3.6s (next.js: 10ms, proxy.ts: 319ms, application-code: 3.3s)
+ GET /platform/dashboard 200 in 508ms (next.js: 15ms, proxy.ts: 453ms, application-code: 40ms)
+ GET /api/faq 200 in 4.0s (next.js: 122ms, proxy.ts: 559ms, application-code: 3.3s)
+ GET /api/feature-showcase 200 in 768ms (next.js: 9ms, proxy.ts: 334ms, application-code: 425ms)
+ GET /platform/dashboard 200 in 2.9s (next.js: 115ms, proxy.ts: 284ms, application-code: 2.5s)
+ GET /api/faq 200 in 714ms (next.js: 4ms, proxy.ts: 409ms, application-code: 301ms)
+ GET /api/auth/me 200 in 547ms (next.js: 9ms, proxy.ts: 208ms, application-code: 330ms)
+ GET /api/auth/me 200 in 2.2s (next.js: 7ms, proxy.ts: 204ms, application-code: 2.0s)
+ GET /api/auth/me 200 in 748ms (next.js: 4ms, proxy.ts: 298ms, application-code: 446ms)
+ GET /api/owner/saas-status 200 in 3.7s (next.js: 9ms, proxy.ts: 333ms, application-code: 3.3s)
+ GET /api/admin/menus-flags 200 in 3.3s (next.js: 6ms, proxy.ts: 253ms, application-code: 3.1s)
+ GET /api/auth/me 200 in 513ms (next.js: 6ms, proxy.ts: 239ms, application-code: 268ms)
+ POST /api/auth/logout 200 in 885ms (next.js: 104ms, proxy.ts: 483ms, application-code: 298ms)
+ GET /login 200 in 155ms (next.js: 101ms, proxy.ts: 7ms, application-code: 48ms)
+ GET /login 200 in 42ms (next.js: 4ms, proxy.ts: 7ms, application-code: 31ms)
+ GET /api/admin/menus-flags 200 in 2.8s (next.js: 6ms, proxy.ts: 322ms, application-code: 2.4s)
+ GET /api/dashboard/stats 200 in 7.4s (next.js: 134ms, proxy.ts: 390ms, application-code: 6.8s)
+ GET /api/owner/saas-status 200 in 4.2s (next.js: 5ms, proxy.ts: 386ms, application-code: 3.8s)
+ GET /api/dashboard/stats 200 in 5.0s (next.js: 7ms, proxy.ts: 304ms, application-code: 4.7s)
+ POST /api/auth/login 200 in 1392ms (next.js: 79ms, proxy.ts: 5ms, application-code: 1308ms)
+ GET /platform/dashboard 200 in 539ms (next.js: 9ms, proxy.ts: 203ms, application-code: 327ms)
+ GET /api/auth/me 200 in 593ms (next.js: 4ms, proxy.ts: 292ms, application-code: 297ms)
+ GET /api/auth/me 200 in 627ms (next.js: 4ms, proxy.ts: 314ms, application-code: 309ms)
+ GET /api/auth/me 200 in 506ms (next.js: 5ms, proxy.ts: 253ms, application-code: 248ms)
+ GET /api/auth/me 200 in 461ms (next.js: 4ms, proxy.ts: 183ms, application-code: 273ms)
+ GET /api/admin/menus-flags 200 in 2.1s (next.js: 5ms, proxy.ts: 567ms, application-code: 1537ms)
+ GET /api/admin/menus-flags 200 in 1724ms (next.js: 5ms, proxy.ts: 336ms, application-code: 1384ms)
+ GET /api/owner/saas-status 200 in 3.9s (next.js: 2ms, proxy.ts: 609ms, application-code: 3.3s)
+ GET /api/owner/saas-status 200 in 3.0s (next.js: 6ms, proxy.ts: 233ms, application-code: 2.8s)
+ GET /platform/feature-showcase 200 in 1720ms (next.js: 190ms, proxy.ts: 1155ms, application-code: 375ms)
+ GET /api/dashboard/stats 200 in 8.6s (next.js: 6ms, proxy.ts: 562ms, application-code: 8.0s)
+ GET /api/auth/me 200 in 914ms (next.js: 5ms, proxy.ts: 342ms, application-code: 566ms)
+ GET /api/auth/me 200 in 832ms (next.js: 8ms, proxy.ts: 396ms, application-code: 428ms)
+ GET /api/auth/me 200 in 449ms (next.js: 5ms, proxy.ts: 194ms, application-code: 249ms)
+ GET /api/admin/feature-showcase 200 in 2.3s (next.js: 7ms, proxy.ts: 706ms, application-code: 1564ms)
+ GET /api/admin/feature-showcase 200 in 2.3s (next.js: 3ms, proxy.ts: 964ms, application-code: 1334ms)
+ GET /api/auth/me 200 in 530ms (next.js: 5ms, proxy.ts: 283ms, application-code: 242ms)
+ GET /api/admin/menus-flags 200 in 1978ms (next.js: 15ms, proxy.ts: 394ms, application-code: 1569ms)
+ GET /api/admin/menus-flags 200 in 1857ms (next.js: 3ms, proxy.ts: 290ms, application-code: 1563ms)
+ GET /api/owner/saas-status 200 in 4.1s (next.js: 6ms, proxy.ts: 537ms, application-code: 3.5s)
+ GET /api/owner/saas-status 200 in 4.2s (next.js: 8ms, proxy.ts: 257ms, application-code: 3.9s)
+ POST /api/admin/feature-showcase/upload 200 in 6.2s (next.js: 115ms, proxy.ts: 744ms, application-code: 5.3s)
+ POST /api/admin/feature-showcase 200 in 2.3s (next.js: 2ms, proxy.ts: 214ms, application-code: 2.1s)
+ GET /api/admin/feature-showcase 200 in 1375ms (next.js: 5ms, proxy.ts: 296ms, application-code: 1073ms)
+ POST /api/admin/feature-showcase 200 in 1613ms (next.js: 5ms, proxy.ts: 353ms, application-code: 1255ms)
+ GET /api/admin/feature-showcase 200 in 2.6s (next.js: 5ms, proxy.ts: 360ms, application-code: 2.2s)
+ POST /api/auth/logout 200 in 659ms (next.js: 7ms, proxy.ts: 360ms, application-code: 293ms)
+ GET /login 200 in 64ms (next.js: 5ms, proxy.ts: 4ms, application-code: 55ms)
+ GET /login 200 in 40ms (next.js: 6ms, proxy.ts: 6ms, application-code: 28ms)
+ GET / 200 in 32ms (next.js: 6ms, proxy.ts: 8ms, application-code: 18ms)
+ GET /api/feature-showcase 200 in 369ms (next.js: 15ms, proxy.ts: 10ms, application-code: 344ms)
+ GET /api/faq 200 in 375ms (next.js: 12ms, proxy.ts: 8ms, application-code: 355ms)
+ GET /api/faq 200 in 768ms (next.js: 12ms, proxy.ts: 17ms, application-code: 739ms)
+ GET /api/feature-showcase 200 in 780ms (next.js: 8ms, proxy.ts: 17ms, application-code: 755ms)
+ GET /login 200 in 46ms (next.js: 5ms, proxy.ts: 11ms, application-code: 30ms)
+ POST /api/auth/login 200 in 3.7s (next.js: 14ms, proxy.ts: 12ms, application-code: 3.6s)
+ GET /platform/dashboard 200 in 592ms (next.js: 13ms, proxy.ts: 251ms, application-code: 328ms)
+ GET /api/auth/me 200 in 500ms (next.js: 10ms, proxy.ts: 232ms, application-code: 258ms)
+ GET /api/auth/me 200 in 1691ms (next.js: 6ms, proxy.ts: 201ms, application-code: 1485ms)
+ GET /api/auth/me 200 in 498ms (next.js: 4ms, proxy.ts: 248ms, application-code: 246ms)
+ GET /api/auth/me 200 in 450ms (next.js: 4ms, proxy.ts: 201ms, application-code: 245ms)
+ GET /api/admin/menus-flags 200 in 2.8s (next.js: 7ms, proxy.ts: 225ms, application-code: 2.6s)
+ GET /api/admin/menus-flags 200 in 1930ms (next.js: 5ms, proxy.ts: 286ms, application-code: 1639ms)
+ GET /api/owner/saas-status 200 in 4.6s (next.js: 8ms, proxy.ts: 399ms, application-code: 4.2s)
+ GET /platform/feature-showcase 200 in 625ms (next.js: 9ms, proxy.ts: 277ms, application-code: 339ms)
+ GET /api/owner/saas-status 200 in 920ms (next.js: 5ms, proxy.ts: 200ms, application-code: 716ms)
+ GET /api/dashboard/stats 200 in 5.6s (next.js: 13ms, proxy.ts: 345ms, application-code: 5.2s)
+ GET /api/auth/me 200 in 463ms (next.js: 7ms, proxy.ts: 207ms, application-code: 248ms)
+ GET /api/auth/me 200 in 478ms (next.js: 4ms, proxy.ts: 233ms, application-code: 241ms)
+ GET /api/admin/feature-showcase 200 in 1394ms (next.js: 6ms, proxy.ts: 359ms, application-code: 1030ms)
+ GET /api/auth/me 200 in 489ms (next.js: 3ms, proxy.ts: 215ms, application-code: 271ms)
+ GET /api/admin/feature-showcase 200 in 1450ms (next.js: 6ms, proxy.ts: 441ms, application-code: 1003ms)
+ GET /api/auth/me 200 in 580ms (next.js: 6ms, proxy.ts: 257ms, application-code: 317ms)
+ GET /api/admin/menus-flags 200 in 1585ms (next.js: 6ms, proxy.ts: 209ms, application-code: 1371ms)
+ GET /api/admin/menus-flags 200 in 1636ms (next.js: 4ms, proxy.ts: 324ms, application-code: 1308ms)
+ GET /api/owner/saas-status 200 in 3.1s (next.js: 6ms, proxy.ts: 311ms, application-code: 2.8s)
+ POST /api/admin/feature-showcase 200 in 1495ms (next.js: 6ms, proxy.ts: 191ms, application-code: 1298ms)
+ GET /api/owner/saas-status 200 in 2.7s (next.js: 5ms, proxy.ts: 208ms, application-code: 2.5s)
+ GET /api/admin/feature-showcase 200 in 1468ms (next.js: 5ms, proxy.ts: 300ms, application-code: 1163ms)
+ POST /api/auth/logout 200 in 913ms (next.js: 6ms, proxy.ts: 650ms, application-code: 258ms)
+ GET /login 200 in 63ms (next.js: 7ms, proxy.ts: 6ms, application-code: 50ms)
+ GET /login 200 in 40ms (next.js: 5ms, proxy.ts: 7ms, application-code: 29ms)
+ GET / 200 in 28ms (next.js: 5ms, proxy.ts: 3ms, application-code: 20ms)
+ GET /api/faq 200 in 2.8s (next.js: 9ms, proxy.ts: 13ms, application-code: 2.8s)
+ GET /api/feature-showcase 200 in 2.9s (next.js: 18ms, proxy.ts: 14ms, application-code: 2.9s)
+ GET /api/faq 200 in 301ms (next.js: 5ms, proxy.ts: 6ms, application-code: 291ms)
+ GET /api/feature-showcase 200 in 435ms (next.js: 6ms, proxy.ts: 8ms, application-code: 421ms)
+ GET / 200 in 130ms (next.js: 5ms, proxy.ts: 8ms, application-code: 117ms)
+ GET / 200 in 130ms (next.js: 8ms, proxy.ts: 8ms, application-code: 114ms)
+ GET /api/faq 200 in 3.4s (next.js: 51ms, proxy.ts: 27ms, application-code: 3.3s)
+ GET /api/faq 200 in 3.4s (next.js: 44ms, proxy.ts: 29ms, application-code: 3.3s)
+ GET /api/feature-showcase 200 in 3.5s (next.js: 49ms, proxy.ts: 24ms, application-code: 3.4s)
+ GET /api/feature-showcase 200 in 3.5s (next.js: 29ms, proxy.ts: 24ms, application-code: 3.5s)
+ GET / 200 in 153ms (next.js: 10ms, proxy.ts: 10ms, application-code: 133ms)
+ GET /api/faq 200 in 2.4s (next.js: 5ms, proxy.ts: 4ms, application-code: 2.4s)
+ GET /api/feature-showcase 200 in 2.5s (next.js: 10ms, proxy.ts: 5ms, application-code: 2.5s)
+ GET /api/faq 200 in 248ms (next.js: 7ms, proxy.ts: 3ms, application-code: 239ms)
+ GET /api/feature-showcase 200 in 367ms (next.js: 2ms, proxy.ts: 4ms, application-code: 361ms)
+ GET / 200 in 172ms (next.js: 7ms, proxy.ts: 28ms, application-code: 137ms)
+ GET / 200 in 150ms (next.js: 13ms, proxy.ts: 16ms, application-code: 122ms)
+ GET /api/feature-showcase 200 in 1899ms (next.js: 26ms, proxy.ts: 19ms, application-code: 1853ms)
+ GET /api/faq 200 in 1924ms (next.js: 21ms, proxy.ts: 30ms, application-code: 1873ms)
+ GET /api/feature-showcase 200 in 1951ms (next.js: 25ms, proxy.ts: 16ms, application-code: 1909ms)
+ GET /api/faq 200 in 1953ms (next.js: 30ms, proxy.ts: 20ms, application-code: 1902ms)
+✓ Compiled in 2.8s
+ GET / 200 in 415ms (next.js: 208ms, proxy.ts: 28ms, application-code: 179ms)
+✓ Compiled in 679ms
+ GET / 200 in 114ms (next.js: 23ms, proxy.ts: 14ms, application-code: 77ms)
+✓ Compiled in 293ms
+ GET / 200 in 90ms (next.js: 21ms, proxy.ts: 9ms, application-code: 60ms)
+✓ Compiled in 308ms
+ GET / 200 in 103ms (next.js: 20ms, proxy.ts: 14ms, application-code: 69ms)
+✓ Compiled in 989ms
+ GET / 200 in 73ms (next.js: 18ms, proxy.ts: 8ms, application-code: 47ms)
+✓ Compiled in 194ms
+ GET / 200 in 60ms (next.js: 9ms, proxy.ts: 9ms, application-code: 42ms)
+✓ Compiled in 854ms
+ GET / 200 in 93ms (next.js: 18ms, proxy.ts: 30ms, application-code: 46ms)
+✓ Compiled in 208ms
+ GET / 200 in 76ms (next.js: 24ms, proxy.ts: 12ms, application-code: 41ms)
+ GET / 200 in 284ms (next.js: 83ms, proxy.ts: 13ms, application-code: 188ms)
+ GET / 200 in 159ms (next.js: 17ms, proxy.ts: 25ms, application-code: 116ms)
+ GET /api/faq 200 in 2.1s (next.js: 151ms, proxy.ts: 47ms, application-code: 1856ms)
+ GET /api/feature-showcase 200 in 2.1s (next.js: 53ms, proxy.ts: 44ms, application-code: 1971ms)
+ GET /api/faq 200 in 264ms (next.js: 7ms, proxy.ts: 12ms, application-code: 244ms)
+ GET /api/feature-showcase 200 in 283ms (next.js: 12ms, proxy.ts: 12ms, application-code: 259ms)
+ GET / 200 in 182ms (next.js: 13ms, proxy.ts: 12ms, application-code: 157ms)
+ GET / 200 in 141ms (next.js: 5ms, proxy.ts: 6ms, application-code: 130ms)
+ GET /api/faq 200 in 1600ms (next.js: 187ms, proxy.ts: 18ms, application-code: 1394ms)
+ GET /api/faq 200 in 1633ms (next.js: 96ms, proxy.ts: 18ms, application-code: 1519ms)
+ GET /api/feature-showcase 200 in 1653ms (next.js: 143ms, proxy.ts: 18ms, application-code: 1491ms)
+ GET /api/feature-showcase 200 in 1666ms (next.js: 18ms, proxy.ts: 20ms, application-code: 1628ms)
+✓ Compiled in 2.3s
+ GET / 200 in 708ms (next.js: 206ms, proxy.ts: 288ms, application-code: 214ms)
+✓ Compiled in 991ms
+ GET / 200 in 2.0s (next.js: 100ms, proxy.ts: 1849ms, application-code: 55ms)
+✓ Compiled in 1216ms
+ GET / 200 in 219ms (next.js: 54ms, proxy.ts: 36ms, application-code: 129ms)
+✓ Compiled in 579ms
+ GET / 200 in 83ms (next.js: 15ms, proxy.ts: 14ms, application-code: 55ms)
+ GET / 200 in 244ms (next.js: 24ms, proxy.ts: 10ms, application-code: 210ms)
+ GET /api/feature-showcase 200 in 2.2s (next.js: 55ms, proxy.ts: 16ms, application-code: 2.1s)
+ GET /api/faq 200 in 2.2s (next.js: 11ms, proxy.ts: 21ms, application-code: 2.1s)
+ GET /api/faq 200 in 285ms (next.js: 21ms, proxy.ts: 10ms, application-code: 254ms)
+ GET /api/feature-showcase 200 in 364ms (next.js: 12ms, proxy.ts: 8ms, application-code: 344ms)

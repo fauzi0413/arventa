@@ -878,3 +878,26 @@ model SaaSFAQ {
 
   @@map("saas_faqs")
 }
+
+// --- 10. LANDING PAGE CAROUSEL FEATURE SHOWCASE (Dikelola PLATFORM_ADMIN) ---
+model CarouselLandingPageFeature {
+  id          String   @id @default(uuid())
+  badge       String                       // Label badge, mis. "PROPERTY MANAGEMENT"
+  category    String                       // Kategori slide, mis. "MULTI-ASSET & UNIT ROOM MANAGEMENT"
+  title       String
+  description String   @db.Text
+  tags        String[] @default([])
+  ctaText     String
+  ctaHref     String
+  mockupType  String   @default("property") @map("mockup_type") // property|tenant|billing|housekeeping|analytics|community|ai
+  headerTitle String?  @map("header_title")
+  subBadge    String?  @map("sub_badge")
+  imageUrl    String?  @map("image_url") // simpan image ke asset yang ada di supabase.
+  order       Int      @default(0)
+  isPublished Boolean  @default(true) @map("is_published")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("carousel_landing_page_features")
+}

@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
 export interface FaqItem {
   id: string;
@@ -20,6 +21,7 @@ export interface FaqItem {
 interface FAQProps {
   title?: string;
   subtitle?: string;
+  description?: string;
   categories: Record<string, string>;
   faqData: Record<string, FaqItem[]>;
   className?: string;
@@ -28,6 +30,7 @@ interface FAQProps {
 export const FAQ = ({
   title = "FAQ",
   subtitle = "Pertanyaan yang Sering Ditanyakan",
+  description,
   categories,
   faqData,
   className,
@@ -42,7 +45,7 @@ export const FAQ = ({
         className
       )}
     >
-      <FAQHeader title={title} subtitle={subtitle} />
+      <FAQHeader title={title} subtitle={subtitle} description={description} />
       <FAQTabs
         categories={categories}
         selected={selectedCategory}
@@ -53,12 +56,31 @@ export const FAQ = ({
   );
 };
 
-const FAQHeader = ({ title, subtitle }: { title: string; subtitle: string }) => (
-  <div className="relative z-10 flex flex-col items-center justify-center mb-10">
-    <span className="mb-3 inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
-      {subtitle}
-    </span>
-    <h2 className="text-2xl md:text-4xl font-black text-[#2F332E] text-center">{title}</h2>
+const FAQHeader = ({
+  title,
+  subtitle,
+  description,
+}: {
+  title: string;
+  subtitle: string;
+  description?: string;
+}) => (
+  <div className="relative z-10 flex flex-col items-center justify-center mb-10 text-center space-y-3">
+    <ScrollReveal y={20} blur={4}>
+      <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
+        {subtitle}
+      </span>
+    </ScrollReveal>
+    <ScrollReveal y={24} blur={4}>
+      <h2 className="text-2xl md:text-4xl font-black text-[#2F332E] text-center">{title}</h2>
+    </ScrollReveal>
+    {description && (
+      <ScrollReveal y={24} blur={4}>
+        <p className="text-xs md:text-sm text-gray-500 max-w-2xl mx-auto text-center leading-relaxed">
+          {description}
+        </p>
+      </ScrollReveal>
+    )}
   </div>
 );
 

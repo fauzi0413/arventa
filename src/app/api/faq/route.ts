@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 const FAQ_SETTING_KEY = "arventa_faq_items";
@@ -7,10 +7,14 @@ const FAQ_CATEGORIES_KEY = "arventa_faq_categories";
 /**
  * GET /api/faq
  * Public endpoint — returns only published FAQs grouped by category.
- * No auth required; used by the landing page.
+ * Optional ?role= query param to filter by targetRole.
+ * No auth required; used by the landing page and dashboard FAQ pages.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const role = searchParams.get("role");
+
     const [faqSetting, catSetting] = await Promise.all([
       prisma.systemSetting.findUnique({ where: { key: FAQ_SETTING_KEY } }),
       prisma.systemSetting.findUnique({ where: { key: FAQ_CATEGORIES_KEY } }),
@@ -32,9 +36,15 @@ export async function GET() {
       ? (JSON.parse(catSetting.value) as string[])
       : ["UMUM"];
 
-    // Only published FAQs visible on landing page
+    // Only published FAQs, filtered by role if provided
     const published = allFaqs
-      .filter((f) => f.isPublished)
+      .filter((f) => {
+        if (!f.isPublished) return false;
+        if (role) {
+          return f.targetRole === "ALL" || f.targetRole === role;
+        }
+        return true;
+      })
       .sort((a, b) => a.order - b.order);
 
     // Build category → FAQ[] map, preserving master order

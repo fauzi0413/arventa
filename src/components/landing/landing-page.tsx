@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import CarouselStacked from "@/components/ui/feature-showcase";
+import CarouselStacked, { DEFAULT_SLIDES } from "@/components/ui/feature-showcase";
+import type { FeatureSlide } from "@/types/feature-showcase";
 import { FAQ, type FaqItem } from "@/components/ui/faq-tabs";
 import packageJson from "../../../package.json";
 import {
@@ -14,11 +15,36 @@ import {
   Sparkles,
   ArrowRight,
   LayoutDashboard,
+  Home,
+  Key,
+  Users,
+  Zap,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { UserRole } from "@/types/roles";
+import { ScrollReveal } from "@/components/ui/scroll-reveal";
 
-export function LandingPage() {
+interface LandingPlan {
+  id: string;
+  name: string;
+  priceMonthly: number;
+  priceYearly: number;
+  priceYearlyPerMonth: number;
+  discountPercent: number;
+  maxProperties: number;
+  maxUnits: number;
+  maxHousekeeping: number;
+  features: string[];
+  isDefault: boolean;
+  isMostPopular: boolean;
+  subscriberCount: number;
+}
+
+interface LandingPageProps {
+  initialFeatureSlides?: FeatureSlide[];
+}
+
+export function LandingPage({ initialFeatureSlides }: LandingPageProps = {}) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [dashboardHref, setDashboardHref] = useState("/dashboard");
   const [userRoleText, setUserRoleText] = useState<string | null>(null);
@@ -26,6 +52,49 @@ export function LandingPage() {
   // FAQ state — fetched from public API
   const [faqCategories, setFaqCategories] = useState<Record<string, string>>({});
   const [faqData, setFaqData] = useState<Record<string, FaqItem[]>>({});
+
+  // Feature Showcase state — initialized directly from server (SSR) to eliminate flash of default slides
+  const [featureSlides, setFeatureSlides] = useState<FeatureSlide[] | null>(
+    initialFeatureSlides && initialFeatureSlides.length > 0 ? initialFeatureSlides : null
+  );
+
+  // Subscription Plans state — fetched from public API
+  const [plans, setPlans] = useState<LandingPlan[]>([]);
+  const [plansLoading, setPlansLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchFeatureShowcase() {
+      try {
+        const res = await fetch("/api/feature-showcase");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setFeatureSlides(json.data);
+        }
+      } catch {
+        // silently fail — carousel falls back to DEFAULT_SLIDES
+      }
+    }
+    fetchFeatureShowcase();
+  }, []);
+
+  useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const res = await fetch("/api/plans");
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data?.plans)) {
+          setPlans(json.data.plans);
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setPlansLoading(false);
+      }
+    }
+    fetchPlans();
+  }, []);
 
   useEffect(() => {
     async function fetchFaqs() {
@@ -181,27 +250,33 @@ export function LandingPage() {
       {/* ---------------------------------------------------------------- HERO SECTION ---------------------------------------------------------------- */}
       <section className="py-20 md:py-28 text-center px-4 max-w-5xl mx-auto space-y-8">
         {/* Pill Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-[#C7D3C0]/60 text-xs font-bold text-[#8FA28A] shadow-xs">
-          <Sparkles className="w-3.5 h-3.5 text-[#C8A96B]" />
-          Property Management System (PMS) SaaS
-        </div>
+        <ScrollReveal delay={0} blur={4} y={20}>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-[#C7D3C0]/60 text-xs font-bold text-[#8FA28A] shadow-xs">
+            <Sparkles className="w-3.5 h-3.5 text-[#C8A96B]" />
+            Property Management System (PMS) SaaS
+          </div>
+        </ScrollReveal>
 
         {/* Main Heading & Pill Subtitle */}
-        <div className="space-y-4 max-w-4xl mx-auto">
-          <h1 className="text-4xl md:text-6xl font-black text-[#2F332E] tracking-tight leading-tight">
-            Kelola Properti Kos, Apartemen, Kontrakan & Ruko
-          </h1>
-          <div className="pt-2">
-            <span className="inline-block px-8 py-3 rounded-full bg-[#8FA28A] text-white text-3xl md:text-5xl font-black tracking-tight shadow-sm">
-              Dalam Satu Genggaman
-            </span>
+        <ScrollReveal delay={0.1} y={24}>
+          <div className="space-y-4 max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-6xl font-black text-[#2F332E] tracking-tight leading-tight">
+              Kelola Properti Kos, Apartemen, Kontrakan & Ruko
+            </h1>
+            <div className="pt-2">
+              <span className="inline-block px-8 py-3 rounded-full bg-[#8FA28A] text-white text-3xl md:text-5xl font-black tracking-tight shadow-sm">
+                Dalam Satu Genggaman
+              </span>
+            </div>
           </div>
-        </div>
+        </ScrollReveal>
 
         {/* Description Paragraph */}
-        <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
-          ARVENTA membantu pemilik properti mengelola unit, penyewa, OpEx, pengeluaran, tagihan, housekeeping, dan analisis keuangan secara terpusat.
-        </p>
+        <ScrollReveal delay={0.18} y={16} blur={3}>
+          <p className="text-sm md:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            ARVENTA membantu pemilik properti mengelola unit, penyewa, OpEx, pengeluaran, tagihan, housekeeping, dan analisis keuangan secara terpusat.
+          </p>
+        </ScrollReveal>
 
         {/* CTA Buttons */}
         <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
@@ -228,17 +303,19 @@ export function LandingPage() {
 
       {/* ---------------------------------------------------------------- JENIS PROPERTI SECTION ---------------------------------------------------------------- */}
       <section id="jenis-properti" className="py-20 px-4 max-w-7xl mx-auto space-y-12">
-        <div className="text-center space-y-3">
-          <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
-            4 Jenis Properti Didukung
-          </span>
-          <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
-            Dirancang Fleksibel Untuk Berbagai Jenis Aset
-          </h2>
-          <p className="text-xs md:text-sm text-gray-500 max-w-xl mx-auto">
-            Dukungan pengelolaan dari kos-kosan bulanan hingga ruang usaha ruko & apartemen.
-          </p>
-        </div>
+        <ScrollReveal y={24} blur={4}>
+          <div className="text-center space-y-3">
+            <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
+              4 Jenis Properti Didukung
+            </span>
+            <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
+              Dirancang Fleksibel Untuk Berbagai Jenis Aset
+            </h2>
+            <p className="text-xs md:text-sm text-gray-500 max-w-xl mx-auto">
+              Dukungan pengelolaan dari kos-kosan bulanan hingga ruang usaha ruko & apartemen.
+            </p>
+          </div>
+        </ScrollReveal>
 
         {/* Grid 4 Cards */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -252,7 +329,7 @@ export function LandingPage() {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <span className="inline-block px-3 py-1 rounded-full bg-[#C8A96B]/15 text-[#C8A96B] text-[10px] font-bold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#C8A96B]/15 text-[#C8A96B] text-[10px] font-bold whitespace-nowrap">
                 Kos Harian & Bulanan
               </span>
               <h3 className="text-lg font-bold text-[#2F332E]">Kos-kosan</h3>
@@ -260,7 +337,7 @@ export function LandingPage() {
                 Manajemen lantai, nomor kamar, fasilitas kamar, kamar mandi dalam, dan deposit sewa.
               </p>
             </div>
-            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5">
+            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5 whitespace-nowrap">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               Fasilitas & Kamar Mandi Dalam
             </div>
@@ -276,7 +353,7 @@ export function LandingPage() {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[10px] font-bold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[10px] font-bold whitespace-nowrap">
                 Multi-Tower & Unit
               </span>
               <h3 className="text-lg font-bold text-[#2F332E]">Apartemen</h3>
@@ -284,7 +361,7 @@ export function LandingPage() {
                 Manajemen tower, lantai, nomor unit, kamar internal, dan tagihan IPL berkala.
               </p>
             </div>
-            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5">
+            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5 whitespace-nowrap">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               Manajemen Unit & IPL
             </div>
@@ -300,7 +377,7 @@ export function LandingPage() {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <span className="inline-block px-3 py-1 rounded-full bg-[#C8A96B]/15 text-[#C8A96B] text-[10px] font-bold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#C8A96B]/15 text-[#C8A96B] text-[10px] font-bold whitespace-nowrap">
                 Paviliun & Rumah
               </span>
               <h3 className="text-lg font-bold text-[#2F332E]">Kontrakan</h3>
@@ -308,7 +385,7 @@ export function LandingPage() {
                 Manajemen rumah kontrakan/paviliun, masa sewa tahunan, serta tagihan independen.
               </p>
             </div>
-            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5">
+            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5 whitespace-nowrap">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               Kontrak Jangka Panjang
             </div>
@@ -324,7 +401,7 @@ export function LandingPage() {
                   className="h-full w-full object-cover"
                 />
               </div>
-              <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[10px] font-bold">
+              <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[10px] font-bold whitespace-nowrap">
                 Ruang Komersial
               </span>
               <h3 className="text-lg font-bold text-[#2F332E]">Ruko</h3>
@@ -332,7 +409,7 @@ export function LandingPage() {
                 Manajemen ruang komersial, ruko bisnis, kontrak tenant usaha, dan laporan sewa.
               </p>
             </div>
-            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5">
+            <div className="pt-3 border-t border-gray-100 text-[11px] font-bold text-[#8FA28A] flex items-center gap-1.5 whitespace-nowrap">
               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
               Tenant Usaha & Bisnis
             </div>
@@ -342,17 +419,19 @@ export function LandingPage() {
 
       {/* ---------------------------------------------------------------- METRIK PLATFORM SECTION ---------------------------------------------------------------- */}
       <section id="metrik-platform" className="py-20 px-4 max-w-7xl mx-auto space-y-12">
-        <div className="text-center space-y-3">
-          <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
-            Ringkasan Platform ARVENTA
-          </span>
-          <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
-            ARVENTA dalam Angka
-          </h2>
-          <p className="text-xs md:text-sm text-gray-500 max-w-xl mx-auto">
-            Kepercayaan ribuan pemilik properti dan penyewa di berbagai daerah.
-          </p>
-        </div>
+        <ScrollReveal y={24} blur={4}>
+          <div className="text-center space-y-3">
+            <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
+              Ringkasan Platform ARVENTA
+            </span>
+            <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
+              ARVENTA dalam Angka
+            </h2>
+            <p className="text-xs md:text-sm text-gray-500 max-w-xl mx-auto">
+              Kepercayaan ribuan pemilik properti dan penyewa di berbagai daerah.
+            </p>
+          </div>
+        </ScrollReveal>
 
         {/* 4 Stat Cards */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -411,173 +490,237 @@ export function LandingPage() {
       </section>
 
       {/* ---------------------------------------------------------------- FITUR UTAMA SECTION ---------------------------------------------------------------- */}
-      <section id="fitur-utama" className="py-10 px-4 max-w-7xl mx-auto space-y-4">
-        <div className="text-center space-y-3">
-          <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
-            Fitur Utama Platform
-          </span>
-          <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
-            Solusi Terpadu Pengelolaan Properti Modern
-          </h2>
-        </div>
+      <section id="fitur-utama" className="py-12 md:py-16 w-full space-y-6 overflow-visible">
+        <ScrollReveal y={24} blur={4}>
+          <div className="text-center space-y-3 max-w-5xl mx-auto px-4">
+            <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[11px] font-extrabold uppercase tracking-wider">
+              Fitur Utama Platform
+            </span>
+            <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
+              Solusi Terpadu Pengelolaan Properti Modern
+            </h2>
+          </div>
+        </ScrollReveal>
 
         {/* Sliding Stacked Carousel */}
-        <CarouselStacked />
+        <CarouselStacked slides={featureSlides ?? DEFAULT_SLIDES} />
       </section>
 
       {/* ---------------------------------------------------------------- PAKET HARGA SUBSCRIPTION SECTION ---------------------------------------------------------------- */}
-      <section id="paket-harga" className="py-20 px-4 max-w-7xl mx-auto space-y-12">
-        <div className="text-center space-y-3">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-[#C8A96B]/20 text-[#C8A96B] text-xs font-extrabold uppercase tracking-wider">
-            Paket Harga Subscription
-          </span>
-          <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
-            Pilihan Paket Sesuai Skala Properti Anda
-          </h2>
-        </div>
-
-        {/* 3 Pricing Cards */}
-        <div className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto items-stretch">
-          {/* Card 1: BASIC */}
-          <div className="rounded-3xl border border-[#C7D3C0]/50 bg-white p-8 space-y-6 flex flex-col justify-between shadow-xs">
-            <div className="space-y-4">
-              <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[10px] font-bold uppercase">
-                BASIC
-              </span>
-              <div>
-                <span className="text-3xl font-black text-[#2F332E]">Rp 99.000</span>
-                <span className="text-xs text-gray-400 font-semibold">/bln</span>
-              </div>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Cocok untuk pemilik kos kecil atau 1 bangunan kos-kosan.
-              </p>
-              <ul className="space-y-2.5 pt-2 text-xs text-gray-600">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#8FA28A] shrink-0" />
-                  Batas Hingga 15 Kamar
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#8FA28A] shrink-0" />
-                  Pencatatan Tenant & Invoice
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#8FA28A] shrink-0" />
-                  WhatsApp Payment Reminder
-                </li>
-              </ul>
-            </div>
-            <Link
-              href="/login"
-              className="w-full py-3 rounded-xl border border-[#C7D3C0] hover:bg-gray-50 text-xs font-bold text-gray-700 text-center transition-all block"
-            >
-              Pilih Basic
-            </Link>
+      <section id="paket-harga" className="py-10 px-4 max-w-7xl mx-auto space-y-12">
+        <ScrollReveal y={24} blur={4}>
+          <div className="text-center space-y-3">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-[#C8A96B]/20 text-[#C8A96B] text-xs font-extrabold uppercase tracking-wider">
+              Paket Harga Subscription
+            </span>
+            <h2 className="text-2xl md:text-4xl font-black text-[#2F332E]">
+              Pilihan Paket Sesuai Skala Properti Anda
+            </h2>
+            <p className="text-xs md:text-sm text-gray-500 max-w-xl mx-auto">
+              Mulai gratis, upgrade kapan saja sesuai pertumbuhan bisnis properti Anda.
+            </p>
           </div>
+        </ScrollReveal>
 
-          {/* Card 2: BUSINESS (POPULAR) */}
-          <div className="rounded-3xl border-2 border-[#8FA28A] bg-white p-8 space-y-6 flex flex-col justify-between shadow-lg relative">
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[#8FA28A] text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
-              POPULAR
-            </div>
-
-            <div className="space-y-4">
-              <span className="inline-block px-3 py-1 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[10px] font-bold uppercase">
-                BUSINESS
-              </span>
-              <div>
-                <span className="text-3xl font-black text-[#2F332E]">Rp 249.000</span>
-                <span className="text-xs text-gray-400 font-semibold">/bln</span>
+        {/* Pricing Cards — 1 col mobile, 2 col tablet, 4 col desktop */}
+        {plansLoading ? (
+          /* Skeleton Loader */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="rounded-3xl border border-[#C7D3C0]/40 bg-white p-6 space-y-4 animate-pulse"
+              >
+                <div className="h-4 w-20 bg-gray-100 rounded-full" />
+                <div className="h-8 w-36 bg-gray-100 rounded-lg" />
+                <div className="h-3 w-28 bg-gray-100 rounded-full" />
+                <div className="mt-4 space-y-2">
+                  {[...Array(4)].map((_, j) => (
+                    <div key={j} className="h-3 w-full bg-gray-100 rounded-full" />
+                  ))}
+                </div>
+                <div className="h-10 w-full bg-gray-100 rounded-xl mt-4" />
               </div>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Untuk pemilik kos menengah, apartemen, atau kontrakan multi-lokasi.
-              </p>
-              <ul className="space-y-2.5 pt-2 text-xs text-gray-600">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#8FA28A] shrink-0" />
-                  Batas Hingga 50 Kamar
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#8FA28A] shrink-0" />
-                  Fitur Housekeeping & OpEx
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#8FA28A] shrink-0" />
-                  AI Financial Insight Card
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#8FA28A] shrink-0" />
-                  Multi-Staff Role Access
-                </li>
-              </ul>
-            </div>
-            <Link
-              href="/login"
-              className="w-full py-3.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white text-xs font-bold text-center transition-all shadow-sm block"
-            >
-              Coba Business Demo
-            </Link>
+            ))}
           </div>
+        ) : plans.length === 0 ? (
+          <p className="text-center text-sm text-gray-400 py-10">
+            Paket langganan belum tersedia saat ini.
+          </p>
+        ) : (
+          /* --- Plan Cards --- */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-stretch pt-5">
+            {plans.map((plan) => {
+              const isFree = plan.priceMonthly === 0;
+              const isPopular = plan.isMostPopular;
 
-          {/* Card 3: PRO */}
-          <div className="rounded-3xl border border-[#C7D3C0]/50 bg-white p-8 space-y-6 flex flex-col justify-between shadow-xs">
-            <div className="space-y-4">
-              <span className="inline-block px-3 py-1 rounded-full bg-[#C8A96B]/20 text-[#C8A96B] text-[10px] font-bold uppercase">
-                PRO
-              </span>
-              <div>
-                <span className="text-3xl font-black text-[#2F332E]">Rp 499.000</span>
-                <span className="text-xs text-gray-400 font-semibold">/bln</span>
-              </div>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Untuk pengelola aset skala besar, ruko komersial & apartemen.
-              </p>
-              <ul className="space-y-2.5 pt-2 text-xs text-gray-600">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#C8A96B] shrink-0" />
-                  Unlimited Kamar & Properti
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#C8A96B] shrink-0" />
-                  Custom Workflow & Audit Log
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-[#C8A96B] shrink-0" />
-                  Priority Dedicated Support
-                </li>
-              </ul>
-            </div>
-            <Link
-              href="/login"
-              className="w-full py-3 rounded-xl bg-[#C8A96B] hover:bg-[#C8A96B]/90 text-white text-xs font-bold text-center transition-all shadow-sm block"
-            >
-              Pilih Pro Enterprise
-            </Link>
+              return (
+                <div
+                  key={plan.id}
+                  className={[
+                    "rounded-3xl p-6 flex flex-col justify-between relative transition-shadow duration-200",
+                    isPopular
+                      ? "border-2 border-[#C8A96B] bg-white shadow-xl mt-0"
+                      : "border border-[#C7D3C0]/50 bg-white shadow-sm hover:shadow-md",
+                  ].join(" ")}
+                >
+                  {/* Popular Badge — floats above card */}
+                  {isPopular && (
+                    <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#C8A96B] text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+                        <Zap className="w-3 h-3" />
+                        Paling Populer
+                      </span>
+                    </div>
+                  )}
+
+                  {/* ---- Card body ---- */}
+                  <div className={["space-y-4 flex-1", isPopular ? "pt-3" : ""].join(" ")}>
+                    {/* Plan name + Default badge */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <h3 className="text-xl font-black text-[#2F332E] leading-none">
+                        {plan.name}
+                      </h3>
+                      {plan.isDefault && (
+                        <span className="inline-block px-2 py-0.5 rounded-full bg-[#8FA28A]/15 text-[#8FA28A] text-[9px] font-bold uppercase tracking-wide">
+                          Default
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Pricing */}
+                    <div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-[#2F332E]">
+                          {isFree
+                            ? "Rp 0"
+                            : `Rp ${plan.priceMonthly.toLocaleString("id-ID")}`}
+                        </span>
+                        <span className="text-xs text-gray-400 font-semibold">/bulan</span>
+                      </div>
+                      {!isFree && plan.priceYearlyPerMonth > 0 && plan.discountPercent > 0 && (
+                        <p className="text-[11px] font-medium mt-0.5" style={{ color: "#009966" }}>
+                          ~Rp {plan.priceYearlyPerMonth.toLocaleString("id-ID")}/bulan (opsi tahunan hemat {plan.discountPercent}%)
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Quota metrics */}
+                    <div className="rounded-2xl bg-[#F7F4ED] px-4 py-3 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                          <Home className="w-3.5 h-3.5 text-[#8FA28A]" />
+                          Properti
+                        </span>
+                        <span className="font-bold text-[#2F332E]">
+                          {plan.maxProperties} Properti
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                          <Key className="w-3.5 h-3.5 text-[#8FA28A]" />
+                          Kamar / Unit
+                        </span>
+                        <span className="font-bold text-[#2F332E]">
+                          {plan.maxUnits} Kamar
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                          <Users className="w-3.5 h-3.5 text-[#8FA28A]" />
+                          Housekeeping
+                        </span>
+                        <span className="font-bold text-[#2F332E]">
+                          {plan.maxHousekeeping} Akun
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Feature list */}
+                    {plan.features.length > 0 && (
+                      <div className="space-y-2 pt-1">
+                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
+                          Fitur Sistem yang Termasuk:
+                        </p>
+                        <ul className="space-y-1.5">
+                          {plan.features.map((feat, fi) => (
+                            <li key={fi} className="flex items-start gap-2 text-xs text-gray-600">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#8FA28A] shrink-0 mt-0.5" />
+                              <span>{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CTA Button */}
+                  <div className="pt-5">
+                    <Link
+                      href="/login"
+                      className={[
+                        "w-full py-3 rounded-xl text-xs font-bold text-center transition-all block",
+                        isPopular
+                          ? "bg-[#C8A96B] hover:bg-[#C8A96B]/90 text-white shadow-sm"
+                          : isFree
+                          ? "border-2 border-[#8FA28A] text-[#8FA28A] hover:bg-[#8FA28A]/8"
+                          : "bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white shadow-sm",
+                      ].join(" ")}
+                    >
+                      {isFree ? `Mulai Gratis` : `Pilih Paket ${plan.name}`}
+                    </Link>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        </div>
+        )}
+
+      
       </section>
 
       {/* ---------------------------------------------------------------- FAQ SECTION ---------------------------------------------------------------- */}
       {Object.keys(faqCategories).length > 0 && (
-        <section id="faq" className="py-20 px-4 max-w-7xl mx-auto">
+        <section id="faq" className="py-10 px-4 max-w-7xl mx-auto">
           <FAQ
-            title="Pertanyaan yang Sering Ditanyakan"
-            subtitle="FAQ & Help Center"
+            title="Frequently Asked Questions"
+            description="Temukan jawaban atas berbagai pertanyaan yang sering diajukan mengenai Arventa. Kami telah merangkum informasi penting seputar fitur, layanan, dan penggunaan Arventa untuk membantu Anda mendapatkan informasi yang dibutuhkan dengan lebih cepat dan mudah."
+            subtitle="FAQ"
             categories={faqCategories}
             faqData={faqData}
             className="py-0"
           />
+
+          <div className="text-center mt-8">
+            <ScrollReveal y={20} blur={4}>
+              <p className="text-xs md:text-sm text-gray-500 font-medium">
+                Masih mempunyai pertanyaan? Hubungi kami melalui {" "}
+                <a
+                  href="mailto:arventa@gmail.com"
+                  className="font-bold text-[#8FA28A] hover:underline transition-colors"
+                >
+                  arventa@gmail.com
+                </a>
+              </p>
+              <p className="text-xs md:text-sm text-gray-500 font-medium">Kami siap membantu anda.</p>
+            </ScrollReveal>
+          </div>
         </section>
       )}
 
       {/* ---------------------------------------------------------------- BOTTOM CTA BANNER ---------------------------------------------------------------- */}
       <section className="bg-[#242823] text-white py-16 md:py-20 px-4 text-center space-y-6">
         <div className="max-w-3xl mx-auto space-y-4">
-          <h2 className="text-3xl md:text-5xl font-black tracking-tight text-white leading-tight">
-            Kelola Semua Properti dalam Satu Platform
-          </h2>
-          <p className="text-xs md:text-sm text-gray-300 max-w-xl mx-auto leading-relaxed">
-            Gunakan ARVENTA sekarang untuk efisiensi operasional kos, apartemen, kontrakan, dan ruko Anda.
-          </p>
+          <ScrollReveal y={24} blur={4}>
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight text-white leading-tight">
+              Kelola Semua Properti dalam Satu Platform
+            </h2>
+          </ScrollReveal>
+          <ScrollReveal delay={0.1} y={16} blur={3}>
+            <p className="text-xs md:text-sm text-gray-300 max-w-xl mx-auto leading-relaxed">
+              Gunakan ARVENTA sekarang untuk efisiensi operasional kos, apartemen, kontrakan, dan ruko Anda.
+            </p>
+          </ScrollReveal>
           <div className="pt-2">
             <Link
               href="/login"
