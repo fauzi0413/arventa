@@ -198,6 +198,7 @@ const ownerNavItems: NavItem[] = [
   { id: "owner-4", href: "/operations/maintenance-reports", label: "Pusat Laporan & Maintenance", icon: IconTools, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-5", href: "/tenants", label: "Penyewa & Kontrak", icon: IconUsers, group: "PENYEWA & KEUANGAN" },
   { id: "owner-6", href: "/finance", label: "Keuangan & Penagihan", icon: IconCash, group: "PENYEWA & KEUANGAN" },
+  { id: "owner-community", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "PENYEWA & KEUANGAN" },
   { id: "owner-7", href: "/owner/faq", label: "FAQ & Bantuan", icon: IconHelpCircle, group: "BANTUAN" },
 ];
 
