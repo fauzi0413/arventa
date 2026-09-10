@@ -104,11 +104,13 @@ export default function PropertyDetailPage() {
           const mappedUnits: Unit[] = (p.units || []).map((u: any) => {
             const activeLease = u.leases?.[0];
             const tenant = activeLease?.tenant;
+            const mappedStatus = statusMap[u.status] || 'Available';
+            const isOccupied = mappedStatus === 'Occupied';
             return {
               id: u.id,
               propertyId: p.id,
               name: u.unitNumber,
-              status: statusMap[u.status] || 'Available',
+              status: mappedStatus,
               facilities: Array.isArray(u.facilities) ? u.facilities : ['AC', 'WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed'],
               capacity: {
                 maxPersons: u.capacity || 1,
@@ -121,9 +123,9 @@ export default function PropertyDetailPage() {
                 utilities: u.utilities || '',
               },
               description: u.description || (u.floor ? `Lantai ${u.floor}` : ''),
-              tenantName: tenant?.fullName || tenant?.user?.fullName || u.tenantName || '',
-              tenantPhone: tenant?.phoneNumber || tenant?.user?.phoneNumber || u.tenantPhone || '',
-              checkInDate: activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : new Date(activeLease.startDate).toISOString().split('T')[0]) : (u.checkInDate || ''),
+              tenantName: isOccupied ? (tenant?.fullName || tenant?.user?.fullName || u.tenantName || '') : undefined,
+              tenantPhone: isOccupied ? (tenant?.phoneNumber || tenant?.user?.phoneNumber || u.tenantPhone || '') : undefined,
+              checkInDate: isOccupied && activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : new Date(activeLease.startDate).toISOString().split('T')[0]) : (isOccupied ? (u.checkInDate || '') : undefined),
               createdAt: u.createdAt || new Date().toISOString(),
             };
           });
@@ -154,7 +156,11 @@ export default function PropertyDetailPage() {
     if (storedUnits) currentUnits = JSON.parse(storedUnits);
 
     const found = currentProps.find((p) => p.id === id);
-    const propUnits = currentUnits.filter((u) => u.propertyId === id);
+    const propUnits = currentUnits.filter((u) => u.propertyId === id).map((u) => ({
+      ...u,
+      tenantName: u.status === 'Occupied' ? u.tenantName : undefined,
+      tenantPhone: u.status === 'Occupied' ? u.tenantPhone : undefined,
+    }));
 
     setCategories(currentCats);
     setStatuses(currentStats);
@@ -736,9 +742,18 @@ export default function PropertyDetailPage() {
 
                             {/* Inline Custom Status Badge Dropdown */}
                             <UnitStatusBadgeDropdown
-                              status={unit.status}
-                              onChange={async (newStatus) => {
-                                const updatedUnits = units.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
+                              status={unit.status}                               onChange={async (newStatus) => {
+                                const isOcc = newStatus === 'Occupied';
+                                const updatedUnits = units.map((u) => (
+                                  u.id === unit.id
+                                    ? {
+                                      ...u,
+                                      status: newStatus,
+                                      tenantName: isOcc ? u.tenantName : undefined,
+                                      tenantPhone: isOcc ? u.tenantPhone : undefined,
+                                    }
+                                    : u
+                                ));
                                 setUnits(updatedUnits);
 
                                 const statusMap: Record<string, string> = {
@@ -754,7 +769,16 @@ export default function PropertyDetailPage() {
                                 if (storedUnits) {
                                   try {
                                     const all: Unit[] = JSON.parse(storedUnits);
-                                    const updatedAll = all.map((u) => (u.id === unit.id ? { ...u, status: newStatus } : u));
+                                    const updatedAll = all.map((u) => (
+                                      u.id === unit.id
+                                        ? {
+                                          ...u,
+                                          status: newStatus,
+                                          tenantName: isOcc ? u.tenantName : undefined,
+                                          tenantPhone: isOcc ? u.tenantPhone : undefined,
+                                        }
+                                        : u
+                                    ));
                                     localStorage.setItem('arventa_units', JSON.stringify(updatedAll));
                                   } catch (e) { }
                                 }
@@ -767,7 +791,12 @@ export default function PropertyDetailPage() {
                                       if (p.id === id) {
                                         const updatedPU = (p.units || []).map((pu: any) => {
                                           if (pu.id === unit.id || pu.unitNumber === unit.name || pu.name === unit.name) {
-                                            return { ...pu, status: dbStatus };
+                                            return {
+                                              ...pu,
+                                              status: dbStatus,
+                                              tenantName: isOcc ? pu.tenantName : undefined,
+                                              tenantPhone: isOcc ? pu.tenantPhone : undefined,
+                                            };
                                           }
                                           return pu;
                                         });
@@ -801,7 +830,7 @@ export default function PropertyDetailPage() {
                               {formatRupiah(unit.pricing.monthly)}
                               <span className="text-[10px] font-semibold text-gray-400">/bln</span>
                             </span>
-                            {unit.tenantName && (
+                            {unit.status === 'Occupied' && unit.tenantName && (
                               <span className="text-[11px] font-bold text-blue-600 truncate max-w-[120px]">
                                 Penyewa: {unit.tenantName}
                               </span>

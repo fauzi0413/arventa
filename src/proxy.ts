@@ -37,8 +37,13 @@ const protectedPrefixes = [
 const authRoutes = ["/login", "/register"];
 
 export async function proxy(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request);
   const { pathname } = request.nextUrl;
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  const { supabaseResponse, user } = await updateSession(request);
+  supabaseResponse.headers.set("x-pathname", pathname);
 
   // 1. Allow maintenance page & static assets without redirect loops
   if (pathname.startsWith("/maintenance")) {
@@ -67,7 +72,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return supabaseResponse;
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {

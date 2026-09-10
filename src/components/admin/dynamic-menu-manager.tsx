@@ -625,8 +625,10 @@ export function DynamicMenuManager() {
         return "Owner Properti";
       case "HOUSEKEEPING":
         return "Housekeeping Staff";
+      case "TENANT":
+        return "Penyewa Kamar";
       case "USER":
-        return "User";
+        return "Penyewa Kamar";
       default:
         return code;
     }
@@ -778,7 +780,7 @@ export function DynamicMenuManager() {
                     <option value="PLATFORM_ADMIN">Platform Admin (PLATFORM_ADMIN)</option>
                     <option value="OWNER">Owner Properti (OWNER)</option>
                     <option value="HOUSEKEEPING">Housekeeping (HOUSEKEEPING)</option>
-                    <option value="USER">User (USER)</option>
+                    <option value="TENANT">Penyewa Kamar (TENANT)</option>
                   </>
                 )}
               </select>
@@ -1184,7 +1186,10 @@ export function DynamicMenuManager() {
                   Tautkan ke Role <span className="text-red-500 font-extrabold">* (Wajib pilih min. 1)</span>:
                 </label>
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {["PLATFORM_ADMIN", "OWNER", "HOUSEKEEPING", "USER"].map((code) => {
+                  {(roles.length > 0
+                    ? roles.map((r) => r.code)
+                    : ["PLATFORM_ADMIN", "OWNER", "HOUSEKEEPING", "TENANT"]
+                  ).map((code) => {
                     const isChecked = selectedRoles.includes(code);
                     return (
                       <button

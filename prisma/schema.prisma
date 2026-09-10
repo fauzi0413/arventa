@@ -141,6 +141,7 @@ model User {
   forumComments              ForumComment[]
   reportedMaintenanceTickets MaintenanceTicket[]      @relation("ReportedTickets")
   assignedMaintenanceTickets MaintenanceTicket[]      @relation("AssignedTickets")
+  ownerPaymentMethods        OwnerPaymentMethod[]
 
   @@map("users")
 }
@@ -367,6 +368,25 @@ model SaaSPaymentMethod {
   @@map("saas_payment_methods")
 }
 
+model OwnerPaymentMethod {
+  id            String    @id @default(uuid())
+  ownerId       String    @map("owner_id")
+  owner         User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  propertyId    String?   @map("property_id")
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  bankName      String    @map("bank_name")
+  accountNumber String    @map("account_number")
+  accountHolder String    @map("account_holder")
+  notes         String?   @db.Text
+  isEnabled     Boolean   @default(true) @map("is_enabled")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("owner_payment_methods")
+}
+
 // --- 3. DYNAMIC ROLE, PERMISSION & MENU MANAGEMENT ---
 model Role {
   id          String  @id @default(uuid())
@@ -476,6 +496,7 @@ model Property {
   announcements           Announcement[]
   forumPosts              ForumPost[]
   maintenanceTickets      MaintenanceTicket[]
+  paymentMethods          OwnerPaymentMethod[]
 
   @@map("properties")
 }

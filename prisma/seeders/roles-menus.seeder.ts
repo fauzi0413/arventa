@@ -2,7 +2,7 @@ import { prisma } from "../../src/lib/prisma";
 
 /**
  * Seed Roles, Permissions, Menu Items, Role-Menu Mappings, and Feature Flags.
- * Strictly maintains 100% clean role separation.
+ * Strictly maintains role separation & non-destructive upsert so custom user menus are never wiped or duplicated.
  */
 export async function seedRolesAndMenus() {
   console.log("\n🔐 Seeding Roles, Permissions & Dynamic Menus into Database...");
@@ -25,6 +25,8 @@ export async function seedRolesAndMenus() {
     }
     roleMap[role.code] = role.id;
   }
+  // Alias USER -> TENANT for fallback role lookup
+  roleMap["USER"] = roleMap["TENANT"];
 
   // 2. Seed Master Permissions (Module & Action Granular Grid)
   const modules = ["properties", "finance", "operations", "tenants", "reports", "settings"];
@@ -73,7 +75,7 @@ export async function seedRolesAndMenus() {
       "operations:create",
       "operations:update",
     ],
-    USER: [
+    TENANT: [
       "tenants:read",
       "operations:read",
     ],
@@ -114,7 +116,7 @@ export async function seedRolesAndMenus() {
     }
   }
 
-  // 3. Complete Master List of Menu Items & Role Links (Strict Role Separation & Submenus)
+  // 5. Complete Master List of Menu Items & Role Links (All 38 Items from Database Synced)
   const menuItemsData: Array<{
     title: string;
     path: string;
@@ -133,89 +135,129 @@ export async function seedRolesAndMenus() {
       { title: "Payment Verification", path: "/platform/payment-verification", icon: "IconUserCheck", group: "MANAJEMEN SAAS", order: 6, roles: ["PLATFORM_ADMIN"], parentTitle: "Subscriptions & Billing" },
       { title: "Transaction History", path: "/platform/transaction-history", icon: "IconUpload", group: "MANAJEMEN SAAS", order: 7, roles: ["PLATFORM_ADMIN"], parentTitle: "Subscriptions & Billing" },
       { title: "Payment Methods", path: "/platform/payment-methods", icon: "IconBuildingBank", group: "MANAJEMEN SAAS", order: 8, roles: ["PLATFORM_ADMIN"], parentTitle: "Subscriptions & Billing" },
-      { title: "Role & Permission Management", path: "/platform/roles", icon: "IconLock", group: "SISTEM & KONFIGURASI", order: 8, roles: ["PLATFORM_ADMIN"] },
-      { title: "Dynamic Menu Management", path: "/platform/menus", icon: "IconRoute", group: "SISTEM & KONFIGURASI", order: 10, roles: ["PLATFORM_ADMIN"] },
-      { title: "Platform Settings & Integrasi", path: "/platform/settings", icon: "IconSettings", group: "SISTEM & KONFIGURASI", order: 11, roles: ["PLATFORM_ADMIN"] },
-      { title: "FAQ Management", path: "/platform/faq", icon: "IconHelpCircle", group: "SISTEM & KONFIGURASI", order: 12, roles: ["PLATFORM_ADMIN"] },
+      { title: "Feature Showcase Carousel", path: "/platform/feature-showcase", icon: "IconLayoutGrid", group: "MANAJEMEN SAAS", order: 9, roles: ["PLATFORM_ADMIN"] },
+      { title: "Role & Permission Management", path: "/platform/roles", icon: "IconLock", group: "SISTEM & KONFIGURASI", order: 10, roles: ["PLATFORM_ADMIN"] },
+      { title: "Dynamic Menu Management", path: "/platform/menus", icon: "IconRoute", group: "SISTEM & KONFIGURASI", order: 11, roles: ["PLATFORM_ADMIN"] },
+      { title: "Platform Settings & Integrasi", path: "/platform/settings", icon: "IconSettings", group: "SISTEM & KONFIGURASI", order: 12, roles: ["PLATFORM_ADMIN"] },
+      { title: "FAQ Management", path: "/platform/faq", icon: "IconHelpCircle", group: "SISTEM & KONFIGURASI", order: 13, roles: ["PLATFORM_ADMIN"] },
+      { title: "Support Tickets", path: "/platform/support-tickets", icon: "IconHeadset", group: "SISTEM & KONFIGURASI", order: 14, roles: ["PLATFORM_ADMIN"] },
 
       // --- OWNER MENUS ---
       { title: "Dashboard Utama", path: "/owner/dashboard", icon: "IconHome", group: "UTAMA", order: 1, roles: ["OWNER"] },
       { title: "Properti & Manajemen Unit", path: "/properties", icon: "IconBuilding", group: "PROPERTI & OPERASIONAL", order: 2, roles: ["OWNER"] },
-      { title: "Tim Operasional & Housekeeping", path: "/operations/housekeeping-team", icon: "IconSparkles", group: "PROPERTI & OPERASIONAL", order: 5, roles: ["OWNER"] },
-      { title: "Pusat Laporan & Maintenance", path: "/operations/maintenance-reports", icon: "IconTools", group: "PROPERTI & OPERASIONAL", order: 6, roles: ["OWNER"] },
-      { title: "Penyewa & Kontrak", path: "/tenant-&-contract", icon: "IconUsers", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"] },
+      { title: "Unit Kamar", path: "/units", icon: "IconBed", group: "PROPERTI & OPERASIONAL", order: 3, roles: ["OWNER"] },
+      { title: "Tim Operasional & Housekeeping", path: "/operations/housekeeping-team", icon: "IconSparkles", group: "PROPERTI & OPERASIONAL", order: 4, roles: ["OWNER"] },
+      { title: "Pusat Laporan & Maintenance", path: "/operations/maintenance-reports", icon: "IconTools", group: "PROPERTI & OPERASIONAL", order: 5, roles: ["OWNER"] },
+      { title: "Penyewa & Kontrak", path: "/tenant-&-contract", icon: "IconUsers", group: "PENYEWA & KEUANGAN", order: 6, roles: ["OWNER"] },
       { title: "Kontrak Penyewa", path: "/tenant-contract", icon: "IconFileText", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
-      { title: "Manajemen Penyewa", path: "/tenants", icon: "IconId", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
+      { title: "Manajemen Penyewa", path: "/tenants", icon: "IconId", group: "PENYEWA & KEUANGAN", order: 8, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
       { title: "Keuangan & Penagihan", path: "/finance", icon: "IconCash", group: "PENYEWA & KEUANGAN", order: 9, roles: ["OWNER"] },
-      { title: "Pengeluaran Operasional (OpEx)", path: "/finance/expenses", icon: "IconReceipt", group: "PENYEWA & KEUANGAN", order: 10, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
-      { title: "Laporan & Analytics", path: "/reports", icon: "IconChartBar", group: "PENYEWA & KEUANGAN", order: 11, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
-      { title: "FAQ & Bantuan", path: "/owner/faq", icon: "IconHelpCircle", group: "BANTUAN", order: 12, roles: ["OWNER"] },
+      { title: "Manajemen Invoice", path: "/finance", icon: "IconReceipt", group: "PENYEWA & KEUANGAN", order: 10, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Verifikasi Pembayaran & Rekening", path: "/finance/verification", icon: "IconUserCheck", group: "PENYEWA & KEUANGAN", order: 11, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Pengeluaran Operasional (OpEx)", path: "/finance/expenses", icon: "IconTools", group: "PENYEWA & KEUANGAN", order: 12, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Laporan & Analytics", path: "/reports", icon: "IconChartBar", group: "PENYEWA & KEUANGAN", order: 13, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Komunitas Properti", path: "/community", icon: "IconMessages", group: "PENYEWA & KEUANGAN", order: 14, roles: ["OWNER"] },
+      { title: "Paket Berlangganan", path: "/owner/subscription", icon: "IconCreditCard", group: "BANTUAN", order: 15, roles: ["OWNER"] },
+      { title: "FAQ & Bantuan", path: "/owner/faq", icon: "IconHelpCircle", group: "BANTUAN", order: 16, roles: ["OWNER"] },
 
       // --- HOUSEKEEPING MENUS ---
       { title: "Status Kamar Grid", path: "/housekeeping/room-grid", icon: "IconClipboardCheck", group: "LAPANGAN & UNIT", order: 1, roles: ["HOUSEKEEPING"] },
       { title: "Laporan & Tugas Lapangan", path: "/housekeeping/maintenance-reports", icon: "IconTools", group: "LAPANGAN & UNIT", order: 2, roles: ["HOUSEKEEPING"] },
       { title: "Data Penghuni Lapangan", path: "/housekeeping/tenants", icon: "IconUserCheck", group: "LAPANGAN & UNIT", order: 3, roles: ["HOUSEKEEPING"] },
       { title: "Kondisi Perabotan & Unit", path: "/housekeeping/inventories", icon: "IconArmchair", group: "LAPANGAN & UNIT", order: 4, roles: ["HOUSEKEEPING"] },
-      { title: "Keuangan & Penagihan Unit", path: "/housekeeping/unit-expenses", icon: "IconCash", group: "KEUANGAN & KOMUNITAS", order: 6, roles: ["HOUSEKEEPING"] },
-      { title: "Komunitas & Pengumuman", path: "/housekeeping/community", icon: "IconMessages", group: "KEUANGAN & KOMUNITAS", order: 7, roles: ["HOUSEKEEPING"] },
+      { title: "Keuangan & Penagihan Unit", path: "/housekeeping/unit-expenses", icon: "IconCash", group: "KEUANGAN & KOMUNITAS", order: 5, roles: ["HOUSEKEEPING"] },
+      { title: "Komunitas & Pengumuman", path: "/housekeeping/community", icon: "IconMessages", group: "KEUANGAN & KOMUNITAS", order: 6, roles: ["HOUSEKEEPING"] },
 
       // --- USER (TENANT) MENUS ---
-      { title: "Info Kamar Saya", path: "/portal/room", icon: "IconBed", group: "PORTAL KAMAR", order: 1, roles: ["USER"] },
-      { title: "Kontrak & Dokumen", path: "/portal/contract", icon: "IconFileText", group: "PORTAL KAMAR", order: 3, roles: ["USER"] },
-      { title: "Tagihan & Pembayaran", path: "/portal/invoices", icon: "IconReceipt", group: "PORTAL KAMAR", order: 4, roles: ["USER"] },
-      { title: "Komunitas Properti", path: "/portal/community", icon: "IconMessages", group: "KOMUNITAS", order: 6, roles: ["USER"] },
+      { title: "Info Kamar Saya", path: "/portal/room", icon: "IconBed", group: "PORTAL KAMAR", order: 1, roles: ["TENANT", "USER"] },
+      { title: "Kontrak & Dokumen", path: "/portal/contract", icon: "IconFileText", group: "PORTAL KAMAR", order: 2, roles: ["TENANT", "USER"] },
+      { title: "Tagihan & Pembayaran", path: "/portal/invoices", icon: "IconReceipt", group: "PORTAL KAMAR", order: 3, roles: ["TENANT", "USER"] },
+      { title: "Komunitas Properti", path: "/portal/community", icon: "IconMessages", group: "KOMUNITAS", order: 4, roles: ["TENANT", "USER"] },
     ];
 
-  // 4. Wipe old menu_items and role_menus completely for a 100% clean database slate
-  console.log("🧹 Wiping old menu_items and role_menus for clean re-seeding...");
-  await prisma.roleMenu.deleteMany();
-  await prisma.menuItem.deleteMany();
+  // 6. Safe Non-Destructive Upsert of Menu Items & Role Links (Preserves custom user-created menus)
+  console.log("🔄 Non-destructive upsert of menu items and role mappings...");
 
-  // 5. Seed Unique Menu Items & Link to Roles (Two-Pass for Parent-Child Hierarchy)
   const createdMenuMap: Record<string, string> = {};
 
-  // First Pass: Create Main Root Menus (without parentTitle)
+  // First Pass: Create or Update Root Menus (items without parentTitle)
   for (const itemData of menuItemsData.filter((i) => !i.parentTitle)) {
     const { title, path, icon, group, order, roles: roleCodes } = itemData;
 
-    const menuItem = await prisma.menuItem.create({
-      data: { title, path, icon, group, order, parentId: null },
+    let menuItem = await prisma.menuItem.findFirst({
+      where: { title },
     });
+
+    if (menuItem) {
+      menuItem = await prisma.menuItem.update({
+        where: { id: menuItem.id },
+        data: { title, path, icon, group, order },
+      });
+      console.log(`🔄 Updated Main MenuItem: ${title} (${path})`);
+    } else {
+      menuItem = await prisma.menuItem.create({
+        data: { title, path, icon, group, order, parentId: null },
+      });
+      console.log(`✅ Created Main MenuItem: ${title} (${path}) [Group: ${group}]`);
+    }
+
     createdMenuMap[title] = menuItem.id;
-    console.log(`✅ Created Main MenuItem: ${title} (${path}) [Group: ${group}]`);
 
     for (const code of roleCodes) {
       const roleId = roleMap[code];
       if (roleId) {
-        await prisma.roleMenu.create({
-          data: { roleId, menuItemId: menuItem.id },
+        const existingRM = await prisma.roleMenu.findUnique({
+          where: { roleId_menuItemId: { roleId, menuItemId: menuItem.id } },
         });
-        console.log(`  🔗 Linked Role: ${code}`);
+        if (!existingRM) {
+          await prisma.roleMenu.create({
+            data: { roleId, menuItemId: menuItem.id },
+          });
+          console.log(`  🔗 Linked Role: ${code}`);
+        }
       }
     }
   }
 
-  // Second Pass: Create Submenus (with parentTitle)
+  // Second Pass: Create or Update Submenus (items with parentTitle)
   for (const itemData of menuItemsData.filter((i) => Boolean(i.parentTitle))) {
     const { title, path, icon, group, order, roles: roleCodes, parentTitle } = itemData;
     const parentId = parentTitle ? createdMenuMap[parentTitle] : null;
 
-    const menuItem = await prisma.menuItem.create({
-      data: { title, path, icon, group, order, parentId },
+    let menuItem = await prisma.menuItem.findFirst({
+      where: { title },
     });
+
+    if (menuItem) {
+      menuItem = await prisma.menuItem.update({
+        where: { id: menuItem.id },
+        data: { title, path, icon, group, order, parentId },
+      });
+      console.log(`🔄 Updated Submenu MenuItem: ${title} (${path})`);
+    } else {
+      menuItem = await prisma.menuItem.create({
+        data: { title, path, icon, group, order, parentId },
+      });
+      console.log(`✅ Created Submenu MenuItem: ${title} (${path}) [Parent: ${parentTitle}]`);
+    }
+
     createdMenuMap[title] = menuItem.id;
-    console.log(`✅ Created Submenu MenuItem: ${title} (${path}) [Parent: ${parentTitle}]`);
 
     for (const code of roleCodes) {
       const roleId = roleMap[code];
       if (roleId) {
-        await prisma.roleMenu.create({
-          data: { roleId, menuItemId: menuItem.id },
+        const existingRM = await prisma.roleMenu.findUnique({
+          where: { roleId_menuItemId: { roleId, menuItemId: menuItem.id } },
         });
-        console.log(`  🔗 Linked Role: ${code}`);
+        if (!existingRM) {
+          await prisma.roleMenu.create({
+            data: { roleId, menuItemId: menuItem.id },
+          });
+          console.log(`  🔗 Linked Role: ${code}`);
+        }
       }
     }
   }
 
-  console.log("✨ All Menu Items and Role Mappings seeded with strict role separation successfully.");
+  console.log("✨ All 38 Menu Items and Role Mappings synchronized safely without deleting custom user entries.");
 }

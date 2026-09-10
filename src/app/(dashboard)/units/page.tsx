@@ -126,12 +126,14 @@ function UnitsPageContent() {
               p.units.forEach((u: any) => {
                 const activeLease = u.leases?.[0];
                 const tenant = activeLease?.tenant;
+                const mappedStatus = statusMap[u.status] || 'Available';
+                const isOccupied = mappedStatus === 'Occupied';
                 allMappedUnits.push({
                   id: u.id,
                   propertyId: p.id,
                   name: u.unitNumber,
-                  status: statusMap[u.status] || 'Available',
-                  facilities: Array.isArray(u.facilities) ? u.facilities : ['AC', 'WiFi', 'Kamar Mandi Dalam'],
+                  status: mappedStatus,
+                  facilities: Array.isArray(u.facilities) ? u.facilities : ['AC', 'WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed'],
                   capacity: {
                     maxPersons: u.capacity || 1,
                     dimensions: u.dimensions || (u.floor ? `Lantai ${u.floor}` : '3x4 m'),
@@ -143,9 +145,9 @@ function UnitsPageContent() {
                     utilities: u.utilities || '',
                   },
                   description: u.description || (u.floor ? `Lantai ${u.floor}` : ''),
-                  tenantName: tenant?.fullName || tenant?.user?.fullName || u.tenantName || '',
-                  tenantPhone: tenant?.phoneNumber || tenant?.user?.phoneNumber || u.tenantPhone || '',
-                  checkInDate: activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : new Date(activeLease.startDate).toISOString().split('T')[0]) : (u.checkInDate || ''),
+                  tenantName: isOccupied ? (tenant?.fullName || tenant?.user?.fullName || u.tenantName || undefined) : undefined,
+                  tenantPhone: isOccupied ? (tenant?.phoneNumber || tenant?.user?.phoneNumber || u.tenantPhone || undefined) : undefined,
+                  checkInDate: isOccupied && activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : new Date(activeLease.startDate).toISOString().split('T')[0]) : (isOccupied ? (u.checkInDate || '') : undefined),
                   createdAt: u.createdAt || new Date().toISOString(),
                 });
               });
@@ -167,7 +169,18 @@ function UnitsPageContent() {
     const storedProps = localStorage.getItem('arventa_properties');
     const storedUnits = localStorage.getItem('arventa_units');
     let loadedProps: Property[] = storedProps ? JSON.parse(storedProps) : [];
-    let loadedUnits: Unit[] = storedUnits ? JSON.parse(storedUnits) : [];
+    let currentUnits: Unit[] = [];
+    if (storedUnits) {
+      try {
+        const parsed: Unit[] = JSON.parse(storedUnits);
+        currentUnits = parsed.map((u) => ({
+          ...u,
+          tenantName: u.status === 'Occupied' ? u.tenantName : undefined,
+          tenantPhone: u.status === 'Occupied' ? u.tenantPhone : undefined,
+        }));
+      } catch (e) {}
+    }
+    let loadedUnits: Unit[] = currentUnits;
     setProperties(loadedProps);
     setUnits(loadedUnits);
     setLoading(false);
@@ -738,7 +751,7 @@ function UnitsPageContent() {
                     <td className="p-4 font-bold text-gray-800">{formatRupiah(unit.pricing.monthly)}</td>
                     <td className="p-4 text-gray-500">{unit.capacity.maxPersons} Orang ({unit.capacity.dimensions})</td>
                     <td className="p-4">
-                      {unit.tenantName ? (
+                      {unit.status === 'Occupied' && unit.tenantName ? (
                         <span className="text-blue-600 font-bold">{unit.tenantName}</span>
                       ) : (
                         <span className="text-gray-400 italic">-</span>

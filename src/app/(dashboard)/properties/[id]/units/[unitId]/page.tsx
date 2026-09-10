@@ -26,6 +26,8 @@ import {
   Wrench,
   Sparkles,
   ExternalLink,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Unit } from '@/app/(dashboard)/units/_types';
 import { Property, InventoryItem, InventoryCondition } from '@/app/(dashboard)/properties/_types';
@@ -106,6 +108,8 @@ export default function PropertyUnitDetailPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [userRole, setUserRole] = useState<'OWNER' | 'HOUSEKEEPING'>('OWNER');
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedPass, setCopiedPass] = useState(false);
 
   // Unit Maintenance Ticket Creation state
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
@@ -310,12 +314,12 @@ export default function PropertyUnitDetailPage() {
       const updated = allUnits.map((u) =>
         u.id === unit.id
           ? {
-              ...u,
-              tenantName: data.tenantName,
-              tenantPhone: data.tenantPhone,
-              checkInDate: data.checkInDate,
-              status: 'Occupied' as any,
-            }
+            ...u,
+            tenantName: data.tenantName,
+            tenantPhone: data.tenantPhone,
+            checkInDate: data.checkInDate,
+            status: 'Occupied' as any,
+          }
           : u
       );
       localStorage.setItem('arventa_units', JSON.stringify(updated));
@@ -349,14 +353,14 @@ export default function PropertyUnitDetailPage() {
       const updated = allUnits.map((u) =>
         u.id === unit.id
           ? {
-              ...u,
-              tenantName: undefined,
-              tenantPhone: undefined,
-              checkInDate: undefined,
-              status: nextStatus as any,
-              roomPassword: `Arv!${Math.random().toString(36).substring(2, 8)}`,
-              roomPasswordLastReset: new Date().toISOString(),
-            }
+            ...u,
+            tenantName: undefined,
+            tenantPhone: undefined,
+            checkInDate: undefined,
+            status: nextStatus as any,
+            roomPassword: `Arv!${Math.random().toString(36).substring(2, 8)}`,
+            roomPasswordLastReset: new Date().toISOString(),
+          }
           : u
       );
       localStorage.setItem('arventa_units', JSON.stringify(updated));
@@ -401,10 +405,10 @@ export default function PropertyUnitDetailPage() {
       const updated = allUnits.map((u) =>
         u.id === unit.id
           ? {
-              ...u,
-              roomPassword: newPass,
-              roomPasswordLastReset: nowIso,
-            }
+            ...u,
+            roomPassword: newPass,
+            roomPasswordLastReset: nowIso,
+          }
           : u
       );
       localStorage.setItem('arventa_units', JSON.stringify(updated));
@@ -524,22 +528,22 @@ export default function PropertyUnitDetailPage() {
                     const badgeClass = isAvail
                       ? 'bg-emerald-600 text-white'
                       : isOcc
-                      ? 'bg-blue-600 text-white'
-                      : isClean
-                      ? 'bg-amber-500 text-white'
-                      : isRes
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-rose-600 text-white';
+                        ? 'bg-blue-600 text-white'
+                        : isClean
+                          ? 'bg-amber-500 text-white'
+                          : isRes
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-rose-600 text-white';
 
                     const labelText = isAvail
                       ? 'Tersedia'
                       : isOcc
-                      ? 'Terisi'
-                      : isClean
-                      ? 'Perlu Dibersihkan'
-                      : isRes
-                      ? 'Reserved'
-                      : 'Perlu Perbaikan';
+                        ? 'Terisi'
+                        : isClean
+                          ? 'Perlu Dibersihkan'
+                          : isRes
+                            ? 'Reserved'
+                            : 'Perlu Perbaikan';
 
                     return <span className={`rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-wider ${badgeClass}`}>{labelText}</span>;
                   })()}
@@ -567,7 +571,7 @@ export default function PropertyUnitDetailPage() {
                     className="min-h-[32px] px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs"
                   >
                     <Wrench className="h-3.5 w-3.5" />
-                    <span>+ Buat Tiket Perbaikan</span>
+                    <span>Buat Tiket Perbaikan</span>
                   </button>
                   <button
                     type="button"
@@ -575,7 +579,7 @@ export default function PropertyUnitDetailPage() {
                     className="min-h-[32px] px-3 py-1 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs"
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    <span>+ Housekeeping</span>
+                    <span>Housekeeping</span>
                   </button>
                 </div>
               </div>
@@ -660,9 +664,24 @@ export default function PropertyUnitDetailPage() {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase block">
                     Email Login Kamar
                   </span>
-                  <span className="font-mono font-bold text-foreground dark:text-foreground select-all">
-                    {unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`}
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-foreground dark:text-foreground select-all truncate">
+                      {unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const email = unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`;
+                        navigator.clipboard.writeText(email);
+                        setCopiedEmail(true);
+                        setTimeout(() => setCopiedEmail(false), 2000);
+                      }}
+                      title="Salin Email"
+                      className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-[#8FA28A] transition-colors shrink-0"
+                    >
+                      {copiedEmail ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bg-card dark:bg-card p-3.5 rounded-xl border border-border dark:border-border space-y-1">
@@ -683,11 +702,26 @@ export default function PropertyUnitDetailPage() {
                   </div>
 
                   {userRole === 'OWNER' ? (
-                    <span className="font-mono font-bold text-[#8FA28A] select-all">
-                      {showPassword ? unit.roomPassword || 'Arv!908123' : '••••••••••••'}
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-bold text-[#8FA28A] select-all truncate">
+                        {showPassword ? unit.roomPassword || 'Arv!908123' : '••••••••••••'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pass = unit.roomPassword || 'Arv!908123';
+                          navigator.clipboard.writeText(pass);
+                          setCopiedPass(true);
+                          setTimeout(() => setCopiedPass(false), 2000);
+                        }}
+                        title="Salin Password"
+                        className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-[#8FA28A] transition-colors shrink-0"
+                      >
+                        {copiedPass ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
                   ) : (
-                    <span className="font-mono text-muted-foreground italic">
+                    <span className="font-mono text-muted-foreground italic block">
                       [Disembunyikan untuk Housekeeping - Gunakan Reset Password bila perlu]
                     </span>
                   )}
@@ -971,11 +1005,10 @@ export default function PropertyUnitDetailPage() {
               <button
                 type="button"
                 onClick={handleToggleHousekeepingService}
-                className={`min-h-[36px] px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors ${
-                  hasCleaningService
-                    ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 dark:text-emerald-400'
-                    : 'bg-muted text-muted-foreground border border-border'
-                }`}
+                className={`min-h-[36px] px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors ${hasCleaningService
+                  ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 dark:text-emerald-400'
+                  : 'bg-muted text-muted-foreground border border-border'
+                  }`}
               >
                 {hasCleaningService ? <CheckCircle2 className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                 {hasCleaningService ? 'ON' : 'OFF'}

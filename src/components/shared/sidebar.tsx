@@ -101,6 +101,7 @@ interface NavItem {
   label: string;
   icon: any;
   group: string;
+  order?: number;
   parentId?: string | null;
   children?: NavItem[];
 }
@@ -200,7 +201,19 @@ const ownerNavItems: NavItem[] = [
   { id: "owner-3", href: "/operations/housekeeping-team", label: "Tim Operasional & Housekeeping", icon: IconSparkles, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-4", href: "/operations/maintenance-reports", label: "Pusat Laporan & Maintenance", icon: IconTools, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-5", href: "/tenants", label: "Penyewa & Kontrak", icon: IconUsers, group: "PENYEWA & KEUANGAN" },
-  { id: "owner-6", href: "/finance", label: "Keuangan & Penagihan", icon: IconCash, group: "PENYEWA & KEUANGAN" },
+  {
+    id: "owner-6",
+    href: "/finance",
+    label: "Keuangan & Penagihan",
+    icon: IconCash,
+    group: "PENYEWA & KEUANGAN",
+    children: [
+      { id: "owner-6-1", href: "/finance", label: "Manajemen Invoice", icon: IconReceipt, group: "PENYEWA & KEUANGAN" },
+      { id: "owner-6-2", href: "/finance/verification", label: "Verifikasi & Rekening", icon: IconUserCheck, group: "PENYEWA & KEUANGAN" },
+      { id: "owner-6-3", href: "/finance/expenses", label: "Pengeluaran Operasional (OpEx)", icon: IconReceipt, group: "PENYEWA & KEUANGAN" },
+      { id: "owner-6-4", href: "/reports", label: "Laporan & Analytics", icon: IconChartBar, group: "PENYEWA & KEUANGAN" },
+    ],
+  },
   { id: "owner-7", href: "/owner/faq", label: "FAQ & Bantuan", icon: IconHelpCircle, group: "BANTUAN" },
 ];
 
@@ -229,6 +242,7 @@ const ROUTE_FEATURE_MAP: Record<string, { code: string; label: string }> = {
   "/tenants": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
   "/tenant-contract": { code: "TENANT_MGMT", label: "Manajemen Penyewa & Kontrak" },
   "/finance": { code: "FINANCIAL_ANALYTICS", label: "Analitik & Insights Keuangan SaaS" },
+  "/finance/verification": { code: "FINANCIAL_ANALYTICS", label: "Analitik & Insights Keuangan SaaS" },
   "/finance/expenses": { code: "FINANCIAL_ANALYTICS", label: "Analitik & Insights Keuangan SaaS" },
   "/reports": { code: "FINANCIAL_ANALYTICS", label: "Analitik & Insights Keuangan SaaS" },
 };
@@ -341,6 +355,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                 label: child.title,
                 icon: ICON_MAP[child.icon] || IconRoute,
                 group: resolveGroup(child.path, child.group || rootGroup),
+                order: child.order,
                 parentId: root.id,
               }));
 
@@ -350,6 +365,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
               label: root.title,
               icon: ICON_MAP[root.icon] || IconRoute,
               group: rootGroup,
+              order: root.order,
               parentId: null,
               children: childrenForRoot.length > 0 ? childrenForRoot : undefined,
             };
@@ -359,37 +375,51 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
           const unattachedChildItems = childItems.filter((c: any) => !attachedChildIds.has(c.id));
 
           for (const child of unattachedChildItems) {
-            // Find root item in tree with matching group or matching path prefix
+            // Find root item in tree with matching parentId or matching path prefix (e.g. /finance/verification -> /finance)
             const parentRoot = tree.find(
               (t) =>
                 t.id === child.parentId ||
-                (t.href !== "/" && child.path.startsWith(t.href)) ||
-                t.group === resolveGroup(child.path, child.group)
+                (t.href !== "/" && child.path.startsWith(`${t.href}/`)) ||
+                (t.href !== "/" && child.path === t.href)
             );
 
             if (parentRoot) {
               if (!parentRoot.children) parentRoot.children = [];
-              parentRoot.children.push({
-                id: child.id,
-                href: child.path,
-                label: child.title,
-                icon: ICON_MAP[child.icon] || IconRoute,
-                group: resolveGroup(child.path, child.group || parentRoot.group),
-                parentId: parentRoot.id,
-              });
+              // Prevent duplicate insertions
+              if (!parentRoot.children.some((c) => c.id === child.id || c.href === child.path)) {
+                parentRoot.children.push({
+                  id: child.id,
+                  href: child.path,
+                  label: child.title,
+                  icon: ICON_MAP[child.icon] || IconRoute,
+                  group: resolveGroup(child.path, child.group || parentRoot.group),
+                  order: child.order,
+                  parentId: parentRoot.id,
+                });
+              }
             } else {
-              // Add as a root nav item so it NEVER gets hidden!
+              // Add as a root nav item if no parent prefix matches
               const itemGroup = resolveGroup(child.path, child.group);
-              tree.push({
-                id: child.id,
-                href: child.path,
-                label: child.title,
-                icon: ICON_MAP[child.icon] || IconRoute,
-                group: itemGroup,
-                parentId: null,
-              });
+              if (!tree.some((t) => t.id === child.id || t.href === child.path)) {
+                tree.push({
+                  id: child.id,
+                  href: child.path,
+                  label: child.title,
+                  icon: ICON_MAP[child.icon] || IconRoute,
+                  group: itemGroup,
+                  order: child.order,
+                  parentId: null,
+                });
+              }
             }
           }
+
+          // Sort children for each parent root by order ascending
+          tree.forEach((r) => {
+            if (r.children && r.children.length > 0) {
+              r.children.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            }
+          });
 
           setDynamicNavItems(tree);
           return;
@@ -606,9 +636,20 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                             <div className="pl-6 space-y-1 border-l border-sidebar-border ml-4">
                               {item.children?.map((child) => {
                                 const ChildIcon = child.icon || IconRoute;
-                                const isChildActive =
-                                  pathname === child.href ||
-                                  (child.href !== "/" && pathname.startsWith(child.href));
+                                const isChildActive = (() => {
+                                  if (pathname === child.href) return true;
+                                  if (child.href !== "/" && pathname.startsWith(child.href + "/")) {
+                                    const hasMoreSpecificSiblingMatch = item.children?.some(
+                                      (otherChild) =>
+                                        otherChild.id !== child.id &&
+                                        (pathname === otherChild.href ||
+                                          (otherChild.href.length > child.href.length &&
+                                            pathname.startsWith(otherChild.href)))
+                                    );
+                                    return !hasMoreSpecificSiblingMatch;
+                                  }
+                                  return false;
+                                })();
 
                                 const childReqFeat = ROUTE_FEATURE_MAP[child.href];
                                 const isChildLocked =

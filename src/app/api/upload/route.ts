@@ -44,9 +44,10 @@ export async function POST(request: NextRequest) {
       const arrayBuffer = await file.arrayBuffer();
       fileBuffer = Buffer.from(arrayBuffer);
 
-      const ext = file.name.split(".").pop() || "jpg";
+      const isPdfFile = contentType === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const ext = file.name.split(".").pop()?.toLowerCase() || (isPdfFile ? "pdf" : "jpg");
       const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const prefix = tenantId ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` : "ktp";
+      const prefix = bucketName === "receipts" ? "receipt" : tenantId ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` : "doc";
       fileName = `${prefix}_${uniqueSuffix}.${ext}`;
     } else {
       // JSON Base64 payload fallback
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
       if (rawTenantId) tenantId = rawTenantId;
 
       if (!image) {
-        return ApiResponse.badRequest("Payload gambar (base64 atau file) wajib dikirimkan.");
+        return ApiResponse.badRequest("Payload file (base64 atau file) wajib dikirimkan.");
       }
 
       let base64Data = image;
@@ -70,15 +71,19 @@ export async function POST(request: NextRequest) {
       }
 
       fileBuffer = Buffer.from(base64Data, "base64");
-      const ext = contentType.split("/")[1] || "jpeg";
+      const isPdfFile = contentType === "application/pdf" || contentType.includes("pdf");
+      const ext = isPdfFile ? "pdf" : contentType.split("/")[1] || "jpeg";
       const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const prefix = tenantId ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` : "ktp";
+      const prefix = bucketName === "receipts" ? "receipt" : tenantId ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` : "doc";
       fileName = `${prefix}_${uniqueSuffix}.${ext}`;
     }
 
     // Strict BE MIME Type & File Size Validation
-    if (!contentType.startsWith("image/")) {
-      return ApiResponse.badRequest("Format file tidak valid. Hanya file gambar (JPG, PNG, WEBP) yang diperbolehkan.");
+    const isImage = contentType.startsWith("image/");
+    const isPdf = contentType === "application/pdf" || contentType.includes("pdf") || fileName.toLowerCase().endsWith(".pdf");
+
+    if (!isImage && !isPdf) {
+      return ApiResponse.badRequest("Format file tidak valid. Hanya file gambar (JPG, PNG, WEBP) atau file PDF yang diperbolehkan.");
     }
 
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB

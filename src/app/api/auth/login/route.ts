@@ -53,6 +53,19 @@ export async function POST(request: NextRequest) {
 
     // 3. Ensure user in Supabase Auth is confirmed/provisioned so password verification works
     let isAutoProvisioned = false;
+
+    // Check if user is linked to a Unit account with a roomPassword
+    const matchingUnit = await prisma.unit.findFirst({
+      where: {
+        OR: [
+          { unitUserId: user.id },
+          { unitNumber: { equals: user.fullName.replace(/^Akun Unit\s+/i, ""), mode: "insensitive" } },
+        ],
+      },
+    });
+
+    const isUnitPasswordMatch = Boolean(matchingUnit?.roomPassword && matchingUnit.roomPassword === password);
+
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
       try {
@@ -63,20 +76,32 @@ export async function POST(request: NextRequest) {
           { auth: { autoRefreshToken: false, persistSession: false } }
         );
         if (user.supabaseAuthId) {
-          await supabaseAdmin.auth.admin.updateUserById(user.supabaseAuthId, { email_confirm: true });
+          if (isUnitPasswordMatch) {
+            await supabaseAdmin.auth.admin.updateUserById(user.supabaseAuthId, {
+              password: password,
+              email_confirm: true,
+            });
+            isAutoProvisioned = true;
+          } else {
+            await supabaseAdmin.auth.admin.updateUserById(user.supabaseAuthId, { email_confirm: true });
+          }
         } else {
           const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
           const target = listData?.users?.find((u) => u.email === cleanEmail);
           if (target) {
-            await supabaseAdmin.auth.admin.updateUserById(target.id, { email_confirm: true });
+            await supabaseAdmin.auth.admin.updateUserById(target.id, {
+              ...(isUnitPasswordMatch ? { password } : {}),
+              email_confirm: true,
+            });
             await prisma.user.update({
               where: { id: user.id },
               data: { supabaseAuthId: target.id },
             });
+            if (isUnitPasswordMatch) isAutoProvisioned = true;
           } else {
             // User exists in PostgreSQL DB (e.g. Housekeeping / Tenant account registered by owner) but not yet in Supabase Auth.
             // Automatically provision them in Supabase Auth using the submitted password.
-            const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
+            const { data: createData } = await supabaseAdmin.auth.admin.createUser({
               email: cleanEmail,
               password: password,
               email_confirm: true,
@@ -97,7 +122,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 4. Verify password against Supabase Auth (skip if just freshly provisioned with this password)
+    if (!isAutoProvisioned && isUnitPasswordMatch) {
+      isAutoProvisioned = true;
+    }
+
+    // 4. Verify password against Supabase Auth (skip if just freshly provisioned or password matched unit record)
     if (!isAutoProvisioned && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
       const supabase = createSupabaseClient(
@@ -111,8 +140,12 @@ export async function POST(request: NextRequest) {
       });
 
       if (authError) {
-        console.warn(`⚠️ Login password verification failed for ${cleanEmail}:`, authError.message);
-        return ApiResponse.badRequest("Email atau password yang Anda masukkan salah.");
+        if (isUnitPasswordMatch) {
+          console.log(`ℹ️ Unit password matched DB record for ${cleanEmail}, allowing login.`);
+        } else {
+          console.warn(`⚠️ Login password verification failed for ${cleanEmail}:`, authError.message);
+          return ApiResponse.badRequest("Email atau password yang Anda masukkan salah.");
+        }
       }
     }
 

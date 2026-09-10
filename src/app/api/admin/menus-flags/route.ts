@@ -7,35 +7,48 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    // Auto-heal orphan or misassigned finance submenus
-    const financeRoot = await prisma.menuItem.findFirst({
-      where: {
-        OR: [{ path: "/finance" }, { path: "/finances" }],
-        parentId: null,
-      },
-    });
+    // Smart auto-alignment for submenus with correct parent IDs and sequential ordering
+    const parentMappings: Record<string, string[]> = {
+      "Keuangan & Penagihan": [
+        "Manajemen Invoice",
+        "Verifikasi Pembayaran & Rekening",
+        "Pengeluaran Operasional (OpEx)",
+        "Laporan & Analytics",
+      ],
+      "Penyewa & Kontrak": ["Kontrak Penyewa", "Manajemen Penyewa"],
+      "Subscriptions & Billing": [
+        "Subscription Package",
+        "SaaS Invoice",
+        "Payment Verification",
+        "Transaction History",
+        "Payment Methods",
+      ],
+    };
 
-    if (financeRoot) {
-      if (financeRoot.path !== "/finance") {
-        await prisma.menuItem.update({
-          where: { id: financeRoot.id },
-          data: { path: "/finance" },
-        });
-      }
-
-      const invoiceSubmenus = await prisma.menuItem.findMany({
-        where: {
-          path: "/finance",
-          id: { not: financeRoot.id },
-        },
+    for (const [parentTitle, childTitles] of Object.entries(parentMappings)) {
+      const parentMenu = await prisma.menuItem.findFirst({
+        where: { title: parentTitle, parentId: null },
       });
 
-      for (const invMenu of invoiceSubmenus) {
-        if (invMenu.parentId !== financeRoot.id) {
-          await prisma.menuItem.update({
-            where: { id: invMenu.id },
-            data: { parentId: financeRoot.id },
+      if (parentMenu) {
+        for (let i = 0; i < childTitles.length; i++) {
+          const childTitle = childTitles[i];
+          const childMenu = await prisma.menuItem.findFirst({
+            where: { title: childTitle },
           });
+
+          if (childMenu) {
+            const expectedOrder = parentMenu.order + i + 1;
+            if (childMenu.parentId !== parentMenu.id || childMenu.order !== expectedOrder) {
+              await prisma.menuItem.update({
+                where: { id: childMenu.id },
+                data: {
+                  parentId: parentMenu.id,
+                  order: expectedOrder,
+                },
+              });
+            }
+          }
         }
       }
     }
@@ -334,20 +347,6 @@ export async function POST(req: Request) {
       if (!roleCodes || !Array.isArray(roleCodes) || roleCodes.length === 0) {
         return ApiResponse.error({
           message: "Pilih minimal 1 role untuk menu ini (role tidak boleh kosong)",
-          status: 400,
-        });
-      }
-
-      const conflict = await prisma.menuItem.findFirst({
-        where: {
-          path,
-          id: { not: menuItemId },
-        },
-      });
-
-      if (conflict) {
-        return ApiResponse.error({
-          message: "Path menu ini sudah digunakan oleh menu lain",
           status: 400,
         });
       }

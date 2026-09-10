@@ -475,3 +475,88 @@ export async function sendOwnerPaymentConfirmationAckEmail({
     html: createEmailWrapper(htmlContent, `Konfirmasi pembayaran untuk invoice ${invoiceNumber} telah diterima dan sedang diproses.`),
   });
 }
+
+// ============================================================================
+// 8. TEMPLATE: PERINGATAN INVOICE OVERDUE (KETERLAMBATAN BAYAR)
+// ============================================================================
+export async function sendOverdueInvoiceEmail({
+  to,
+  tenantName,
+  invoiceNumber,
+  propertyName,
+  unitNumber,
+  totalAmount,
+  penaltyAmount,
+  dueDate,
+  portalUrl,
+}: {
+  to: string;
+  tenantName: string;
+  invoiceNumber: string;
+  propertyName: string;
+  unitNumber: string;
+  totalAmount: string;
+  penaltyAmount: string;
+  dueDate: string;
+  portalUrl: string;
+}) {
+  const htmlContent = `
+    <div style="text-align: center; margin-bottom: 20px;">
+      <span style="background-color: #FDE8E8; color: #9B1C1C; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;">
+        &excl; Tagihan Lewati Jatuh Tempo (Overdue)
+      </span>
+    </div>
+
+    <h2 style="font-size: 18px; font-weight: 800; color: #9B1C1C; margin: 0 0 12px 0; text-align: center;">Pemberitahuan Keterlambatan Pembayaran</h2>
+    <p style="font-size: 14px; color: #4A5049; margin: 0 0 16px 0;">Yth. Bpk/Ibu <strong>${tenantName}</strong>,</p>
+    <p style="font-size: 14px; color: #4A5049; line-height: 1.6; margin: 0 0 20px 0;">
+      Pembayaran invoice tagihan sewa unit properti Anda telah **melewati tanggal jatuh tempo**. Mohon segera melakukan pelunasan tagihan melalui Tenant Portal.
+    </p>
+
+    <!-- Details Box -->
+    <div style="background-color: #FFF5F5; border: 1px solid #FEB2B2; border-radius: 14px; padding: 18px; margin-bottom: 24px;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">Nomor Invoice:</td>
+          <td style="padding: 6px 0; color: #2F332E; font-weight: 800; text-align: right;">${invoiceNumber}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">Properti &amp; Unit:</td>
+          <td style="padding: 6px 0; color: #2F332E; font-weight: 800; text-align: right;">${propertyName} (Unit ${unitNumber})</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; color: #7A8279; font-weight: 600;">Tanggal Jatuh Tempo:</td>
+          <td style="padding: 6px 0; color: #C53030; font-weight: 800; text-align: right;">${dueDate}</td>
+        </tr>
+        ${
+          penaltyAmount && penaltyAmount !== "Rp 0"
+            ? `<tr>
+                <td style="padding: 6px 0; color: #C53030; font-weight: 600;">Denda Keterlambatan:</td>
+                <td style="padding: 6px 0; color: #C53030; font-weight: 800; text-align: right;">${penaltyAmount}</td>
+              </tr>`
+            : ""
+        }
+        <tr style="border-top: 1px dashed #FEB2B2;">
+          <td style="padding: 10px 0 0 0; color: #2F332E; font-weight: 800; font-size: 14px;">Total Wajib Bayar:</td>
+          <td style="padding: 10px 0 0 0; color: #9B1C1C; font-weight: 900; font-size: 16px; text-align: right;">${totalAmount}</td>
+        </tr>
+      </table>
+    </div>
+
+    <div style="text-align: center; margin: 28px 0;">
+      <a href="${portalUrl}" style="background-color: #C53030; color: #ffffff; padding: 13px 28px; text-decoration: none; border-radius: 12px; font-weight: 800; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(197,48,48,0.25);">
+        Bayar &amp; Unggah Bukti Sekarang &rarr;
+      </a>
+    </div>
+
+    <p style="font-size: 12px; color: #7A8279; line-height: 1.5; margin: 20px 0 0 0; text-align: center;">
+      Abaikan pesan ini jika Anda telah melunasi tagihan atau telah menyerahkan bukti bayar ke pengelola properti.
+    </p>
+  `;
+
+  return dispatchEmail({
+    to,
+    subject: `[PERINGATAN OVERDUE] Tagihan Invoice ${invoiceNumber} Unit ${unitNumber} Melewati Jatuh Tempo`,
+    html: createEmailWrapper(htmlContent, `Tagihan invoice ${invoiceNumber} telah lewati jatuh tempo. Segera pelajari rincian dan lunasi di Tenant Portal.`),
+  });
+}

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { RentalPeriodType, UnitStatus, UserRole } from "@/generated/prisma/client";
+import { LeaseStatus, RentalPeriodType, UnitStatus, UserRole } from "@/generated/prisma/client";
 
 export interface UnitFilterParams {
   propertyId?: string;
@@ -45,6 +45,7 @@ export class UnitService {
    */
   static formatUnit(unit: any) {
     const activeLease = unit.leases?.[0];
+    const isOccupiedUnit = unit.status === 'OCCUPIED';
     return {
       id: unit.id,
       propertyId: unit.propertyId,
@@ -69,10 +70,10 @@ export class UnitService {
       roomEmail: unit.unitUser?.email || `${unit.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`,
       roomPassword: unit.roomPassword || 'Arv!789210',
       roomPasswordLastReset: unit.roomPasswordLastReset?.toISOString?.() || (typeof unit.roomPasswordLastReset === 'string' ? unit.roomPasswordLastReset : unit.createdAt?.toISOString?.() || new Date().toISOString()),
-      tenantName: activeLease?.tenant?.fullName || activeLease?.tenant?.user?.fullName || undefined,
-      tenantPhone: activeLease?.tenant?.phoneNumber || activeLease?.tenant?.user?.phoneNumber || undefined,
-      checkInDate: activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
-      activeLease: activeLease ? {
+      tenantName: isOccupiedUnit ? (activeLease?.tenant?.fullName || activeLease?.tenant?.user?.fullName || undefined) : undefined,
+      tenantPhone: isOccupiedUnit ? (activeLease?.tenant?.phoneNumber || activeLease?.tenant?.user?.phoneNumber || undefined) : undefined,
+      checkInDate: isOccupiedUnit && activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
+      activeLease: isOccupiedUnit && activeLease ? {
         id: activeLease.id,
         contractNumber: activeLease.contractUrl || `KTR/ARV/${activeLease.id.slice(0, 6).toUpperCase()}`,
         startDate: activeLease.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
@@ -333,6 +334,13 @@ export class UnitService {
    */
   static async updateUnit(id: string, data: Partial<CreateUnitData>) {
     return prisma.$transaction(async (tx) => {
+      if (data.status && data.status !== 'OCCUPIED') {
+        await tx.lease.updateMany({
+          where: { unitId: id, status: LeaseStatus.ACTIVE },
+          data: { status: LeaseStatus.TERMINATED },
+        });
+      }
+
       const updated = await tx.unit.update({
         where: { id },
         data: {
@@ -369,6 +377,12 @@ export class UnitService {
     }
 
     if (actionType === 'status' && input.newStatus) {
+      if (input.newStatus !== 'OCCUPIED') {
+        await prisma.lease.updateMany({
+          where: { unitId: { in: unitIds }, status: LeaseStatus.ACTIVE },
+          data: { status: LeaseStatus.TERMINATED },
+        });
+      }
       return prisma.unit.updateMany({
         where: { id: { in: unitIds } },
         data: { status: input.newStatus },
@@ -472,7 +486,46 @@ export class UnitService {
         roomPassword: newPassword,
         roomPasswordLastReset: new Date(),
       },
+      include: {
+        unitUser: true,
+      },
     });
+
+    if (updated.unitUser) {
+      const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        try {
+          const { createClient: createSupabaseAdmin } = await import("@supabase/supabase-js");
+          const supabaseAdmin = createSupabaseAdmin(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            supabaseServiceRoleKey,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+          );
+
+          if (updated.unitUser.supabaseAuthId) {
+            await supabaseAdmin.auth.admin.updateUserById(updated.unitUser.supabaseAuthId, {
+              password: newPassword,
+              email_confirm: true,
+            });
+          } else {
+            const { data: createData } = await supabaseAdmin.auth.admin.createUser({
+              email: updated.unitUser.email,
+              password: newPassword,
+              email_confirm: true,
+              user_metadata: { full_name: updated.unitUser.fullName, role: updated.unitUser.role },
+            });
+            if (createData?.user) {
+              await prisma.user.update({
+                where: { id: updated.unitUser.id },
+                data: { supabaseAuthId: createData.user.id },
+              });
+            }
+          }
+        } catch (err) {
+          console.warn("⚠️ Failed to sync reset password to Supabase Auth:", err);
+        }
+      }
+    }
 
     return {
       newPassword,

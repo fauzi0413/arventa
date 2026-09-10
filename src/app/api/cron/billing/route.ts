@@ -1,43 +1,63 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { BillingCronService } from "@/services/billing-cron.service";
+import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
 
-// ---------------------------------------------------------------------------
-// Vercel Cron — Billing Reminder (H-7)
-// ---------------------------------------------------------------------------
-// This route is triggered by Vercel Cron to send billing reminders
-// 7 days before the due date.
-//
-// Configure in vercel.json:
-// {
-//   "crons": [{
-//     "path": "/api/cron/billing",
-//     "schedule": "0 8 * * *"
-//   }]
-// }
-// ---------------------------------------------------------------------------
-
-export async function GET(request: Request) {
-  // Verify cron secret to prevent unauthorized access
+/**
+ * Vercel Cron — Daily Billing Automation Route (GET)
+ * Checks active leases, auto-generates H-7 invoices, updates overdue statuses & sends email notifications.
+ */
+export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const cronSecret = process.env.CRON_SECRET;
+
+  // In production, enforce CRON_SECRET authorization header
+  if (process.env.NODE_ENV === "production" && cronSecret) {
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: "Unauthorized cron access" }, { status: 401 });
+    }
   }
 
   try {
-    // TODO: Implement billing reminder logic
-    // 1. Query invoices with due_date = today + 7 days
-    // 2. Get tenant contact info
-    // 3. Send reminder via email (Resend) or WhatsApp
-    // 4. Log the notification
+    const results = await BillingCronService.processDailyBilling();
 
     return NextResponse.json({
       success: true,
-      message: "Billing reminders processed",
+      message: "Daily billing automation processed successfully",
+      data: results,
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[CRON/BILLING] Error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { success: false, error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Manual Trigger Route (POST)
+ * Allows authenticated Owners/Admins to trigger billing automation on demand.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    const results = await BillingCronService.processDailyBilling();
+
+    return NextResponse.json({
+      success: true,
+      message: "Manual billing process executed successfully",
+      data: results,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("[CRON/BILLING/MANUAL] Error:", error);
+    return NextResponse.json(
+      { success: false, error: error.message || "Internal server error" },
       { status: 500 }
     );
   }

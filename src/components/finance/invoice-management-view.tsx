@@ -20,6 +20,7 @@ import {
   IconCoin,
   IconChevronLeft,
   IconChevronRight,
+  IconSparkles,
 } from "@tabler/icons-react";
 
 import { CreateInvoiceModal } from "./create-invoice-modal";
@@ -135,6 +136,30 @@ export function InvoiceManagementView() {
 
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [runningCron, setRunningCron] = useState(false);
+
+  const handleRunAutoBilling = async () => {
+    setRunningCron(true);
+    try {
+      const res = await fetch("/api/cron/billing", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || json.message || "Gagal menjalankan auto billing.");
+      }
+      const data = json.data;
+      alert(
+        `Auto Billing Selesai!\n\n` +
+          `• Overdue diperbarui: ${data.overdueUpdatedCount || 0}\n` +
+          `• Invoice H-7 dibuat: ${data.invoicesGeneratedCount || 0}\n` +
+          `• Email Reminder terkirim: ${data.remindersSentCount || 0}`
+      );
+      fetchInvoices();
+    } catch (err: any) {
+      alert(err.message || "Gagal menjalankan auto billing.");
+    } finally {
+      setRunningCron(false);
+    }
+  };
 
   // Fetch properties list for filter
   const fetchProperties = useCallback(async () => {
@@ -283,7 +308,7 @@ export function InvoiceManagementView() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => {
               fetchActiveLeases();
@@ -293,6 +318,15 @@ export function InvoiceManagementView() {
             title="Refresh Data"
           >
             <IconRefresh className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </button>
+          <button
+            onClick={handleRunAutoBilling}
+            disabled={runningCron}
+            className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold px-3.5 py-2.5 shadow-sm transition-all dark:bg-purple-950/40 dark:border-purple-800 dark:text-purple-300 dark:hover:bg-purple-900/60 disabled:opacity-50"
+            title="Jalankan Otomatisasi Tagihan H-7, Overdue & Email Reminder"
+          >
+            <IconSparkles className={`h-4 w-4 ${runningCron ? "animate-spin" : ""}`} />
+            {runningCron ? "Memproses..." : "Auto Billing (H-7)"}
           </button>
           <button
             onClick={() => setIsCreateOpen(true)}

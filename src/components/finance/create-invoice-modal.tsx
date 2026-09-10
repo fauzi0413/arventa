@@ -66,6 +66,19 @@ export function CreateInvoiceModal({
     }
   };
 
+  // Format number to IDR thousand format (e.g. 1500000 -> "1.500.000")
+  const formatDisplay = (val: number | string) => {
+    if (val === "" || val === null || val === undefined) return "";
+    const clean = String(val).replace(/\D/g, "");
+    if (!clean) return "";
+    return new Intl.NumberFormat("id-ID").format(Number(clean));
+  };
+
+  const parseNumber = (val: string): number | "" => {
+    const clean = val.replace(/\D/g, "");
+    return clean ? Number(clean) : "";
+  };
+
   const selectedLease = activeLeases.find((l) => l.leaseId === selectedLeaseId);
 
   const totalAmount =
@@ -201,11 +214,12 @@ export function CreateInvoiceModal({
                 <IconCoin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> Biaya Sewa (Rp) *
               </label>
               <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={formatDisplay(amount)}
+                onChange={(e) => setAmount(parseNumber(e.target.value))}
                 placeholder="0"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 focus:bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 focus:bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white font-semibold"
               />
             </div>
 
@@ -215,11 +229,12 @@ export function CreateInvoiceModal({
                 Air/Listrik/WiFi (Rp)
               </label>
               <input
-                type="number"
-                value={utilityAmount}
-                onChange={(e) => setUtilityAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={formatDisplay(utilityAmount)}
+                onChange={(e) => setUtilityAmount(parseNumber(e.target.value))}
                 placeholder="0"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 focus:bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 focus:bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white font-semibold"
               />
             </div>
 
@@ -229,11 +244,12 @@ export function CreateInvoiceModal({
                 Denda / Lain (Rp)
               </label>
               <input
-                type="number"
-                value={penaltyAmount}
-                onChange={(e) => setPenaltyAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={formatDisplay(penaltyAmount)}
+                onChange={(e) => setPenaltyAmount(parseNumber(e.target.value))}
                 placeholder="0"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 focus:bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/80 focus:bg-white px-3 py-2 text-xs text-slate-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-white font-semibold"
               />
             </div>
           </div>

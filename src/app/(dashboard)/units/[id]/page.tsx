@@ -20,6 +20,8 @@ import {
   User,
   CheckCircle2,
   XCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Unit, UnitStatus } from '../_types';
 import UnitFormModal from '../_components/UnitFormModal';
@@ -43,6 +45,8 @@ export default function UnitDetailPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [userRole] = useState<'OWNER' | 'HOUSEKEEPING'>('OWNER');
   const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedPass, setCopiedPass] = useState(false);
 
   useEffect(() => {
     const fetchUnitData = async () => {
@@ -473,9 +477,24 @@ export default function UnitDetailPage() {
                   <span className="text-[10px] font-bold text-muted-foreground uppercase block">
                     Email / ID Login Kamar
                   </span>
-                  <span className="font-mono font-bold text-foreground dark:text-foreground select-all">
-                    {unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`}
-                  </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-bold text-foreground dark:text-foreground select-all truncate">
+                      {unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const email = unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`;
+                        navigator.clipboard.writeText(email);
+                        setCopiedEmail(true);
+                        setTimeout(() => setCopiedEmail(false), 2000);
+                      }}
+                      title="Salin Email"
+                      className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-[#8FA28A] transition-colors shrink-0"
+                    >
+                      {copiedEmail ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bg-card dark:bg-card p-3.5 rounded-xl border border-border dark:border-border space-y-1">
@@ -496,11 +515,26 @@ export default function UnitDetailPage() {
                   </div>
 
                   {userRole === 'OWNER' ? (
-                    <span className="font-mono font-bold text-[#8FA28A] select-all">
-                      {showPassword ? unit.roomPassword || 'Arv!789210' : '••••••••••••'}
-                    </span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-bold text-[#8FA28A] select-all truncate">
+                        {showPassword ? unit.roomPassword || 'Arv!789210' : '••••••••••••'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const pass = unit.roomPassword || 'Arv!789210';
+                          navigator.clipboard.writeText(pass);
+                          setCopiedPass(true);
+                          setTimeout(() => setCopiedPass(false), 2000);
+                        }}
+                        title="Salin Password"
+                        className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-[#8FA28A] transition-colors shrink-0"
+                      >
+                        {copiedPass ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
                   ) : (
-                    <span className="font-mono text-muted-foreground italic">
+                    <span className="font-mono text-muted-foreground italic block">
                       [Terselubung untuk Housekeeping - Gunakan tombol Reset bila diperlukan]
                     </span>
                   )}

@@ -1,12 +1,13 @@
 import { Sidebar } from "@/components/shared/sidebar";
 import { Header } from "@/components/shared/header";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { isMaintenanceModeActive } from "@/lib/settings";
-import { createClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
+import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
+import { validateRouteAccess } from "@/lib/auth/route-permission";
 
 // ---------------------------------------------------------------------------
-// (dashboard) Layout — Sidebar + Header + Main Content + Maintenance Enforcement
+// (dashboard) Layout — Sidebar + Header + Main Content + Dynamic Route Guard
 // ---------------------------------------------------------------------------
 
 export default async function DashboardLayout({
@@ -14,36 +15,33 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Check live Maintenance Mode status directly from database
+  const headerList = await headers();
+  const pathname = headerList.get("x-pathname") || "";
+
+  const authUser = await getAuthenticatedUser();
+
+  // 1. Check live Maintenance Mode status directly from database
   const isMaintenance = await isMaintenanceModeActive();
 
   if (isMaintenance) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    let isPlatformAdmin = false;
-
-    if (user?.email) {
-      const dbUser = await prisma.user.findUnique({
-        where: { email: user.email },
-        select: { role: true },
-      });
-
-      const userRole = dbUser?.role || user.user_metadata?.role;
-      isPlatformAdmin = userRole === "PLATFORM_ADMIN";
-    }
-
+    const isPlatformAdmin = authUser?.role === "PLATFORM_ADMIN";
     if (!isPlatformAdmin) {
       redirect("/maintenance");
+    }
+  }
+
+  // 2. Dynamic Route Authorization Guard based on MenuItem & RoleMenu database
+  if (pathname) {
+    const accessResult = await validateRouteAccess(authUser?.role, pathname);
+    if (!accessResult.allowed && accessResult.redirectUrl) {
+      redirect(accessResult.redirectUrl);
     }
   }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar role={authUser?.role} />
 
       {/* Main area */}
       <div className="flex flex-1 flex-col overflow-hidden">
