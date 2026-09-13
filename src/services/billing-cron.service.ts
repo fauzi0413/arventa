@@ -39,9 +39,10 @@ export class BillingCronService {
       });
 
       for (const inv of overdueCandidates) {
-        // Penalty calculation (Default Rp 50.000 if not set)
+        // Penalty calculation (Configured in Tenant Lease contract, default Rp 50.000)
         const currentPenalty = Number(inv.penaltyAmount || 0);
-        const autoPenalty = currentPenalty > 0 ? currentPenalty : 50000;
+        const leasePenalty = Number(inv.lease?.lateFeeAmount || 50000);
+        const autoPenalty = currentPenalty > 0 ? currentPenalty : leasePenalty;
         const newTotalAmount = Number(inv.amount) + Number(inv.utilityAmount) + autoPenalty;
 
         await prisma.invoice.update({
@@ -99,7 +100,7 @@ export class BillingCronService {
     }
 
     // ------------------------------------------------------------------------
-    // STEP 2: Auto Generate Invoices (H-7) for Active Leases
+    // STEP 2: Auto Generate Invoices (H-7 before cycle start date, Due at H+21)
     // ------------------------------------------------------------------------
     try {
       const activeLeases = await prisma.lease.findMany({
@@ -120,90 +121,98 @@ export class BillingCronService {
         const startDate = new Date(lease.startDate);
         const dayOfMonth = startDate.getDate();
 
-        let targetDueDate = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
-        if (targetDueDate < today) {
-          targetDueDate = new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
-        }
+        // Candidate cycle dates: current month cycle & next month cycle
+        const currentMonthCycle = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+        const nextMonthCycle = new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
 
-        const diffMs = targetDueDate.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const candidateCycles = [currentMonthCycle, nextMonthCycle];
 
-        // If target due date is within H-7 (0 <= diffDays <= 7)
-        if (diffDays >= 0 && diffDays <= 7) {
-          const startOfDueDay = new Date(targetDueDate);
-          startOfDueDay.setHours(0, 0, 0, 0);
-          const endOfDueDay = new Date(targetDueDate);
-          endOfDueDay.setHours(23, 59, 59, 999);
+        for (const cycleDate of candidateCycles) {
+          const diffMs = cycleDate.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-          const existingInvoice = await prisma.invoice.findFirst({
-            where: {
-              leaseId: lease.id,
-              dueDate: {
-                gte: startOfDueDay,
-                lte: endOfDueDay,
-              },
-            },
-          });
+          // Trigger invoice creation when today is in the H-7 window before cycleDate (0 <= diffDays <= 7)
+          if (diffDays >= 0 && diffDays <= 7) {
+            // Due date is set to H+21 of the cycle (cycleDate + 20 days, e.g., Sept 21 for Sept 1 cycle)
+            const targetDueDate = new Date(cycleDate);
+            targetDueDate.setDate(targetDueDate.getDate() + 20);
 
-          if (!existingInvoice) {
-            const dateStr = targetDueDate.toISOString().slice(0, 10).replace(/-/g, "");
-            const randStr = Math.random().toString(36).substring(2, 7).toUpperCase();
-            const invoiceNumber = `INV-${dateStr}-${randStr}`;
+            const startOfDueDay = new Date(targetDueDate);
+            startOfDueDay.setHours(0, 0, 0, 0);
+            const endOfDueDay = new Date(targetDueDate);
+            endOfDueDay.setHours(23, 59, 59, 999);
 
-            const rentPrice = Number(lease.rentPrice);
-            const totalAmount = rentPrice;
-
-            const newInvoice = await prisma.invoice.create({
-              data: {
-                invoiceNumber,
+            const existingInvoice = await prisma.invoice.findFirst({
+              where: {
                 leaseId: lease.id,
-                amount: rentPrice,
-                utilityAmount: 0,
-                penaltyAmount: 0,
-                totalAmount,
-                dueDate: targetDueDate,
-                status: InvoiceStatus.PENDING,
-              },
-            });
-
-            results.invoicesGeneratedCount++;
-
-            // Audit Log
-            await prisma.auditLog.create({
-              data: {
-                action: "AUTO_INVOICE_GENERATED",
-                entityName: "Invoice",
-                entityId: newInvoice.id,
-                details: {
-                  invoiceNumber,
-                  leaseId: lease.id,
-                  tenantName: lease.tenant.fullName || lease.tenant.user?.fullName,
-                  dueDate: targetDueDate,
-                  totalAmount,
+                dueDate: {
+                  gte: startOfDueDay,
+                  lte: endOfDueDay,
                 },
               },
             });
 
-            // Send H-7 Reminder Email
-            const tenantEmail = lease.tenant.email || lease.tenant.user?.email;
-            const tenantName = lease.tenant.fullName || lease.tenant.user?.fullName || "Penyewa";
-            if (tenantEmail) {
-              const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-              const successEmail = await sendInvoicePaymentEmail({
-                to: tenantEmail,
-                tenantName,
-                invoiceNumber,
-                unitNumber: `${lease.unit.unitNumber} (${lease.unit.property.name})`,
-                amount: `Rp ${totalAmount.toLocaleString("id-ID")}`,
-                dueDate: targetDueDate.toLocaleDateString("id-ID", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                }),
-                paymentUrl: `${appUrl}/portal/invoices`,
-              }).catch((e) => console.error("Failed to send reminder email:", e));
+            if (!existingInvoice) {
+              const dateStr = cycleDate.toISOString().slice(0, 10).replace(/-/g, "");
+              const randStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+              const invoiceNumber = `INV-${dateStr}-${randStr}`;
 
-              if (successEmail) results.remindersSentCount++;
+              const rentPrice = Number(lease.rentPrice);
+              const totalAmount = rentPrice;
+
+              const newInvoice = await prisma.invoice.create({
+                data: {
+                  invoiceNumber,
+                  leaseId: lease.id,
+                  amount: rentPrice,
+                  utilityAmount: 0,
+                  penaltyAmount: 0,
+                  totalAmount,
+                  dueDate: targetDueDate,
+                  status: InvoiceStatus.PENDING,
+                },
+              });
+
+              results.invoicesGeneratedCount++;
+
+              // Audit Log
+              await prisma.auditLog.create({
+                data: {
+                  action: "AUTO_INVOICE_GENERATED",
+                  entityName: "Invoice",
+                  entityId: newInvoice.id,
+                  details: {
+                    invoiceNumber,
+                    leaseId: lease.id,
+                    tenantName: lease.tenant.fullName || lease.tenant.user?.fullName,
+                    cycleDate: cycleDate,
+                    dueDate: targetDueDate,
+                    totalAmount,
+                  },
+                },
+              });
+
+              // Send H-7 Reminder Email
+              const tenantEmail = lease.tenant.email || lease.tenant.user?.email;
+              const tenantName = lease.tenant.fullName || lease.tenant.user?.fullName || "Penyewa";
+              if (tenantEmail) {
+                const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+                const successEmail = await sendInvoicePaymentEmail({
+                  to: tenantEmail,
+                  tenantName,
+                  invoiceNumber,
+                  unitNumber: `${lease.unit.unitNumber} (${lease.unit.property.name})`,
+                  amount: `Rp ${totalAmount.toLocaleString("id-ID")}`,
+                  dueDate: targetDueDate.toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  }),
+                  paymentUrl: `${appUrl}/portal/invoices`,
+                }).catch((e) => console.error("Failed to send reminder email:", e));
+
+                if (successEmail) results.remindersSentCount++;
+              }
             }
           }
         }

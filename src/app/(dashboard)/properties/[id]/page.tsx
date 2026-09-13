@@ -15,6 +15,20 @@ import { useSafeBack } from '@/app/_hooks/useSafeBack';
 const UnitFormModal = lazy(() => import('../../units/_components/UnitFormModal'));
 const BulkActionModal = lazy(() => import('../../units/_components/BulkActionModal'));
 
+const DEFAULT_CATEGORIES: PropertyCategory[] = [
+  { id: 'cat-1', name: 'Kos', description: 'Kos-kosan sewa bulanan/tahunan' },
+  { id: 'cat-2', name: 'Apartemen', description: 'Unit apartemen mewah/menengah' },
+  { id: 'cat-3', name: 'Kontrakan', description: 'Rumah sewa satu keluarga' },
+  { id: 'cat-4', name: 'Ruko', description: 'Rumah toko untuk komersial' },
+];
+
+const DEFAULT_STATUSES: PropertyStatus[] = [
+  { id: 'st-1', name: 'Aktif', color: '#8FA28A' },
+  { id: 'st-2', name: 'Nonaktif', color: '#90A4AE' },
+  { id: 'st-3', name: 'Maintenance', color: '#C8A96B' },
+  { id: 'st-4', name: 'Penuh', color: '#FFB74D' },
+];
+
 export default function PropertyDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -22,8 +36,8 @@ export default function PropertyDetailPage() {
   const handleSafeBack = useSafeBack('/properties');
 
   const [property, setProperty] = useState<Property | null>(null);
-  const [categories, setCategories] = useState<PropertyCategory[]>([]);
-  const [statuses, setStatuses] = useState<PropertyStatus[]>([]);
+  const [categories, setCategories] = useState<PropertyCategory[]>(DEFAULT_CATEGORIES);
+  const [statuses, setStatuses] = useState<PropertyStatus[]>(DEFAULT_STATUSES);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -75,17 +89,32 @@ export default function PropertyDetailPage() {
             KONTRAKAN: 'cat-3',
             RUKO: 'cat-4',
           };
+          const totalUnitsCount = p.units?.length || 0;
+          const occupiedUnitsCount = p.units?.filter((u: any) => u.status === 'OCCUPIED' || (u.leases && u.leases.length > 0)).length || 0;
+          const isFullyOccupied = totalUnitsCount > 0 && occupiedUnitsCount === totalUnitsCount;
+
+          let computedStatusId = 'st-1';
+          if (p.status === 'MAINTENANCE' || p.statusId === 'st-3') {
+            computedStatusId = 'st-3';
+          } else if (p.status === 'INACTIVE' || p.status === 'NONAKTIF' || p.statusId === 'st-2') {
+            computedStatusId = 'st-2';
+          } else if (isFullyOccupied) {
+            computedStatusId = 'st-4';
+          }
+
           const mappedProp: Property = {
             id: p.id,
             name: p.name,
             address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
             categoryId: typeToCat[p.type] || 'cat-1',
-            statusId: 'st-1',
-            totalUnits: p.units?.length || 0,
-            occupiedUnits: p.units?.filter((u: any) => u.status === 'OCCUPIED').length || 0,
+            statusId: computedStatusId,
+            totalUnits: totalUnitsCount,
+            occupiedUnits: occupiedUnitsCount,
             description: p.description || '',
             imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
             hasCleaningService: p.hasCleaningService ?? true,
+            defaultLateFee: Number(p.defaultLateFee || 50000),
+            defaultDeposit: Number(p.defaultDeposit || 0),
             createdAt: p.createdAt || new Date().toISOString(),
             ownerName: p.owner?.fullName || p.ownerName,
             ownerPhone: p.owner?.phoneNumber || p.ownerPhone,
@@ -104,8 +133,9 @@ export default function PropertyDetailPage() {
           const mappedUnits: Unit[] = (p.units || []).map((u: any) => {
             const activeLease = u.leases?.[0];
             const tenant = activeLease?.tenant;
-            const mappedStatus = statusMap[u.status] || 'Available';
-            const isOccupied = mappedStatus === 'Occupied';
+            const hasActiveLease = Boolean(activeLease);
+            const isOccupied = hasActiveLease || u.status === 'OCCUPIED';
+            const mappedStatus: UnitStatus = isOccupied ? 'Occupied' : (statusMap[u.status] || 'Available');
             return {
               id: u.id,
               propertyId: p.id,
@@ -155,6 +185,9 @@ export default function PropertyDetailPage() {
     if (storedStats) currentStats = JSON.parse(storedStats);
     if (storedUnits) currentUnits = JSON.parse(storedUnits);
 
+    const finalCats = currentCats && currentCats.length > 0 ? currentCats : DEFAULT_CATEGORIES;
+    const finalStats = currentStats && currentStats.length > 0 ? currentStats : DEFAULT_STATUSES;
+
     const found = currentProps.find((p) => p.id === id);
     const propUnits = currentUnits.filter((u) => u.propertyId === id).map((u) => ({
       ...u,
@@ -162,8 +195,8 @@ export default function PropertyDetailPage() {
       tenantPhone: u.status === 'Occupied' ? u.tenantPhone : undefined,
     }));
 
-    setCategories(currentCats);
-    setStatuses(currentStats);
+    setCategories(finalCats);
+    setStatuses(finalStats);
     if (found) {
       setProperty({
         ...found,

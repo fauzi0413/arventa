@@ -89,9 +89,16 @@ function UnitsPageContent() {
 
   const fetchUnitsAndProperties = async () => {
     try {
-      const res = await fetch('/api/properties?limit=50');
-      if (res.ok) {
-        const json = await res.json();
+      const [propRes, unitRes] = await Promise.all([
+        fetch('/api/properties?limit=50'),
+        fetch('/api/units'),
+      ]);
+
+      let mappedProps: Property[] = [];
+      let mappedUnits: Unit[] = [];
+
+      if (propRes.ok) {
+        const json = await propRes.json();
         if (Array.isArray(json.data)) {
           const typeToCat: Record<string, string> = {
             KOS: 'cat-1',
@@ -99,68 +106,36 @@ function UnitsPageContent() {
             KONTRAKAN: 'cat-3',
             RUKO: 'cat-4',
           };
-          const mappedProps: Property[] = json.data.map((p: any) => ({
+          mappedProps = json.data.map((p: any) => ({
             id: p.id,
             name: p.name,
             address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
             categoryId: typeToCat[p.type] || 'cat-1',
             statusId: 'st-1',
             totalUnits: p.units?.length || 0,
-            occupiedUnits: p.units?.filter((u: any) => u.status === 'OCCUPIED').length || 0,
+            occupiedUnits: p.units?.filter((u: any) => u.status === 'OCCUPIED' || (u.leases && u.leases.length > 0)).length || 0,
             description: p.description || '',
             imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5',
             hasCleaningService: p.hasCleaningService ?? true,
             createdAt: p.createdAt || new Date().toISOString(),
           }));
-
-          const statusMap: Record<string, UnitStatus> = {
-            AVAILABLE: 'Available',
-            OCCUPIED: 'Occupied',
-            MAINTENANCE: 'Maintenance',
-            CLEANING: 'Need Cleaning',
-          };
-
-          const allMappedUnits: Unit[] = [];
-          json.data.forEach((p: any) => {
-            if (Array.isArray(p.units)) {
-              p.units.forEach((u: any) => {
-                const activeLease = u.leases?.[0];
-                const tenant = activeLease?.tenant;
-                const mappedStatus = statusMap[u.status] || 'Available';
-                const isOccupied = mappedStatus === 'Occupied';
-                allMappedUnits.push({
-                  id: u.id,
-                  propertyId: p.id,
-                  name: u.unitNumber,
-                  status: mappedStatus,
-                  facilities: Array.isArray(u.facilities) ? u.facilities : ['AC', 'WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed'],
-                  capacity: {
-                    maxPersons: u.capacity || 1,
-                    dimensions: u.dimensions || (u.floor ? `Lantai ${u.floor}` : '3x4 m'),
-                  },
-                  pricing: {
-                    monthly: Number(u.basePrice) || 0,
-                    daily: u.transitPrice ? Number(u.transitPrice) : undefined,
-                    deposit: u.deposit !== undefined && u.deposit !== null ? Number(u.deposit) : 0,
-                    utilities: u.utilities || '',
-                  },
-                  description: u.description || (u.floor ? `Lantai ${u.floor}` : ''),
-                  tenantName: isOccupied ? (tenant?.fullName || tenant?.user?.fullName || u.tenantName || undefined) : undefined,
-                  tenantPhone: isOccupied ? (tenant?.phoneNumber || tenant?.user?.phoneNumber || u.tenantPhone || undefined) : undefined,
-                  checkInDate: isOccupied && activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : new Date(activeLease.startDate).toISOString().split('T')[0]) : (isOccupied ? (u.checkInDate || '') : undefined),
-                  createdAt: u.createdAt || new Date().toISOString(),
-                });
-              });
-            }
-          });
-
-          setProperties(mappedProps);
-          setUnits(allMappedUnits);
-          localStorage.setItem('arventa_properties', JSON.stringify(mappedProps));
-          localStorage.setItem('arventa_units', JSON.stringify(allMappedUnits));
-          setLoading(false);
-          return;
         }
+      }
+
+      if (unitRes.ok) {
+        const json = await unitRes.json();
+        if (Array.isArray(json.data)) {
+          mappedUnits = json.data;
+        }
+      }
+
+      if (mappedProps.length > 0 || mappedUnits.length > 0) {
+        setProperties(mappedProps);
+        setUnits(mappedUnits);
+        localStorage.setItem('arventa_properties', JSON.stringify(mappedProps));
+        localStorage.setItem('arventa_units', JSON.stringify(mappedUnits));
+        setLoading(false);
+        return;
       }
     } catch (err) {
       console.warn('Notice: fallback to local storage for units', err);

@@ -157,6 +157,7 @@ export async function POST(request: NextRequest) {
       endDate,
       rentPrice,
       securityDeposit = 0,
+      lateFeeAmount = 50000,
       status = "ACTIVE",
       notes,
       customClauses,
@@ -264,6 +265,7 @@ export async function POST(request: NextRequest) {
           endDate: end,
           rentPrice: Number(rentPrice),
           securityDeposit: Number(securityDeposit),
+          lateFeeAmount: Number(lateFeeAmount || 50000),
           status: status as LeaseStatus,
           customClauses: finalCustomClauses,
           notes: finalNotes,
@@ -303,28 +305,59 @@ export async function POST(request: NextRequest) {
           data: { status: UnitStatus.OCCUPIED },
         });
 
-        // Auto-generate initial Invoice (Rent + Deposit) for ACTIVE contract
-        const invNumber = `INV/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, "0")}/${Math.floor(1000 + Math.random() * 9000)}`;
+        // Auto-generate full-term monthly Invoices for ACTIVE contract
+        let currentCycle = new Date(start);
+        let monthIndex = 0;
         const rentAmt = Number(rentPrice || 0);
         const depAmt = Number(securityDeposit || 0);
 
-        const existingInvoice = await tx.invoice.findFirst({
-          where: { leaseId: newLease.id },
-        });
+        while (currentCycle < end) {
+          monthIndex++;
 
-        if (!existingInvoice) {
-          await tx.invoice.create({
-            data: {
-              invoiceNumber: invNumber,
+          const dueDate = new Date(currentCycle);
+          dueDate.setDate(dueDate.getDate() + 20); // H+21 rule
+          dueDate.setHours(23, 59, 59, 999);
+
+          const startOfDueDay = new Date(dueDate);
+          startOfDueDay.setHours(0, 0, 0, 0);
+          const endOfDueDay = new Date(dueDate);
+          endOfDueDay.setHours(23, 59, 59, 999);
+
+          const existingInv = await tx.invoice.findFirst({
+            where: {
               leaseId: newLease.id,
-              amount: rentAmt,
-              utilityAmount: 0,
-              penaltyAmount: 0,
-              totalAmount: rentAmt + depAmt,
-              dueDate: start,
-              status: "PENDING",
+              dueDate: {
+                gte: startOfDueDay,
+                lte: endOfDueDay,
+              },
             },
           });
+
+          if (!existingInv) {
+            const year = currentCycle.getFullYear();
+            const monthStr = String(currentCycle.getMonth() + 1).padStart(2, "0");
+            const randStr = Math.floor(1000 + Math.random() * 9000);
+            const invoiceNumber = `INV/${year}/${monthStr}/${randStr}`;
+
+            const totalAmount = monthIndex === 1 ? rentAmt + depAmt : rentAmt;
+
+            await tx.invoice.create({
+              data: {
+                invoiceNumber,
+                leaseId: newLease.id,
+                amount: rentAmt,
+                utilityAmount: 0,
+                penaltyAmount: 0,
+                totalAmount,
+                dueDate,
+                status: "PENDING",
+              },
+            });
+          }
+
+          const nextMonth = new Date(currentCycle);
+          nextMonth.setMonth(nextMonth.getMonth() + 1);
+          currentCycle = nextMonth;
         }
       }
 

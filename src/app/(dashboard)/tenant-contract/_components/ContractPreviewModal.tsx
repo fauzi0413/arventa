@@ -318,15 +318,19 @@ export default function ContractPreviewModal({
                 <li>
                   <strong>Harga Sewa:</strong> Disepakati harga sewa sebesar{' '}
                   <strong className="text-slate-900">
-                    Rp {contract.rentPrice?.toLocaleString('id-ID')} / {periodLabelMap[contract.rentalPeriod] || 'Periode'}
+                    Rp {Number(contract.rentPrice || 0).toLocaleString('id-ID')} / {periodLabelMap[contract.rentalPeriod] || 'Periode'}
                   </strong>.
                 </li>
-                {contract.securityDeposit > 0 && (
+                {Number(contract.securityDeposit || 0) > 0 && (
                   <li>
                     <strong>Uang Jaminan (Deposit):</strong> PIHAK KEDUA membayarkan uang deposit jaminan sebesar{' '}
-                    <strong className="text-slate-900">Rp {contract.securityDeposit?.toLocaleString('id-ID')}</strong> yang akan dikembalikan setelah masa sewa berakhir jika tidak ada tunggakan atau kerusakan fasilitas.
+                    <strong className="text-slate-900">Rp {Number(contract.securityDeposit || 0).toLocaleString('id-ID')}</strong> yang akan dikembalikan setelah masa sewa berakhir jika tidak ada tunggakan atau kerusakan fasilitas.
                   </li>
                 )}
+                <li>
+                  <strong>Ketentuan Denda Keterlambatan:</strong> Apabila pembayaran sewa melewati tanggal jatuh tempo, PIHAK KEDUA dikenakan denda keterlambatan sebesar{' '}
+                  <strong className="text-rose-700">Rp {Number(contract.lateFeeAmount || 50000).toLocaleString('id-ID')}</strong> per keterlambatan yang akan ditambahkan secara otomatis pada invoice penagihan.
+                </li>
               </ol>
 
               <h3 className="font-bold text-slate-900 border-b border-slate-200 pb-1 pt-2">

@@ -54,6 +54,27 @@ async function deleteStorageFiles(urls: (string | null | undefined)[]) {
   }
 }
 
+function parseSafeDate(dateStr?: string | Date | null): Date {
+  if (!dateStr) return new Date();
+  if (dateStr instanceof Date) {
+    return isNaN(dateStr.getTime()) ? new Date() : dateStr;
+  }
+  const str = String(dateStr).trim();
+  if (!str) return new Date();
+
+  if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(str)) {
+    const parts = str.split(/[\/-]/);
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) return parsed;
+  return new Date();
+}
+
 export interface TenantFilterParams {
   search?: string;
   propertyIds?: string[];
@@ -236,12 +257,36 @@ export class TenantService {
 
       // 1. If unit is provided AND status === 'AKTIF', find unit and mark occupied
       if (data.unitName && data.status === "AKTIF") {
+        const cleanUnitName = (data.unitName || '').replace(/^(kamar|apt|unit)\s+/i, '').trim();
+        const cleanPropName = (data.propertyName || '').trim();
+
         unit = await tx.unit.findFirst({
           where: {
-            unitNumber: data.unitName,
-            ...(data.propertyName
-              ? { property: { name: { contains: data.propertyName, mode: "insensitive" } } }
-              : {}),
+            AND: [
+              ...(cleanPropName ? [{
+                property: { name: { contains: cleanPropName, mode: "insensitive" as const } }
+              }] : []),
+              {
+                OR: [
+                  { unitNumber: data.unitName },
+                  { unitNumber: cleanUnitName },
+                  { unitNumber: `Kamar ${cleanUnitName}` },
+                  { unitNumber: `Apt ${cleanUnitName}` },
+                  { unitNumber: `Unit ${cleanUnitName}` },
+                ],
+              }
+            ]
+          },
+          include: { property: true },
+        }) || await tx.unit.findFirst({
+          where: {
+            OR: [
+              { unitNumber: data.unitName },
+              { unitNumber: cleanUnitName },
+              { unitNumber: `Kamar ${cleanUnitName}` },
+              { unitNumber: `Apt ${cleanUnitName}` },
+              { unitNumber: `Unit ${cleanUnitName}` },
+            ],
           },
           include: { property: true },
         });
@@ -284,7 +329,7 @@ export class TenantService {
 
       // 3. Create Lease & initial Invoice if unit assigned & status === 'AKTIF'
       if (unit && data.status === "AKTIF") {
-        const startDate = data.leaseStartDate ? new Date(data.leaseStartDate) : new Date();
+        const startDate = parseSafeDate(data.leaseStartDate);
         const endDate = new Date(startDate);
         endDate.setFullYear(endDate.getFullYear() + 1);
 
@@ -294,7 +339,7 @@ export class TenantService {
             unitId: unit.id,
             startDate,
             endDate,
-            rentPrice: unit.price,
+            rentPrice: unit.basePrice || 1000000,
             rentalPeriod: "MONTHLY",
             status: "ACTIVE",
           },
@@ -302,7 +347,7 @@ export class TenantService {
 
         // Auto-generate initial Invoice (Rent + Deposit) for ACTIVE contract
         const invNumber = `INV/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, "0")}/${Math.floor(1000 + Math.random() * 9000)}`;
-        const rentAmt = Number(unit.price || 0);
+        const rentAmt = Number(unit.basePrice || 0);
         const depAmt = Number(unit.deposit || 0);
 
         await tx.invoice.create({
@@ -344,7 +389,7 @@ export class TenantService {
       });
 
       return tenantProfile;
-    });
+    }, { maxWait: 15000, timeout: 30000 });
   }
 
   /**
@@ -427,7 +472,28 @@ export class TenantService {
       } else if (isAktif) {
         if (data.unitName || data.propertyName) {
           const cleanUnitName = (data.unitName || '').replace(/^(kamar|apt|unit)\s+/i, '').trim();
+          const cleanPropName = (data.propertyName || '').trim();
+
           const targetUnit = await tx.unit.findFirst({
+            where: {
+              AND: [
+                ...(cleanPropName ? [{
+                  property: {
+                    name: { contains: cleanPropName, mode: "insensitive" as const }
+                  }
+                }] : []),
+                {
+                  OR: [
+                    { unitNumber: data.unitName },
+                    { unitNumber: cleanUnitName },
+                    { unitNumber: `Kamar ${cleanUnitName}` },
+                    { unitNumber: `Apt ${cleanUnitName}` },
+                  ],
+                }
+              ]
+            },
+            include: { property: true },
+          }) || await tx.unit.findFirst({
             where: {
               OR: [
                 { unitNumber: data.unitName },
@@ -491,13 +557,17 @@ export class TenantService {
 
             let activeLeaseRecord;
             if (!existingActiveTargetLease) {
+              const startDate = parseSafeDate(data.leaseStartDate);
+              const endDate = new Date(startDate);
+              endDate.setFullYear(endDate.getFullYear() + 1);
+
               activeLeaseRecord = await tx.lease.create({
                 data: {
                   tenantId: tenant.id,
                   unitId: targetUnit.id,
                   rentalPeriod: "MONTHLY",
-                  startDate: data.leaseStartDate ? new Date(data.leaseStartDate) : new Date(),
-                  endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+                  startDate,
+                  endDate,
                   rentPrice: targetUnit.basePrice || 1000000,
                   status: "ACTIVE",
                 },
@@ -580,7 +650,7 @@ export class TenantService {
           },
         },
       });
-    });
+    }, { maxWait: 15000, timeout: 30000 });
   }
 
   /**
@@ -679,5 +749,38 @@ export class TenantService {
     await deleteStorageFiles(fileUrlsToDelete);
 
     return deleteResult;
+  }
+
+  /**
+   * Auto-sync DB unit statuses with active leases
+   */
+  static async syncUnitStatusesWithActiveLeases() {
+    try {
+      const activeLeases = await prisma.lease.findMany({
+        where: { status: "ACTIVE" },
+        select: { unitId: true },
+      });
+      const activeUnitIds = Array.from(new Set(activeLeases.map((l) => l.unitId)));
+
+      if (activeUnitIds.length > 0) {
+        await prisma.unit.updateMany({
+          where: {
+            id: { in: activeUnitIds },
+            status: "AVAILABLE",
+          },
+          data: { status: "OCCUPIED" },
+        });
+      }
+
+      await prisma.unit.updateMany({
+        where: {
+          id: { notIn: activeUnitIds },
+          status: "OCCUPIED",
+        },
+        data: { status: "AVAILABLE" },
+      });
+    } catch (e) {
+      console.warn("[Auto Sync Unit Statuses] Notice:", e);
+    }
   }
 }

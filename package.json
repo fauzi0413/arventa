@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:invoices": "npx tsx scripts/sync-invoice-due-dates.ts",
+    "sync:late-fees": "npx tsx scripts/sync-lease-late-fees.ts",
+    "clean:utilities": "npx tsx scripts/clean-invoice-utility-fees.ts",
+    "sync:property-fees": "npx tsx scripts/sync-property-default-late-fees.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

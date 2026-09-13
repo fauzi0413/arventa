@@ -28,12 +28,16 @@ import {
   ExternalLink,
   Copy,
   Check,
+  Edit3,
+  CreditCard,
 } from 'lucide-react';
 import { Unit } from '@/app/(dashboard)/units/_types';
 import { Property, InventoryItem, InventoryCondition } from '@/app/(dashboard)/properties/_types';
 import { useSafeBack } from '@/app/_hooks/useSafeBack';
 import AssignTenantModal from '@/app/(dashboard)/units/_components/AssignTenantModal';
+import UnitFormModal from '@/app/(dashboard)/units/_components/UnitFormModal';
 import ImageFileInput from '@/app/(dashboard)/housekeeping/maintenance-reports/components/common/ImageFileInput';
+import TenantInvoiceHistoryModal from './_components/TenantInvoiceHistoryModal';
 
 const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   switch (cond) {
@@ -103,6 +107,122 @@ export default function PropertyUnitDetailPage() {
   const [unit, setUnit] = useState<Unit | null>(null);
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isEditUnitModalOpen, setIsEditUnitModalOpen] = useState(false);
+  const [invoiceKPI, setInvoiceKPI] = useState<{
+    id: string;
+    invoiceNumber: string;
+    periodName: string;
+    amount: number;
+    dueDate: string;
+    status: 'PAID' | 'UNPAID' | 'PENDING' | 'OVERDUE';
+    isOverdueBeforeCurrentMonth: boolean;
+  } | null>(null);
+  const [unitInvoices, setUnitInvoices] = useState<any[]>([]);
+  const [isInvoiceHistoryModalOpen, setIsInvoiceHistoryModalOpen] = useState(false);
+
+  const resolveInvoiceKPILogic = (invoices: any[], basePrice: number) => {
+    const now = new Date();
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const unpaidPrevious = invoices.filter((inv) => {
+      const due = new Date(inv.dueDate || inv.createdAt || now);
+      const isUnpaid = inv.status === 'UNPAID' || inv.status === 'PENDING' || inv.status === 'OVERDUE';
+      return due < currentMonthStart && isUnpaid;
+    });
+
+    if (unpaidPrevious.length > 0) {
+      unpaidPrevious.sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+      const target = unpaidPrevious[0];
+      const due = new Date(target.dueDate);
+      const periodName = due.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+      return {
+        id: target.id,
+        invoiceNumber: target.invoiceNumber || `INV-${target.id.slice(0, 8)}`,
+        periodName: `Tagihan ${periodName}`,
+        amount: Number(target.totalAmount || target.amount || basePrice || 4500000),
+        dueDate: target.dueDate,
+        status: (target.status === 'OVERDUE' ? 'OVERDUE' : 'UNPAID') as any,
+        isOverdueBeforeCurrentMonth: true,
+      };
+    }
+
+    const currentMonthInvoice = invoices.find((inv) => {
+      const due = new Date(inv.dueDate || inv.createdAt || now);
+      return due >= currentMonthStart;
+    }) || invoices[0];
+
+    if (currentMonthInvoice) {
+      const due = new Date(currentMonthInvoice.dueDate || now);
+      const periodName = due.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+      return {
+        id: currentMonthInvoice.id,
+        invoiceNumber: currentMonthInvoice.invoiceNumber || `INV-${currentMonthInvoice.id.slice(0, 8)}`,
+        periodName: `Tagihan ${periodName}`,
+        amount: Number(currentMonthInvoice.totalAmount || currentMonthInvoice.amount || basePrice || 4500000),
+        dueDate: currentMonthInvoice.dueDate || now.toISOString(),
+        status: currentMonthInvoice.status || 'UNPAID',
+        isOverdueBeforeCurrentMonth: false,
+      };
+    }
+
+    const currentPeriodName = now.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      id: `inv-current-${now.getTime()}`,
+      invoiceNumber: `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}-001`,
+      periodName: `Tagihan ${currentPeriodName}`,
+      amount: basePrice || 4500000,
+      dueDate: endOfMonth.toISOString(),
+      status: 'PAID' as const,
+      isOverdueBeforeCurrentMonth: false,
+    };
+  };
+
+  const handleEditUnitSubmit = async (unitData: Omit<Unit, 'id' | 'createdAt'>) => {
+    if (!unit) return;
+    try {
+      const res = await fetch(`/api/units/${unit.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: unitData.name,
+          status: unitData.status,
+          basePrice: unitData.pricing.monthly,
+          transitPrice: unitData.pricing.daily,
+          deposit: unitData.pricing.deposit,
+          capacity: unitData.capacity.maxPersons,
+          dimensions: unitData.capacity.dimensions,
+          facilities: unitData.facilities,
+          description: unitData.description,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const updatedData = json.data;
+        if (updatedData) {
+          setUnit(updatedData);
+        } else {
+          setUnit({ ...unit, ...unitData });
+        }
+      } else {
+        setUnit({ ...unit, ...unitData });
+      }
+
+      const storedUnits = localStorage.getItem('arventa_units');
+      if (storedUnits) {
+        const allUnits: Unit[] = JSON.parse(storedUnits);
+        const updated = allUnits.map((u) => (u.id === unit.id ? { ...u, ...unitData } : u));
+        localStorage.setItem('arventa_units', JSON.stringify(updated));
+      }
+
+      setIsEditUnitModalOpen(false);
+    } catch (err) {
+      console.error('Failed to update unit:', err);
+      setUnit({ ...unit, ...unitData });
+      setIsEditUnitModalOpen(false);
+    }
+  };
 
   // 1 Kamar 1 Akun states
   const [showPassword, setShowPassword] = useState(false);
@@ -244,6 +364,27 @@ export default function PropertyUnitDetailPage() {
 
             setProperty(pData);
             setUnit(uData);
+
+            // Calculate Tenant Invoice KPI & Store Unit Invoices
+            try {
+              const resInv = await fetch(`/api/finance/invoices?unitId=${unitId}&limit=100`);
+              if (resInv.ok) {
+                const invJson = await resInv.json();
+                if (Array.isArray(invJson.data)) {
+                  setUnitInvoices(invJson.data);
+                  setInvoiceKPI(resolveInvoiceKPILogic(invJson.data, uData.pricing?.monthly || 4500000));
+                } else {
+                  setUnitInvoices([]);
+                  setInvoiceKPI(resolveInvoiceKPILogic([], uData.pricing?.monthly || 4500000));
+                }
+              } else {
+                setUnitInvoices([]);
+                setInvoiceKPI(resolveInvoiceKPILogic([], uData.pricing?.monthly || 4500000));
+              }
+            } catch (e) {
+              setUnitInvoices([]);
+              setInvoiceKPI(resolveInvoiceKPILogic([], uData.pricing?.monthly || 4500000));
+            }
 
             const storedInventory = localStorage.getItem('arventa_inventory');
             let loadedInventory: InventoryItem[] = storedInventory ? JSON.parse(storedInventory) : [];
@@ -504,7 +645,14 @@ export default function PropertyUnitDetailPage() {
         </button>
 
         <div className="flex items-center gap-2">
-          {/* Header Actions */}
+          <button
+            type="button"
+            onClick={() => setIsEditUnitModalOpen(true)}
+            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-border bg-card dark:bg-card hover:bg-muted text-foreground px-4 py-2 text-xs font-bold transition-all shadow-sm cursor-pointer"
+          >
+            <Edit3 className="h-4 w-4 text-[#8FA28A]" />
+            <span>Edit Informasi Unit</span>
+          </button>
         </div>
       </div>
 
@@ -514,9 +662,9 @@ export default function PropertyUnitDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           {/* Unit Spec Title Card */}
           <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-6">
-            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border dark:border-border pb-4">
-              <div>
-                <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border dark:border-border pb-4">
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                   <h2 className="text-2xl font-black text-foreground dark:text-foreground">{unit.name}</h2>
                   {(() => {
                     const st = (unit.status as string) || '';
@@ -547,41 +695,38 @@ export default function PropertyUnitDetailPage() {
 
                     return <span className={`rounded-full px-3.5 py-1 text-xs font-black uppercase tracking-wider ${badgeClass}`}>{labelText}</span>;
                   })()}
+
+                  {/* Compact Sleek Tarif Sewa Pill */}
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#8FA28A]/10 border border-[#8FA28A]/30 text-[#8FA28A] font-black text-xs shadow-xs">
+                    <span className="text-[10px] font-extrabold uppercase text-muted-foreground tracking-wider">TARIF:</span>
+                    <span className="text-foreground dark:text-foreground font-black">{formatRupiah(unit.pricing.monthly)}</span>
+                    <span className="text-[10px] font-normal text-muted-foreground">/bln</span>
+                  </span>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1.5">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{property.name} • Lantai {unit.capacity?.dimensions ? 'Dasar/Atas' : '1'}</span>
                 </div>
               </div>
 
-              <div className="flex flex-col items-end gap-2">
-                <div className="text-right">
-                  <span className="block text-xs font-bold text-muted-foreground uppercase">Tarif Sewa</span>
-                  <p className="text-xl font-black text-[#8FA28A]">
-                    {formatRupiah(unit.pricing.monthly)}
-                    <span className="text-xs font-normal text-muted-foreground">/bln</span>
-                  </p>
-                </div>
-
-                {/* Quick Maintenance Ticket Buttons */}
-                <div className="flex items-center gap-1.5 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenCreateTicket('REPAIR')}
-                    className="min-h-[32px] px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs"
-                  >
-                    <Wrench className="h-3.5 w-3.5" />
-                    <span>Buat Tiket Perbaikan</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenCreateTicket('HOUSEKEEPING')}
-                    className="min-h-[32px] px-3 py-1 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-bold text-xs flex items-center gap-1 transition-colors shadow-xs"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Housekeeping</span>
-                  </button>
-                </div>
+              {/* Quick Maintenance Ticket Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleOpenCreateTicket('REPAIR')}
+                  className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <Wrench className="h-3.5 w-3.5" />
+                  <span>Buat Tiket Perbaikan</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenCreateTicket('HOUSEKEEPING')}
+                  className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-bold text-xs flex items-center gap-1.5 transition-colors shadow-xs"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Housekeeping</span>
+                </button>
               </div>
             </div>
 
@@ -890,22 +1035,22 @@ export default function PropertyUnitDetailPage() {
                   </button>
                 </div>
 
-                <div className="space-y-2.5 text-xs pt-2 border-t border-border dark:border-border">
+                <div className="space-y-2 text-xs pt-2 border-t border-border dark:border-border">
                   {unit.tenantPhone && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 min-w-0">
+                      <span className="text-muted-foreground flex items-center gap-1 shrink-0">
                         <Phone className="h-3.5 w-3.5 text-muted-foreground" /> WhatsApp
                       </span>
-                      <strong className="text-foreground">{unit.tenantPhone}</strong>
+                      <strong className="text-foreground font-mono text-right">{unit.tenantPhone}</strong>
                     </div>
                   )}
 
                   {unit.checkInDate && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground flex items-center gap-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 sm:gap-2 min-w-0">
+                      <span className="text-muted-foreground flex items-center gap-1 shrink-0">
                         <Calendar className="h-3.5 w-3.5 text-muted-foreground" /> Tanggal Masuk
                       </span>
-                      <strong className="text-foreground">
+                      <strong className="text-foreground text-right">
                         {new Date(unit.checkInDate).toLocaleDateString('id-ID', {
                           day: 'numeric',
                           month: 'long',
@@ -918,27 +1063,34 @@ export default function PropertyUnitDetailPage() {
 
                 {/* Highlight Information Kontrak Sewa Aktif */}
                 <div className="p-3.5 rounded-xl bg-[#8FA28A]/10 border border-[#8FA28A]/30 space-y-2.5 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase text-[#8FA28A] tracking-wider flex items-center gap-1">
-                      <FileText className="h-3.5 w-3.5" /> Highlight Kontrak Sewa
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-[#8FA28A]/20">
+                    <span className="text-[10px] font-black uppercase text-[#8FA28A] tracking-wider flex items-center gap-1.5 shrink-0">
+                      <FileText className="h-3.5 w-3.5" /> Highlight Kontrak
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 font-extrabold text-[10px]">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-extrabold text-[10px] uppercase shrink-0">
                       {(unit as any).activeLease?.status || 'AKTIF'}
                     </span>
                   </div>
 
-                  <div className="space-y-1.5 pt-0.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Nomor Kontrak:</span>
-                      <strong className="font-mono text-foreground font-bold">
-                        {(unit as any).activeLease?.contractNumber || `KTR/ARV/${unit.id.slice(0, 6).toUpperCase()}`}
+                  <div className="space-y-1.5 pt-0.5 text-xs">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-muted-foreground font-medium shrink-0">Nomor Kontrak:</span>
+                      <strong className="font-mono text-foreground font-bold text-right truncate min-w-0">
+                        {(() => {
+                          const rawNum = (unit as any).activeLease?.contractNumber;
+                          if (!rawNum || rawNum.startsWith('http')) {
+                            const leaseId = (unit as any).activeLease?.id || unit.id;
+                            return `KTR/ARV/${leaseId.slice(0, 6).toUpperCase()}`;
+                          }
+                          return rawNum;
+                        })()}
                       </strong>
                     </div>
 
                     {(unit as any).activeLease?.endDate && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Masa Berakhir:</span>
-                        <strong className="text-foreground font-semibold">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-muted-foreground font-medium shrink-0">Masa Berakhir:</span>
+                        <strong className="text-foreground font-semibold text-right truncate min-w-0">
                           {new Date((unit as any).activeLease.endDate).toLocaleDateString('id-ID', {
                             day: 'numeric',
                             month: 'long',
@@ -948,24 +1100,109 @@ export default function PropertyUnitDetailPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-muted-foreground">Tarif Sewa Pokok:</span>
-                      <strong className="text-foreground font-bold">
+                    <div className="flex items-center justify-between gap-2 min-w-0">
+                      <span className="text-muted-foreground font-medium shrink-0">Tarif Sewa Pokok:</span>
+                      <strong className="text-foreground font-bold text-right truncate min-w-0">
                         Rp {((unit as any).activeLease?.rentPrice || unit.pricing?.monthly || 0).toLocaleString('id-ID')} / bln
                       </strong>
                     </div>
                   </div>
 
-                  <div className="pt-1.5 border-t border-[#8FA28A]/20 text-center">
-                    <Link
-                      href={`/tenant-contract?search=${encodeURIComponent((unit as any).activeLease?.contractNumber || unit.tenantName)}&autoPreview=true`}
-                      className="text-[11px] font-extrabold text-[#8FA28A] hover:underline inline-flex items-center gap-1"
-                    >
-                      <span>Lihat Rincian Kontrak Penyewa</span>
-                      <ArrowLeft className="h-3 w-3 rotate-180" />
-                    </Link>
+                  <div className="pt-2 border-t border-[#8FA28A]/20 text-center">
+                    {(() => {
+                      const cleanNum = (() => {
+                        const raw = (unit as any).activeLease?.contractNumber;
+                        if (raw && !raw.startsWith('http')) return raw;
+                        const leaseId = (unit as any).activeLease?.id || unit.id;
+                        return `KTR/ARV/${leaseId.slice(0, 6).toUpperCase()}`;
+                      })();
+                      return (
+                        <Link
+                          href={`/tenant-contract?search=${encodeURIComponent(cleanNum)}&autoPreview=true`}
+                          className="text-[11px] font-extrabold text-[#8FA28A] hover:underline inline-flex items-center gap-1"
+                        >
+                          <span>Lihat Rincian Kontrak Penyewa</span>
+                          <ArrowLeft className="h-3 w-3 rotate-180" />
+                        </Link>
+                      );
+                    })()}
                   </div>
                 </div>
+
+                {/* KPI Status Invoice / Tagihan Penyewa */}
+                {invoiceKPI && (
+                  <div className={`p-3.5 rounded-xl border text-xs space-y-2.5 transition-all ${
+                    invoiceKPI.isOverdueBeforeCurrentMonth || invoiceKPI.status === 'OVERDUE'
+                      ? 'bg-rose-500/10 border-rose-500/30'
+                      : invoiceKPI.status === 'PAID'
+                      ? 'bg-emerald-500/10 border-emerald-500/30'
+                      : 'bg-amber-500/10 border-amber-500/30'
+                  }`}>
+                    <div className="flex items-center justify-between gap-2 pb-2 border-b border-current/15">
+                      <span className="text-[10px] font-black uppercase text-[#8FA28A] tracking-wider flex items-center gap-1.5 shrink-0">
+                        <CreditCard className="h-3.5 w-3.5" /> Status Invoice
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] uppercase shrink-0 ${
+                        invoiceKPI.isOverdueBeforeCurrentMonth || invoiceKPI.status === 'OVERDUE'
+                          ? 'bg-rose-600 text-white shadow-xs'
+                          : invoiceKPI.status === 'PAID'
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-amber-500 text-white shadow-xs'
+                      }`}>
+                        {invoiceKPI.isOverdueBeforeCurrentMonth
+                          ? 'TUNGGAKAN'
+                          : invoiceKPI.status === 'PAID'
+                          ? 'LUNAS'
+                          : 'BELUM DIBAYAR'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 pt-0.5 text-xs">
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-muted-foreground font-medium shrink-0">Periode Tagihan:</span>
+                        <strong className="text-foreground font-bold text-right truncate min-w-0">
+                          {invoiceKPI.periodName}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-muted-foreground font-medium shrink-0">No. Invoice:</span>
+                        <strong className="font-mono text-foreground font-bold text-right truncate min-w-0">
+                          {invoiceKPI.invoiceNumber}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-muted-foreground font-medium shrink-0">Nominal Tagihan:</span>
+                        <strong className="text-foreground font-bold text-right truncate min-w-0">
+                          Rp {invoiceKPI.amount.toLocaleString('id-ID')}
+                        </strong>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="text-muted-foreground font-medium shrink-0">Jatuh Tempo:</span>
+                        <strong className="text-foreground font-bold text-right truncate min-w-0">
+                          {new Date(invoiceKPI.dueDate).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-current/15 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setIsInvoiceHistoryModalOpen(true)}
+                        className="text-[11px] font-extrabold text-[#8FA28A] hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Lihat Riwayat Invoice Penyewa</span>
+                        <ArrowLeft className="h-3 w-3 rotate-180" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* MATCHING SS 3: INFORMASI PENYEWA KAMAR (EMPTY STATE) + ATUR PENYEWA */
@@ -980,8 +1217,8 @@ export default function PropertyUnitDetailPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => setIsAssignTenantOpen(true)}
-                    className="min-h-[44px] px-4 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-black text-xs inline-flex items-center gap-1.5 transition-all shadow-sm"
+                    onClick={() => router.push('/tenants?openAdd=true')}
+                    className="min-h-[44px] px-4 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-black text-xs inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                   >
                     + Atur / Tambah Penyewa Kamar
                   </button>
@@ -1167,6 +1404,33 @@ export default function PropertyUnitDetailPage() {
           unit={unit}
           onSaveTenant={handleSaveTenant}
           onCheckoutTenant={handleCheckoutTenant}
+        />
+      )}
+
+      {/* Edit Unit Modal */}
+      {unit && property && isEditUnitModalOpen && (
+        <UnitFormModal
+          isOpen={isEditUnitModalOpen}
+          onClose={() => setIsEditUnitModalOpen(false)}
+          onSubmit={handleEditUnitSubmit}
+          initialData={unit}
+          initialPropertyId={property.id}
+          properties={[property]}
+        />
+      )}
+
+      {/* Tenant Invoice History Modal */}
+      {unit && property && (
+        <TenantInvoiceHistoryModal
+          isOpen={isInvoiceHistoryModalOpen}
+          onClose={() => setIsInvoiceHistoryModalOpen(false)}
+          tenantName={unit.tenantName || 'Penyewa Aktif'}
+          tenantPhone={unit.tenantPhone}
+          checkInDate={unit.checkInDate}
+          unitName={unit.name}
+          propertyName={property.name}
+          monthlyRate={unit.pricing?.monthly || 4500000}
+          invoices={unitInvoices}
         />
       )}
     </div>

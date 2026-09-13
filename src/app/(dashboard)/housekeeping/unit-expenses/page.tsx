@@ -20,7 +20,6 @@ import {
   ChevronRight,
   TrendingDown,
   DollarSign,
-  Radio,
 } from "lucide-react";
 import HousekeepingInvoiceDetailModal, {
   HousekeepingInvoiceItem,
@@ -71,6 +70,7 @@ export default function HousekeepingUnitExpensesPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [meta, setMeta] = useState({
     page: 1,
     limit: 10,
@@ -101,12 +101,12 @@ export default function HousekeepingUnitExpensesPage() {
     async (isManualRefresh = false) => {
       try {
         if (isManualRefresh) setRefreshing(true);
-        else if (invoices.length === 0) setLoading(true);
+        else setLoading(true);
 
         setError(null);
         const params = new URLSearchParams();
         params.append("page", page.toString());
-        params.append("limit", "10");
+        params.append("limit", limit.toString());
 
         if (selectedPropertyId !== "ALL") params.append("propertyId", selectedPropertyId);
         if (selectedStatus !== "ALL") params.append("status", selectedStatus);
@@ -135,7 +135,7 @@ export default function HousekeepingUnitExpensesPage() {
         setRefreshing(false);
       }
     },
-    [page, selectedPropertyId, selectedStatus, searchQuery, startDate, endDate, invoices.length]
+    [page, limit, selectedPropertyId, selectedStatus, searchQuery, startDate, endDate]
   );
 
   // Initial Load
@@ -244,26 +244,13 @@ export default function HousekeepingUnitExpensesPage() {
             </p>
           </div>
 
-          {/* Realtime Status & Manual Refresh Controls */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            {/* Auto-polling toggle */}
-            <button
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`flex items-center gap-2 rounded-2xl px-3.5 py-2 text-xs font-bold border transition-all cursor-pointer ${
-                autoRefresh
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
-                  : "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10"
-              }`}
-              title="Aktifkan Pembaruan Otomatis Realtime"
-            >
-              <Radio className={`h-3.5 w-3.5 ${autoRefresh ? "animate-pulse text-emerald-400" : ""}`} />
-              <span>{autoRefresh ? "Realtime LIVE" : "Realtime OFF"}</span>
-            </button>
-
+          {/* Manual Refresh Control */}
+          <div className="flex items-center gap-3">
             {/* Manual Refresh Button */}
             <button
+              suppressHydrationWarning
               onClick={() => fetchInvoices(true)}
-              disabled={refreshing || loading}
+              disabled={Boolean(refreshing || loading)}
               className="flex items-center gap-2 rounded-2xl bg-white/10 hover:bg-white/20 backdrop-blur-md px-4 py-2.5 text-xs font-bold text-white border border-white/15 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
@@ -275,10 +262,6 @@ export default function HousekeepingUnitExpensesPage() {
         {/* Realtime Last Updated Indicator */}
         {lastUpdated && (
           <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-gray-400">
-            <span>
-              Data disinkronkan langsung dengan server • Pukul{" "}
-              {lastUpdated.toLocaleTimeString("id-ID")}
-            </span>
             <span className="text-[#8FA28A] font-medium">Hanya Properti Tugas Anda</span>
           </div>
         )}
@@ -338,11 +321,10 @@ export default function HousekeepingUnitExpensesPage() {
 
         {/* Monitoring Tunggakan (Overdue) */}
         <div
-          className={`rounded-3xl border p-5 shadow-xs flex flex-col justify-between space-y-2 transition-all ${
-            stats.overdueCount > 0
-              ? "border-rose-200 bg-rose-50/60 ring-2 ring-rose-500/20"
-              : "border-gray-100 bg-white"
-          }`}
+          className={`rounded-3xl border p-5 shadow-xs flex flex-col justify-between space-y-2 transition-all ${stats.overdueCount > 0
+            ? "border-rose-200 bg-rose-50/60 ring-2 ring-rose-500/20"
+            : "border-gray-100 bg-white"
+            }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-rose-700 uppercase tracking-wider">
@@ -464,6 +446,7 @@ export default function HousekeepingUnitExpensesPage() {
             <select
               value={selectedPropertyId}
               onChange={(e) => {
+                setLoading(true);
                 setSelectedPropertyId(e.target.value);
                 setPage(1);
               }}
@@ -484,6 +467,7 @@ export default function HousekeepingUnitExpensesPage() {
               type="date"
               value={startDate}
               onChange={(e) => {
+                setLoading(true);
                 setStartDate(e.target.value);
                 setPage(1);
               }}
@@ -497,6 +481,7 @@ export default function HousekeepingUnitExpensesPage() {
               type="date"
               value={endDate}
               onChange={(e) => {
+                setLoading(true);
                 setEndDate(e.target.value);
                 setPage(1);
               }}
@@ -520,14 +505,16 @@ export default function HousekeepingUnitExpensesPage() {
             <button
               key={tab.key}
               onClick={() => {
-                setSelectedStatus(tab.key);
-                setPage(1);
+                if (selectedStatus !== tab.key) {
+                  setLoading(true);
+                  setSelectedStatus(tab.key);
+                  setPage(1);
+                }
               }}
-              className={`rounded-2xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                selectedStatus === tab.key
-                  ? "bg-[#6B7F66] text-white shadow-xs"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-600"
-              }`}
+              className={`rounded-2xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${selectedStatus === tab.key
+                ? "bg-[#6B7F66] text-white shadow-xs"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                }`}
             >
               {tab.label}
             </button>
@@ -536,6 +523,7 @@ export default function HousekeepingUnitExpensesPage() {
           {(startDate || endDate || selectedPropertyId !== "ALL" || selectedStatus !== "ALL" || searchQuery) && (
             <button
               onClick={() => {
+                setLoading(true);
                 setSelectedPropertyId("ALL");
                 setSelectedStatus("ALL");
                 setSearchQuery("");
@@ -653,26 +641,83 @@ export default function HousekeepingUnitExpensesPage() {
           </div>
         )}
 
-        {/* Pagination Controls */}
-        {meta.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-100 px-5 py-4 bg-gray-50/50 text-xs text-gray-500 font-medium">
-            <span>
-              Halaman {meta.page} dari {meta.totalPages} ({meta.totalCount} total invoice)
-            </span>
-            <div className="flex items-center gap-2">
+        {/* Pagination Bar */}
+        {!loading && invoices.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between border-t border-gray-100 px-5 py-4 bg-gray-50/60 text-xs text-gray-600 gap-3">
+            <div className="flex flex-wrap items-center gap-4">
+              <span>
+                Menampilkan <strong className="text-gray-900">{meta.totalCount > 0 ? (page - 1) * limit + 1 : 0}</strong> - <strong className="text-gray-900">{Math.min(page * limit, meta.totalCount || invoices.length)}</strong> dari <strong className="text-gray-900">{meta.totalCount || invoices.length}</strong> tagihan unit
+              </span>
+
+              {/* Items per page selector */}
+              <div className="flex items-center gap-1.5 text-gray-500">
+                <span className="text-[11px]">Per halaman:</span>
+                <select
+                  value={limit}
+                  onChange={(e) => {
+                    setLoading(true);
+                    setLimit(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-bold text-gray-700 focus:border-[#8FA28A] focus:outline-none cursor-pointer"
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
               <button
-                disabled={!meta.hasPrevPage}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 shadow-2xs transition-all cursor-pointer"
+                disabled={page <= 1}
+                onClick={() => {
+                  if (page > 1) {
+                    setLoading(true);
+                    setPage((p) => Math.max(1, p - 1));
+                  }
+                }}
+                className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 shadow-2xs transition-all cursor-pointer"
               >
-                <ChevronLeft className="h-4 w-4" /> Prev
+                <ChevronLeft className="h-4 w-4" />
+                <span>Sebelumnya</span>
               </button>
+
+              {/* Page Number Buttons */}
+              {Array.from({ length: meta.totalPages || 1 }, (_, i) => i + 1)
+                .slice(Math.max(0, page - 3), Math.min(meta.totalPages || 1, page + 2))
+                .map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    onClick={() => {
+                      if (pageNum !== page) {
+                        setLoading(true);
+                        setPage(pageNum);
+                      }
+                    }}
+                    className={`h-8 w-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      pageNum === page
+                        ? "bg-[#6B7F66] text-white shadow-2xs"
+                        : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+
               <button
-                disabled={!meta.hasNextPage}
-                onClick={() => setPage((p) => p + 1)}
-                className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 shadow-2xs transition-all cursor-pointer"
+                disabled={page >= (meta.totalPages || 1)}
+                onClick={() => {
+                  if (page < (meta.totalPages || 1)) {
+                    setLoading(true);
+                    setPage((p) => p + 1);
+                  }
+                }}
+                className="flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-40 shadow-2xs transition-all cursor-pointer"
               >
-                Next <ChevronRight className="h-4 w-4" />
+                <span>Selanjutnya</span>
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>

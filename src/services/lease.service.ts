@@ -150,6 +150,61 @@ export class LeaseService {
         },
       });
 
+      // 6. Auto-generate full-term monthly Invoices for the active lease
+      let currentCycle = new Date(startDate);
+      let monthIndex = 0;
+      const rentAmt = Number(rentPrice || 0);
+      const depAmt = Number(securityDeposit || 0);
+
+      while (currentCycle < endDate) {
+        monthIndex++;
+
+        const dueDate = new Date(currentCycle);
+        dueDate.setDate(dueDate.getDate() + 20); // H+21 rule
+        dueDate.setHours(23, 59, 59, 999);
+
+        const startOfDueDay = new Date(dueDate);
+        startOfDueDay.setHours(0, 0, 0, 0);
+        const endOfDueDay = new Date(dueDate);
+        endOfDueDay.setHours(23, 59, 59, 999);
+
+        const existingInv = await tx.invoice.findFirst({
+          where: {
+            leaseId: newLease.id,
+            dueDate: {
+              gte: startOfDueDay,
+              lte: endOfDueDay,
+            },
+          },
+        });
+
+        if (!existingInv) {
+          const year = currentCycle.getFullYear();
+          const monthStr = String(currentCycle.getMonth() + 1).padStart(2, "0");
+          const randStr = Math.floor(1000 + Math.random() * 9000);
+          const invoiceNumber = `INV/${year}/${monthStr}/${randStr}`;
+
+          const totalAmount = monthIndex === 1 ? rentAmt + depAmt : rentAmt;
+
+          await tx.invoice.create({
+            data: {
+              invoiceNumber,
+              leaseId: newLease.id,
+              amount: rentAmt,
+              utilityAmount: 0,
+              penaltyAmount: 0,
+              totalAmount,
+              dueDate,
+              status: "PENDING",
+            },
+          });
+        }
+
+        const nextMonth = new Date(currentCycle);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        currentCycle = nextMonth;
+      }
+
       return newLease;
     });
   }

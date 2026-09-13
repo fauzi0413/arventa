@@ -20,6 +20,7 @@ export interface HousekeepingMember {
   totalPropertiesCount?: number;
   totalStatusLogsCount?: number;
   totalExpensesCount?: number;
+  password?: string;
 }
 
 export interface ActivityItem {

@@ -35,8 +35,20 @@ function mapApiPropertyToFrontend(p: any): Property {
   const categoryId = typeToCat[p.type] || 'cat-1';
   const units = p.units || [];
   const totalUnits = p._count?.units || units.length || 0;
-  const occupiedUnits = units.filter((u: any) => u.status === 'OCCUPIED' || u.status === 'Occupied').length;
-  const statusId = (totalUnits > 0 && occupiedUnits === totalUnits) ? 'st-4' : 'st-1';
+  const occupiedUnits = typeof p.occupiedUnits === 'number'
+    ? p.occupiedUnits
+    : units.filter((u: any) => u.status === 'OCCUPIED' || u.status === 'Occupied' || (u.leases && u.leases.length > 0)).length;
+  const isFullyOccupied = totalUnits > 0 && occupiedUnits === totalUnits;
+  let statusId = 'st-1';
+  if (p.status === 'MAINTENANCE' || p.statusId === 'st-3') {
+    statusId = 'st-3';
+  } else if (p.status === 'INACTIVE' || p.status === 'NONAKTIF' || p.statusId === 'st-2') {
+    statusId = 'st-2';
+  } else if (isFullyOccupied) {
+    statusId = 'st-4';
+  } else {
+    statusId = 'st-1';
+  }
 
   return {
     id: p.id,
@@ -49,6 +61,8 @@ function mapApiPropertyToFrontend(p: any): Property {
     description: p.description || '',
     imageUrl: p.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
     hasCleaningService: p.hasCleaningService ?? true,
+    defaultLateFee: Number(p.defaultLateFee || 50000),
+    defaultDeposit: Number(p.defaultDeposit || 0),
     createdAt: p.createdAt || new Date().toISOString(),
     ownerName: p.owner?.fullName || p.ownerName,
     ownerPhone: p.owner?.phoneNumber || p.ownerPhone,
@@ -152,6 +166,8 @@ export default function PropertiesPage() {
             description: data.description,
             coverImage: data.imageUrl,
             hasCleaningService: data.hasCleaningService,
+            defaultLateFee: data.defaultLateFee,
+            defaultDeposit: data.defaultDeposit,
           }),
         });
 
@@ -181,6 +197,8 @@ export default function PropertiesPage() {
             description: data.description,
             coverImage: data.imageUrl,
             hasCleaningService: data.hasCleaningService ?? true,
+            defaultLateFee: data.defaultLateFee,
+            defaultDeposit: data.defaultDeposit,
             totalUnits: data.totalUnits,
             occupiedUnits: data.occupiedUnits,
           }),

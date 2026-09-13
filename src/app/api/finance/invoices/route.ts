@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
 
     const filterInput = invoiceFilterSchema.parse({
       propertyId: searchParams.get("propertyId") || undefined,
+      unitId: searchParams.get("unitId") || undefined,
       status: searchParams.get("status") || undefined,
       startDate: searchParams.get("startDate") || undefined,
       endDate: searchParams.get("endDate") || undefined,

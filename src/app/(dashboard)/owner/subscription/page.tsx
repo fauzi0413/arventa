@@ -676,6 +676,11 @@ export default function OwnerSubscriptionPage() {
 
   // Step 2: Create Unique Billing Invoice in DB & Show Payment Proof Modal
   const handleProcessCheckout = async () => {
+    if (totalCartItemCount < 1) {
+      alert("Keranjang belanja Anda kosong. Silakan pilih paket upgrade atau Add-On terlebih dahulu.");
+      return;
+    }
+
     try {
       setIsSubmittingOrder(true);
       const res = await fetch("/api/owner/checkout", {
@@ -1561,8 +1566,8 @@ export default function OwnerSubscriptionPage() {
               </Button>
               <Button
                 onClick={handleProcessCheckout}
-                disabled={isSubmittingOrder}
-                className="flex-1 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#7D9178] text-white text-xs font-bold gap-1 shadow-md cursor-pointer"
+                disabled={isSubmittingOrder || totalCartItemCount < 1}
+                className="flex-1 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#7D9178] text-white text-xs font-bold gap-1 shadow-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[#8FA28A]"
               >
                 <span>{isSubmittingOrder ? "Memproses..." : "Proses Pesanan →"}</span>
               </Button>

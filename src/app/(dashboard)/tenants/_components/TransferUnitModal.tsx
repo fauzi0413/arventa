@@ -31,14 +31,24 @@ const DB_OWNER_PROPERTIES: PropertyOption[] = [
   },
 ];
 
+const normalizeUnitName = (name?: string) => {
+  if (!name) return '';
+  return name.toLowerCase().replace(/^(kamar|apt|unit)\s+/i, '').trim();
+};
+
+const isSameUnit = (nameA?: string, nameB?: string) => {
+  if (!nameA || !nameB) return false;
+  return normalizeUnitName(nameA) === normalizeUnitName(nameB);
+};
+
 export default function TransferUnitModal({
   isOpen,
   onClose,
   tenant,
   onConfirmTransfer,
 }: TransferUnitModalProps) {
-  const [propertiesList, setPropertiesList] = useState<PropertyOption[]>(DB_OWNER_PROPERTIES);
-  const [loadingProps, setLoadingProps] = useState(false);
+  const [propertiesList, setPropertiesList] = useState<PropertyOption[]>([]);
+  const [loadingProps, setLoadingProps] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<string>('');
   const [selectedUnit, setSelectedUnit] = useState<string>('');
@@ -49,11 +59,18 @@ export default function TransferUnitModal({
   useEffect(() => {
     if (!isOpen) {
       setIsSubmitting(false);
+      setPropertiesList([]);
+      setSelectedProperty('');
+      setSelectedUnit('');
+      setLoadingProps(true);
       return;
     }
 
     const fetchProperties = async () => {
       setLoadingProps(true);
+      setPropertiesList([]);
+      setSelectedProperty('');
+      setSelectedUnit('');
       const occupiedUnits = new Set<string>();
 
       // Fetch active tenants from API to get occupied units
@@ -71,7 +88,7 @@ export default function TransferUnitModal({
               if (t.id !== tenant?.id && tStatus === 'AKTIF') {
                 const uNum = activeLease?.unit?.unitNumber || t.currentUnitName;
                 if (uNum) {
-                  const clean = uNum.replace(/^(kamar|apt|unit)\s+/i, '').trim();
+                  const clean = normalizeUnitName(uNum);
                   occupiedUnits.add(uNum);
                   occupiedUnits.add(clean);
                   occupiedUnits.add(`Kamar ${clean}`);
@@ -95,7 +112,7 @@ export default function TransferUnitModal({
               parsedTenants.forEach((t: any) => {
                 if (t.id !== tenant?.id && t.status === 'AKTIF' && t.currentUnitName) {
                   const uNum = t.currentUnitName;
-                  const clean = uNum.replace(/^(kamar|apt|unit)\s+/i, '').trim();
+                  const clean = normalizeUnitName(uNum);
                   occupiedUnits.add(uNum);
                   occupiedUnits.add(clean);
                   occupiedUnits.add(`Kamar ${clean}`);
@@ -137,15 +154,18 @@ export default function TransferUnitModal({
             if (Array.isArray(p.units) && p.units.length > 0) {
               const filtered = p.units.filter((u: any) => {
                 const rawName = typeof u === 'string' ? u : (u.name || u.unitNumber || '');
-                const cleanName = rawName.replace(/^(kamar|apt|unit)\s+/i, '').trim();
+                const cleanName = normalizeUnitName(rawName);
                 const formattedName = /^(kamar|apt|unit)/i.test(rawName) ? rawName : `Kamar ${rawName}`;
                 const rawStatus = typeof u === 'string' ? '' : String(u.status || '').toUpperCase();
 
                 const isOccupiedInDb = rawStatus === 'OCCUPIED' || rawStatus === 'TERISI';
                 const isOccupiedByActiveTenant = occupiedUnits.has(rawName) || occupiedUnits.has(cleanName) || occupiedUnits.has(formattedName);
 
-                // Strictly exclude any unit occupied by an active tenant or marked occupied in DB
-                if (isOccupiedInDb || isOccupiedByActiveTenant) {
+                // Strictly exclude tenant's current unit from target transfer options
+                const isCurrentTenantUnit = isSameUnit(rawName, tenant?.currentUnitName) &&
+                  (p.name || '').toLowerCase().includes((tenant?.currentPropertyName || '').toLowerCase());
+
+                if (isOccupiedInDb || isOccupiedByActiveTenant || isCurrentTenantUnit) {
                   return false;
                 }
 
@@ -164,7 +184,16 @@ export default function TransferUnitModal({
         setPropertiesList(formatted);
         setLoadingProps(false);
       } else {
-        setPropertiesList([]);
+        // Fallback to DB_OWNER_PROPERTIES if no custom properties returned
+        const fallbackFormatted = DB_OWNER_PROPERTIES.map((p) => ({
+          ...p,
+          units: p.units.filter((u) => {
+            const isOcc = occupiedUnits.has(u) || occupiedUnits.has(normalizeUnitName(u));
+            const isCur = isSameUnit(u, tenant?.currentUnitName) && p.name.toLowerCase().includes((tenant?.currentPropertyName || '').toLowerCase());
+            return !isOcc && !isCur;
+          }),
+        })).filter((p) => p.units.length > 0);
+        setPropertiesList(fallbackFormatted);
         setLoadingProps(false);
       }
     };
@@ -172,22 +201,33 @@ export default function TransferUnitModal({
     fetchProperties();
   }, [isOpen, tenant]);
 
-  // Set initial selections when tenant or propertiesList updates
+  // Set initial selections synchronized with tenant's current property & available units
   useEffect(() => {
-    if (tenant && propertiesList.length > 0) {
-      const firstPropWithUnits = propertiesList.find((p) => p.units.length > 0) || propertiesList[0];
-      if (firstPropWithUnits) {
-        setSelectedProperty(firstPropWithUnits.name);
-        setSelectedUnit(firstPropWithUnits.units[0] || '');
+    if (!loadingProps && tenant && propertiesList.length > 0) {
+      // Prefer tenant's current property if it has available target units
+      const currentPropObj = propertiesList.find(
+        (p) => p.name.toLowerCase() === (tenant.currentPropertyName || '').toLowerCase()
+      ) || propertiesList.find((p) => tenant.currentPropertyName && p.name.toLowerCase().includes(tenant.currentPropertyName.toLowerCase()));
+
+      if (currentPropObj && currentPropObj.units.length > 0) {
+        setSelectedProperty(currentPropObj.name);
+        setSelectedUnit(currentPropObj.units[0]);
       } else {
-        setSelectedProperty('');
-        setSelectedUnit('');
+        // Otherwise select first property that has available units
+        const firstPropWithUnits = propertiesList.find((p) => p.units.length > 0) || propertiesList[0];
+        if (firstPropWithUnits) {
+          setSelectedProperty(firstPropWithUnits.name);
+          setSelectedUnit(firstPropWithUnits.units[0] || '');
+        } else {
+          setSelectedProperty('');
+          setSelectedUnit('');
+        }
       }
-    } else if (tenant) {
+    } else if (!loadingProps) {
       setSelectedProperty('');
       setSelectedUnit('');
     }
-  }, [tenant, propertiesList, isOpen]);
+  }, [tenant, propertiesList, isOpen, loadingProps]);
 
   // Update unit selection when property dropdown changes
   const currentPropData = propertiesList.find((p) => p.name === selectedProperty) || propertiesList[0] || { name: '', units: [] };
@@ -206,7 +246,7 @@ export default function TransferUnitModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProperty || !selectedUnit || isSubmitting) return;
+    if (!selectedProperty || !selectedUnit || isSubmitting || loadingProps) return;
     setIsSubmitting(true);
     try {
       await onConfirmTransfer(tenant.id, selectedProperty, selectedUnit, effectiveDate, transferNotes);
@@ -264,8 +304,8 @@ export default function TransferUnitModal({
                   Pilih Properti Tujuan <span className="text-red-500">*</span>
                 </label>
                 {loadingProps && (
-                  <span className="text-[11px] text-gray-400 flex items-center gap-1">
-                    <RefreshCw className="h-3 w-3 animate-spin text-[#8FA28A]" /> Memuat database...
+                  <span className="text-[11px] text-[#8FA28A] font-bold flex items-center gap-1.5">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat database...
                   </span>
                 )}
               </div>
@@ -274,10 +314,12 @@ export default function TransferUnitModal({
                 <select
                   value={selectedProperty}
                   onChange={(e) => handlePropertyChange(e.target.value)}
-                  disabled={propertiesList.length === 0 || isSubmitting}
-                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
+                  disabled={loadingProps || propertiesList.length === 0 || isSubmitting}
+                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                 >
-                  {propertiesList.length === 0 ? (
+                  {loadingProps ? (
+                    <option value="">-- Memuat database properti... --</option>
+                  ) : propertiesList.length === 0 ? (
                     <option value="">-- Tidak Ada Properti Kosong --</option>
                   ) : (
                     propertiesList.map((prop) => (
@@ -300,10 +342,12 @@ export default function TransferUnitModal({
                 <select
                   value={selectedUnit}
                   onChange={(e) => setSelectedUnit(e.target.value)}
-                  disabled={currentPropData.units.length === 0 || isSubmitting}
-                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
+                  disabled={loadingProps || currentPropData.units.length === 0 || isSubmitting}
+                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                 >
-                  {currentPropData.units.length === 0 ? (
+                  {loadingProps ? (
+                    <option value="">-- Memuat unit kamar... --</option>
+                  ) : currentPropData.units.length === 0 ? (
                     <option value="">-- Tidak Ada Kamar Tersedia --</option>
                   ) : (
                     currentPropData.units.map((unit) => (
@@ -327,7 +371,7 @@ export default function TransferUnitModal({
                   type="date"
                   value={effectiveDate}
                   onChange={(e) => setEffectiveDate(e.target.value)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loadingProps}
                   className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
                 />
               </div>
@@ -344,7 +388,7 @@ export default function TransferUnitModal({
                   rows={2}
                   value={transferNotes}
                   onChange={(e) => setTransferNotes(e.target.value)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || loadingProps}
                   placeholder="Contoh: Permintaan pindah kamar ke lantai 1, upgrade tipe kamar"
                   className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-medium text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
                 />
@@ -370,13 +414,18 @@ export default function TransferUnitModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !selectedProperty || !selectedUnit}
+              disabled={loadingProps || isSubmitting || !selectedProperty || !selectedUnit}
               className="flex items-center gap-1.5 rounded-xl bg-[#8FA28A] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#7D9178] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Memproses...
+                </>
+              ) : loadingProps ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Memuat Database...
                 </>
               ) : (
                 <>

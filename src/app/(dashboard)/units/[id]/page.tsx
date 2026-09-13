@@ -766,8 +766,8 @@ export default function UnitDetailPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => setIsAssignTenantOpen(true)}
-                    className="min-h-[44px] px-4 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-black text-xs inline-flex items-center gap-1.5 transition-all shadow-sm"
+                    onClick={() => router.push('/tenants?openAdd=true')}
+                    className="min-h-[44px] px-4 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white font-black text-xs inline-flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
                   >
                     + Atur / Tambah Penyewa Kamar
                   </button>

@@ -21,6 +21,8 @@ export interface Property {
   description: string;
   imageUrl?: string;
   hasCleaningService?: boolean;
+  defaultLateFee?: number;
+  defaultDeposit?: number;
   createdAt: string;
   ownerName?: string;
   ownerPhone?: string;

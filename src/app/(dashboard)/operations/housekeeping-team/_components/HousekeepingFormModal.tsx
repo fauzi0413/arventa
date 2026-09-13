@@ -122,10 +122,10 @@ export default function HousekeepingFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="relative w-full max-w-xl my-auto overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 md:p-8 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
+      <div className="relative w-full max-w-xl md:max-w-2xl my-auto overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] sm:max-h-[88vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-[#F7F4ED]">
+        <div className="shrink-0 flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-[#F7F4ED]">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#8FA28A] text-white shadow-md">
               <UserCheck className="h-5 w-5" />
@@ -167,11 +167,10 @@ export default function HousekeepingFormModal({
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Contoh: Agus Prasetyo"
-              className={`w-full rounded-xl border px-3.5 py-2.5 text-xs focus:outline-none transition-all ${
-                errors.fullName
+              className={`w-full rounded-xl border px-3.5 py-2.5 text-xs focus:outline-none transition-all ${errors.fullName
                   ? 'border-red-400 bg-red-50/30'
                   : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
-              }`}
+                }`}
             />
             {errors.fullName && (
               <p className="text-[11px] text-red-500 mt-1">{errors.fullName}</p>
@@ -193,12 +192,11 @@ export default function HousekeepingFormModal({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="agus.hk@gmail.com"
-                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${
-                    staffToEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200' :
-                    errors.email
-                      ? 'border-red-400 bg-red-50/30'
-                      : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
-                  }`}
+                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${staffToEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200' :
+                      errors.email
+                        ? 'border-red-400 bg-red-50/30'
+                        : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
+                    }`}
                 />
               </div>
               {errors.email && <p className="text-[11px] text-red-500 mt-1">{errors.email}</p>}
@@ -215,12 +213,11 @@ export default function HousekeepingFormModal({
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="08123456789"
-                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${
-                    errors.phoneNumber
+                  placeholder="Contoh: 08123456789"
+                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${errors.phoneNumber
                       ? 'border-red-400 bg-red-50/30'
                       : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
-                  }`}
+                    }`}
                 />
               </div>
               {errors.phoneNumber && (
@@ -242,11 +239,10 @@ export default function HousekeepingFormModal({
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password untuk staf"
-                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${
-                    errors.password
+                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${errors.password
                       ? 'border-red-400 bg-red-50/30'
                       : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
-                  }`}
+                    }`}
                 />
               </div>
               <p className="text-[11px] text-gray-400 mt-1">
@@ -289,18 +285,16 @@ export default function HousekeepingFormModal({
                     <div
                       key={prop.id}
                       onClick={() => toggleProperty(prop.id)}
-                      className={`cursor-pointer rounded-2xl border p-3 flex items-start gap-3 transition-all ${
-                        isChecked
+                      className={`cursor-pointer rounded-2xl border p-3 flex items-start gap-3 transition-all ${isChecked
                           ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-gray-800 shadow-2xs'
                           : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600'
-                      }`}
+                        }`}
                     >
                       <div
-                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border ${
-                          isChecked
+                        className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border ${isChecked
                             ? 'border-[#8FA28A] bg-[#8FA28A] text-white'
                             : 'border-gray-300 bg-white'
-                        }`}
+                          }`}
                       >
                         {isChecked && <Check className="h-3 w-3" />}
                       </div>
@@ -331,11 +325,10 @@ export default function HousekeepingFormModal({
               <button
                 type="button"
                 onClick={() => setIsActive(true)}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${
-                  isActive
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${isActive
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                     : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <div className={`h-2 w-2 rounded-full ${isActive ? 'bg-white' : 'bg-emerald-500'}`} />
                 Aktif
@@ -343,11 +336,10 @@ export default function HousekeepingFormModal({
               <button
                 type="button"
                 onClick={() => setIsActive(false)}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${
-                  !isActive
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${!isActive
                     ? 'bg-gray-700 text-white border-gray-700 shadow-xs'
                     : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 <div className={`h-2 w-2 rounded-full ${!isActive ? 'bg-white' : 'bg-gray-400'}`} />
                 Nonaktif

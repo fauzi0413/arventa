@@ -25,6 +25,7 @@ export const createTenantSchema = z.object({
   unitName: z.string().optional().or(z.literal("")),
   propertyName: z.string().optional().or(z.literal("")),
   leaseStartDate: z.string().optional().or(z.literal("")),
+  notes: z.string().optional().or(z.literal("")),
 });
 
 export const updateTenantSchema = createTenantSchema.partial();

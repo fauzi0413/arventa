@@ -86,10 +86,17 @@ export function InvoiceVerificationView() {
 
   // Inspection Modal
   const [inspectInvoice, setInspectInvoice] = useState<VerificationInvoice | null>(null);
+  const [imgError, setImgError] = useState(false);
   const [actionModalInvoice, setActionModalInvoice] = useState<VerificationInvoice | null>(null);
   const [actionType, setActionType] = useState<"APPROVE" | "REJECT" | null>(null);
   const [actionNotes, setActionNotes] = useState("");
   const [submittingAction, setSubmittingAction] = useState(false);
+
+  useEffect(() => {
+    if (inspectInvoice) {
+      setImgError(false);
+    }
+  }, [inspectInvoice]);
 
   // Tab 2: Owner Payment Methods State
   const [paymentMethods, setPaymentMethods] = useState<OwnerPaymentMethod[]>([]);
@@ -801,16 +808,45 @@ export function InvoiceVerificationView() {
                     </div>
                   ) : (
                     <div className="rounded-xl border border-slate-200 bg-slate-900 p-2 overflow-hidden shadow-xs text-center dark:border-slate-700">
-                      <img
-                        src={inspectInvoice.paymentReceipt}
-                        alt="Bukti Transfer Tenant"
-                        className="max-h-80 mx-auto rounded-lg object-contain"
-                      />
+                      {imgError ? (
+                        <div className="flex flex-col items-center justify-center p-8 bg-slate-800 text-slate-200 space-y-3">
+                          <IconAlertTriangle className="h-10 w-10 text-amber-400" />
+                          <div className="text-center space-y-1">
+                            <p className="font-bold text-xs text-white">File Gambar Bukti Transfer Tidak Dapat Dimuat</p>
+                            <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
+                              Tautan file tidak dapat diakses atau menggunakan URL sampel yang tidak valid.
+                            </p>
+                          </div>
+                          <a
+                            href={inspectInvoice.paymentReceipt}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-bold transition-all"
+                          >
+                            <IconExternalLink className="h-3.5 w-3.5" /> Buka URL Langsung
+                          </a>
+                        </div>
+                      ) : (
+                        <img
+                          src={inspectInvoice.paymentReceipt}
+                          alt="Bukti Transfer Tenant"
+                          className="max-h-80 mx-auto rounded-lg object-contain"
+                          onError={() => setImgError(true)}
+                        />
+                      )}
                     </div>
                   )
                 ) : (
-                  <div className="p-6 text-center text-xs text-slate-400 italic rounded-xl border border-slate-200 bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
-                    Tidak ada bukti transfer diunggah.
+                  <div className="flex flex-col items-center justify-center p-8 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 dark:bg-slate-800/60 dark:border-slate-700 dark:text-slate-300 space-y-3 text-center">
+                    <div className="h-12 w-12 rounded-2xl bg-slate-200/70 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-400">
+                      <IconReceipt className="h-6 w-6" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-bold text-sm text-slate-900 dark:text-white">Tidak Ada Berkas Bukti Transfer</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                        Penyewa belum mengunggah berkas bukti transfer untuk tagihan ini ke storage sistem.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

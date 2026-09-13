@@ -24,6 +24,7 @@ import {
   Layers,
   ArrowRight,
   Lock,
+  Trash2,
 } from 'lucide-react';
 import {
   HousekeepingMember,
@@ -73,6 +74,8 @@ export default function HousekeepingTeamPage() {
   const [detailTargetStaff, setDetailTargetStaff] = useState<HousekeepingMember | null>(null);
   const [statusConfirmStaff, setStatusConfirmStaff] = useState<HousekeepingMember | null>(null);
   const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [deleteConfirmStaff, setDeleteConfirmStaff] = useState<HousekeepingMember | null>(null);
+  const [isDeletingStaff, setIsDeletingStaff] = useState(false);
 
   // Alert/Toast State
   const [toastMessage, setToastMessage] = useState<{
@@ -133,40 +136,7 @@ export default function HousekeepingTeamPage() {
       console.warn('Error fetching housekeeping team:', err);
     }
 
-    // Default Fallback Mock Data if in offline demo
-    setStaffList([
-      {
-        id: 'hk-1',
-        fullName: 'Agus Prasetyo',
-        email: 'agus.hk@arventa.id',
-        phoneNumber: '081234567890',
-        role: 'HOUSEKEEPING',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        assignedProperties: [
-          { id: 'prop-1', name: 'Kost Griya Melati', address: 'Jl. Diponegoro No. 45' },
-        ],
-        totalPropertiesCount: 1,
-        totalStatusLogsCount: 12,
-        totalExpensesCount: 4,
-      },
-      {
-        id: 'hk-2',
-        fullName: 'Bambang Sudiro',
-        email: 'bambang.hk@arventa.id',
-        phoneNumber: '081399887766',
-        role: 'HOUSEKEEPING',
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        assignedProperties: [
-          { id: 'prop-2', name: 'Signature Suite Apartemen', address: 'Jl. Jend. Sudirman Kav 21' },
-          { id: 'prop-3', name: 'Ruko Permata Hijau', address: 'Jl. Soekarno Hatta' },
-        ],
-        totalPropertiesCount: 2,
-        totalStatusLogsCount: 8,
-        totalExpensesCount: 2,
-      },
-    ]);
+    setStaffList([]);
     setLoadingTeam(false);
   }, [teamPropertyFilter, teamStatusFilter, teamSearchQuery]);
 
@@ -207,65 +177,7 @@ export default function HousekeepingTeamPage() {
       console.warn('Error fetching activities:', err);
     }
 
-    // Default Fallback Mock Data for Activity Monitoring
-    setActivities([
-      {
-        id: 'act-1',
-        type: 'ROOM_STATUS',
-        typeLabel: 'Update Status Kamar',
-        performerName: 'Agus Prasetyo',
-        performerRole: 'HOUSEKEEPING',
-        propertyName: 'Kost Griya Melati',
-        unitNumber: 'Kamar 102',
-        activity: 'Status kamar diubah dari CLEANING ke AVAILABLE',
-        previousStatus: 'CLEANING',
-        newStatus: 'AVAILABLE',
-        notes: 'Pembersihan rutin selesai, sprei & perlengkapan telah diganti.',
-        timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'act-2',
-        type: 'EXPENSE',
-        typeLabel: 'Pengeluaran Operasional',
-        performerName: 'Agus Prasetyo',
-        performerRole: 'HOUSEKEEPING',
-        propertyName: 'Kost Griya Melati',
-        unitNumber: 'Gedung',
-        activity: 'Pencatatan pengeluaran: Pembelian Sabun Pembersih & Sapu Lantai (Rp 125.000)',
-        amount: 125000,
-        category: 'SUPPLIES',
-        notes: 'Struk terlampir di nota fisik.',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'act-3',
-        type: 'CHECKIN_CHECKOUT',
-        typeLabel: 'Check-In / Out',
-        performerName: 'Sistem / Staff Operasional',
-        performerRole: 'SYSTEM',
-        propertyName: 'Kost Griya Melati',
-        unitNumber: 'Kamar 104',
-        activity: 'Check-out Penyewa Selesai Masa Sewa (Rizki Pratama)',
-        notes: 'Kamar otomatis masuk ke antrean Butuh Pembersihan (CLEANING).',
-        fromStatus: 'OCCUPIED',
-        toStatus: 'CLEANING',
-        timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-      },
-      {
-        id: 'act-4',
-        type: 'ROOM_STATUS',
-        typeLabel: 'Update Status Kamar',
-        performerName: 'Bambang Sudiro',
-        performerRole: 'HOUSEKEEPING',
-        propertyName: 'Signature Suite Apartemen',
-        unitNumber: 'Apt 12B-01',
-        activity: 'Status kamar diubah dari OCCUPIED ke MAINTENANCE',
-        previousStatus: 'OCCUPIED',
-        newStatus: 'MAINTENANCE',
-        notes: 'Perbaikan instalasi AC bocor pipa pembuangan.',
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      },
-    ]);
+    setActivities([]);
     setLoadingActivities(false);
   }, [activityPropertyFilter, activityTypeFilter, activityDateRange, activitySearchQuery]);
 
@@ -419,6 +331,34 @@ export default function HousekeepingTeamPage() {
     }
   };
 
+  const handleDeleteStaff = (staff: HousekeepingMember) => {
+    setDeleteConfirmStaff(staff);
+  };
+
+  const confirmDeleteStaff = async () => {
+    if (!deleteConfirmStaff) return;
+
+    try {
+      setIsDeletingStaff(true);
+      const res = await fetch(`/api/operations/housekeeping/${deleteConfirmStaff.id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        showToast(`Akun staf '${deleteConfirmStaff.fullName}' berhasil dihapus secara permanen!`);
+        await fetchHousekeepingTeam();
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        showToast(errJson.message || 'Gagal menghapus akun staf', 'error');
+      }
+    } catch (err) {
+      showToast('Gagal menghapus akun staf', 'error');
+    } finally {
+      setIsDeletingStaff(false);
+      setDeleteConfirmStaff(null);
+    }
+  };
+
   const handleResetPassword = async (staffId: string, newPass: string) => {
     const res = await fetch(`/api/operations/housekeeping/${staffId}/reset-password`, {
       method: 'POST',
@@ -430,6 +370,14 @@ export default function HousekeepingTeamPage() {
       const errJson = await res.json().catch(() => ({}));
       throw new Error(errJson.message || 'Gagal mereset password');
     }
+
+    setStaffList((prev) =>
+      prev.map((s) => (s.id === staffId ? { ...s, password: newPass } : s))
+    );
+    if (detailTargetStaff?.id === staffId) {
+      setDetailTargetStaff((prev) => (prev ? { ...prev, password: newPass } : null));
+    }
+
     showToast('Password staf berhasil di-reset!');
   };
 
@@ -777,12 +725,20 @@ export default function HousekeepingTeamPage() {
                       onClick={() => handleToggleStaffStatus(staff)}
                       className={`py-1.5 px-2.5 rounded-xl border text-[11px] font-bold transition-colors ${
                         staff.isActive
-                          ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-600'
+                          ? 'border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700'
                           : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'
                       }`}
                       title={staff.isActive ? 'Nonaktifkan Akun' : 'Aktifkan Akun'}
                     >
                       <Power className="h-3.5 w-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteStaff(staff)}
+                      className="py-1.5 px-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition-colors"
+                      title="Hapus Akun Permanen"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -903,6 +859,7 @@ export default function HousekeepingTeamPage() {
           setResetTargetStaff(staff);
           setIsResetPasswordOpen(true);
         }}
+        onDelete={handleDeleteStaff}
       />
 
       {/* Confirm Toggle Status Modal */}
@@ -935,6 +892,30 @@ export default function HousekeepingTeamPage() {
         }
         cancelText="Batal"
         variant={statusConfirmStaff?.isActive ? 'warning' : 'info'}
+      />
+
+      {/* Confirm Delete Account Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmStaff}
+        onClose={() => setDeleteConfirmStaff(null)}
+        onConfirm={confirmDeleteStaff}
+        isLoading={isDeletingStaff}
+        title="Hapus Akun Staf Permanen?"
+        description={
+          <>
+            Apakah Anda yakin ingin{' '}
+            <strong className="text-red-600 font-bold">menghapus permanen</strong>{' '}
+            akun staf ini? Seluruh data akun, password, dan penugasan properti akan dihapus dari sistem dan tidak dapat dikembalikan.
+          </>
+        }
+        targetName={
+          deleteConfirmStaff
+            ? `${deleteConfirmStaff.fullName} • ${deleteConfirmStaff.email}`
+            : undefined
+        }
+        confirmText="Ya, Hapus Permanen"
+        cancelText="Batal"
+        variant="danger"
       />
     </div>
   );

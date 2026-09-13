@@ -71,6 +71,31 @@ export class PropertyService {
               id: true,
               unitNumber: true,
               status: true,
+              basePrice: true,
+              transitPrice: true,
+              deposit: true,
+              capacity: true,
+              dimensions: true,
+              facilities: true,
+              description: true,
+              floor: true,
+              leases: {
+                where: { status: 'ACTIVE' },
+                take: 1,
+                include: {
+                  tenant: {
+                    include: {
+                      user: {
+                        select: {
+                          fullName: true,
+                          phoneNumber: true,
+                          email: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
             orderBy: {
               unitNumber: "asc",
@@ -173,6 +198,8 @@ export class PropertyService {
           description: data.description || "",
           coverImage: data.coverImage || "",
           hasCleaningService: data.hasCleaningService ?? true,
+          defaultLateFee: data.defaultLateFee ?? 50000,
+          defaultDeposit: data.defaultDeposit ?? 0,
         },
         include: {
           owner: {
@@ -205,7 +232,7 @@ export class PropertyService {
                 ? ("OCCUPIED" as const)
                 : ("AVAILABLE" as const),
             basePrice: 1500000,
-            deposit: 0,
+            deposit: data.defaultDeposit ?? 0,
             capacity: 1,
             dimensions: "3x4 m",
             facilities: ["WiFi", "Kasur", "Lemari", "Kamar Mandi Dalam"],
@@ -237,6 +264,8 @@ export class PropertyService {
         ...(data.description !== undefined && { description: data.description }),
         ...(data.coverImage !== undefined && { coverImage: data.coverImage }),
         ...(data.hasCleaningService !== undefined && { hasCleaningService: data.hasCleaningService }),
+        ...(data.defaultLateFee !== undefined && { defaultLateFee: data.defaultLateFee }),
+        ...(data.defaultDeposit !== undefined && { defaultDeposit: data.defaultDeposit }),
       },
     });
   }

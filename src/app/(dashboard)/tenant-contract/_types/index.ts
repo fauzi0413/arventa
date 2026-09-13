@@ -62,6 +62,7 @@ export interface ContractItem {
   endDate: string;
   rentPrice: number;
   securityDeposit: number;
+  lateFeeAmount?: number;
   
   // Custom clauses / notes
   customClauses?: string[];

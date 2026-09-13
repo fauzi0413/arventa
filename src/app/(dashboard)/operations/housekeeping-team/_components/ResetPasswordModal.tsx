@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   KeyRound,
@@ -26,14 +26,33 @@ export default function ResetPasswordModal({
   staff,
   onResetPassword,
 }: ResetPasswordModalProps) {
-  const [newPassword, setNewPassword] = useState('ArventaHK2026!');
+  const [newPassword, setNewPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState(false);
 
+  useEffect(() => {
+    if (isOpen && staff) {
+      setNewPassword(staff.password || '');
+      setShowPassword(false);
+      setIsCopied(false);
+      setError(null);
+      setIsSuccess(false);
+    }
+  }, [isOpen, staff]);
+
   if (!isOpen || !staff) return null;
+
+  const handleClose = () => {
+    setNewPassword(staff.password || '');
+    setShowPassword(false);
+    setIsCopied(false);
+    setError(null);
+    setIsSuccess(false);
+    onClose();
+  };
 
   const handleGenerateRandom = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
@@ -85,7 +104,7 @@ export default function ResetPasswordModal({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-xl p-2 text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition-all"
           >
             <X className="h-5 w-5" />
@@ -117,7 +136,7 @@ export default function ResetPasswordModal({
 
               <div className="pt-3">
                 <button
-                  onClick={onClose}
+                  onClick={handleClose}
                   className="w-full rounded-xl bg-[#8FA28A] text-white font-bold text-xs py-2.5 shadow-sm hover:bg-[#7D9178] transition-all"
                 >
                   Selesai
@@ -196,7 +215,7 @@ export default function ResetPasswordModal({
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   disabled={isSubmitting}
                   className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-all"
                 >

@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
 
     const activeLease = unit.leases && unit.leases[0];
     const contractNumber = activeLease
-      ? (activeLease.contractUrl || `KTR/ARV/${activeLease.id.slice(0, 6).toUpperCase()}`)
+      ? (activeLease.contractUrl && !activeLease.contractUrl.startsWith('http') && !activeLease.contractUrl.includes('/storage/') ? activeLease.contractUrl : `KTR/ARV/${activeLease.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`)
       : `KTR/ARV/${unit.unitNumber.replace(/\D/g, '') || '01F378'}`;
 
     const checkInDate = activeLease

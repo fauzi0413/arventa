@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { ApiResponse } from "@/lib/api-response";
 import { PropertyService } from "@/services/property.service";
+import { TenantService } from "@/services/tenant.service";
 import { updatePropertySchema } from "@/lib/validations/property.schema";
 
 interface RouteParams {
@@ -16,6 +17,8 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+
+    await TenantService.syncUnitStatusesWithActiveLeases();
 
     const property = await PropertyService.getPropertyById(id);
     if (!property) {

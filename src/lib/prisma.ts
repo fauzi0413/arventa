@@ -22,8 +22,8 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Auto-refresh stale HMR singleton if new schema models (e.g. ownerPaymentMethod) are missing
-if (globalForPrisma.prisma && !(globalForPrisma.prisma as any).ownerPaymentMethod) {
+// Auto-refresh stale HMR singleton in development if new schema models or fields are generated
+if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = undefined;
 }
 

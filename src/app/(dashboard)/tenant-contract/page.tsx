@@ -182,33 +182,49 @@ export default function TenantContractPage() {
       if (resContracts.ok) {
         const json = await resContracts.json();
         if (Array.isArray(json.data)) {
-          const mapped: ContractItem[] = json.data.map((item: any) => ({
-            id: item.id,
-            contractNumber: item.contractUrl || `KTR/ARV/${item.id.slice(0, 6).toUpperCase()}`,
-            scope: item.unit?.unitNumber?.includes('Gedung Utuh') ? 'PROPERTY' : 'UNIT',
-            status: item.status || 'ACTIVE',
-            tenantId: item.tenantId,
-            tenantName: item.tenant?.fullName || item.tenant?.user?.fullName || 'Penyewa',
-            tenantPhone: item.tenant?.phoneNumber || item.tenant?.user?.phoneNumber || '',
-            tenantEmail: item.unit?.unitUser?.email || item.tenant?.email || item.tenant?.user?.email || '',
-            tenantNik: item.tenant?.nik || '',
-            propertyId: item.unit?.property?.id || item.unit?.propertyId || '',
-            propertyName: item.unit?.property?.name || 'Properti',
-            propertyAddress: item.unit?.property?.address || '',
-            ownerName: item.unit?.property?.owner?.fullName || 'Owner Properti',
-            ownerPhone: item.unit?.property?.owner?.phoneNumber || '',
-            ownerEmail: item.unit?.property?.owner?.email || '',
-            unitId: item.unitId,
-            unitName: item.unit?.unitNumber || 'Unit',
-            rentalPeriod: item.rentalPeriod || 'MONTHLY',
-            startDate: item.startDate,
-            endDate: item.endDate,
-            rentPrice: Number(item.rentPrice || 0),
-            securityDeposit: Number(item.securityDeposit || 0),
-            customClauses: Array.isArray(item.customClauses) ? item.customClauses : [],
-            notes: item.notes || '',
-            createdAt: item.createdAt,
-          }));
+          const mapped: ContractItem[] = json.data.map((item: any) => {
+            const rawUrlOrNum = item.contractNumber || item.contractUrl;
+            const isPdfUrl = typeof rawUrlOrNum === 'string' && (
+              rawUrlOrNum.startsWith('http://') ||
+              rawUrlOrNum.startsWith('https://') ||
+              rawUrlOrNum.includes('/storage/') ||
+              rawUrlOrNum.includes('.pdf')
+            );
+
+            const contractNumber = (!rawUrlOrNum || isPdfUrl)
+              ? `KTR/ARV/${item.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`
+              : rawUrlOrNum;
+
+            return {
+              id: item.id,
+              contractNumber,
+              contractUrl: isPdfUrl ? rawUrlOrNum : (item.contractUrl?.startsWith('http') ? item.contractUrl : undefined),
+              scope: item.unit?.unitNumber?.includes('Gedung Utuh') ? 'PROPERTY' : 'UNIT',
+              status: item.status || 'ACTIVE',
+              tenantId: item.tenantId,
+              tenantName: item.tenant?.fullName || item.tenant?.user?.fullName || 'Penyewa',
+              tenantPhone: item.tenant?.phoneNumber || item.tenant?.user?.phoneNumber || '',
+              tenantEmail: item.unit?.unitUser?.email || item.tenant?.email || item.tenant?.user?.email || '',
+              tenantNik: item.tenant?.nik || '',
+              propertyId: item.unit?.property?.id || item.unit?.propertyId || '',
+              propertyName: item.unit?.property?.name || 'Properti',
+              propertyAddress: item.unit?.property?.address || '',
+              ownerName: item.unit?.property?.owner?.fullName || 'Owner Properti',
+              ownerPhone: item.unit?.property?.owner?.phoneNumber || '',
+              ownerEmail: item.unit?.property?.owner?.email || '',
+              unitId: item.unitId,
+              unitName: item.unit?.unitNumber || 'Unit',
+              rentalPeriod: item.rentalPeriod || 'MONTHLY',
+              startDate: item.startDate,
+              endDate: item.endDate,
+              rentPrice: Number(item.rentPrice || 0),
+              securityDeposit: Number(item.securityDeposit || 0),
+              lateFeeAmount: Number(item.lateFeeAmount || 50000),
+              customClauses: Array.isArray(item.customClauses) ? item.customClauses : [],
+              notes: item.notes || '',
+              createdAt: item.createdAt,
+            };
+          });
 
           setContracts(mapped);
           localStorage.setItem('arventa_master_contracts', JSON.stringify(mapped));
@@ -861,11 +877,11 @@ export default function TenantContractPage() {
                     {/* Harga & Deposit */}
                     <td className="px-4 py-3.5 align-top text-right">
                       <div className="font-extrabold text-foreground">
-                        Rp {c.rentPrice?.toLocaleString('id-ID')}
+                        Rp {Number(c.rentPrice || 0).toLocaleString('id-ID')}
                       </div>
-                      {c.securityDeposit > 0 && (
+                      {Number(c.securityDeposit || 0) > 0 && (
                         <div className="text-[11px] text-muted-foreground">
-                          Dep: Rp {c.securityDeposit?.toLocaleString('id-ID')}
+                          Dep: Rp {Number(c.securityDeposit || 0).toLocaleString('id-ID')}
                         </div>
                       )}
                     </td>

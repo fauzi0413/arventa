@@ -23,6 +23,7 @@ interface ActiveLease {
   tenantName: string;
   tenantPhone: string;
   rentPrice: number;
+  lateFeeAmount?: number;
 }
 
 interface CreateInvoiceModalProps {
@@ -39,10 +40,10 @@ export function CreateInvoiceModal({
   activeLeases,
 }: CreateInvoiceModalProps) {
   const [selectedLeaseId, setSelectedLeaseId] = useState("");
-  const [amount, setAmount] = useState<number | "">("");
+  const [dueDate, setDueDate] = useState("");
+  const [amount, setAmount] = useState<number | "">(0);
   const [utilityAmount, setUtilityAmount] = useState<number | "">(0);
   const [penaltyAmount, setPenaltyAmount] = useState<number | "">(0);
-  const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -63,6 +64,7 @@ export function CreateInvoiceModal({
     const lease = activeLeases.find((l) => l.leaseId === leaseId);
     if (lease) {
       setAmount(lease.rentPrice || 0);
+      setPenaltyAmount(lease.lateFeeAmount || 50000);
     }
   };
 

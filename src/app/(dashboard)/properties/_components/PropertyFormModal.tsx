@@ -13,6 +13,20 @@ interface PropertyFormModalProps {
   initialData?: Property | null;
 }
 
+const DEFAULT_CATEGORIES: PropertyCategory[] = [
+  { id: 'cat-1', name: 'Kos', description: 'Kos-kosan sewa bulanan/tahunan' },
+  { id: 'cat-2', name: 'Apartemen', description: 'Unit apartemen mewah/menengah' },
+  { id: 'cat-3', name: 'Kontrakan', description: 'Rumah sewa satu keluarga' },
+  { id: 'cat-4', name: 'Ruko', description: 'Rumah toko untuk komersial' },
+];
+
+const DEFAULT_STATUSES: PropertyStatus[] = [
+  { id: 'st-1', name: 'Aktif', color: '#8FA28A' },
+  { id: 'st-2', name: 'Nonaktif', color: '#90A4AE' },
+  { id: 'st-3', name: 'Maintenance', color: '#C8A96B' },
+  { id: 'st-4', name: 'Penuh', color: '#FFB74D' },
+];
+
 export default function PropertyFormModal({
   isOpen,
   onClose,
@@ -23,13 +37,18 @@ export default function PropertyFormModal({
 }: PropertyFormModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+  const effectiveStatuses = (statuses && statuses.length > 0 ? statuses : DEFAULT_STATUSES).filter(
+    (st) => st.name.toLowerCase() !== 'penuh' && st.id !== 'st-4'
+  );
+
   // Form State
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [statusId, setStatusId] = useState('');
-  const [totalUnits, setTotalUnits] = useState<number>(0);
-  const [occupiedUnits, setOccupiedUnits] = useState<number>(0);
+  const [defaultLateFee, setDefaultLateFee] = useState<number | ''>(50000);
+  const [defaultDeposit, setDefaultDeposit] = useState<number | ''>(0);
   const [description, setDescription] = useState('');
 
   // Image Upload State
@@ -45,23 +64,24 @@ export default function PropertyFormModal({
   // Reset or initialize state when opening / switching initialData
   useEffect(() => {
     if (isOpen) {
+      const defaultStatusId = effectiveStatuses[0]?.id || 'st-1';
       if (initialData) {
         setName(initialData.name || '');
         setAddress(initialData.address || '');
-        setCategoryId(initialData.categoryId || categories[0]?.id || '');
-        setStatusId(initialData.statusId || statuses[0]?.id || '');
-        setTotalUnits(initialData.totalUnits || 0);
-        setOccupiedUnits(initialData.occupiedUnits || 0);
+        setCategoryId(initialData.categoryId || effectiveCategories[0]?.id || 'cat-1');
+        setStatusId(initialData.statusId === 'st-4' ? defaultStatusId : (initialData.statusId || defaultStatusId));
+        setDefaultLateFee(initialData.defaultLateFee ?? 50000);
+        setDefaultDeposit(initialData.defaultDeposit ?? 0);
         setDescription(initialData.description || '');
         setPreviewUrl(initialData.imageUrl || '');
         setSelectedFile(null);
       } else {
         setName('');
         setAddress('');
-        setCategoryId(categories[0]?.id || '');
-        setStatusId(statuses[0]?.id || '');
-        setTotalUnits(0);
-        setOccupiedUnits(0);
+        setCategoryId(effectiveCategories[0]?.id || 'cat-1');
+        setStatusId(defaultStatusId);
+        setDefaultLateFee(50000);
+        setDefaultDeposit(0);
         setDescription('');
         setPreviewUrl('');
         setSelectedFile(null);
@@ -166,8 +186,10 @@ export default function PropertyFormModal({
         address: address.trim(),
         categoryId,
         statusId,
-        totalUnits: Number(totalUnits),
-        occupiedUnits: Math.min(Number(occupiedUnits), Number(totalUnits)),
+        totalUnits: initialData?.totalUnits || 0,
+        occupiedUnits: initialData?.occupiedUnits || 0,
+        defaultLateFee: Number(defaultLateFee || 50000),
+        defaultDeposit: Number(defaultDeposit || 0),
         description: description.trim(),
         imageUrl: finalImageUrl.trim() || undefined,
       });
@@ -183,38 +205,37 @@ export default function PropertyFormModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-2xl bg-[#F7F4ED] border border-[#C7D3C0] p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#C7D3C0]/60 pb-3 mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-[#C7D3C0]/50 my-auto flex flex-col max-h-[90vh]">
+        {/* Modal Header */}
+        <div className="flex items-center justify-between border-b border-[#C7D3C0]/30 px-6 py-4 bg-[#8FA28A]/5 shrink-0">
           <div>
-            <h3 className="text-lg font-black text-gray-800">
+            <h3 className="text-lg font-bold text-gray-800">
               {initialData ? 'Ubah Informasi Properti' : 'Tambah Properti Baru'}
             </h3>
-            <p className="text-xs text-gray-500">
-              {initialData ? 'Perbarui data properti yang tersambung di database' : 'Daftarkan unit properti baru milik owner ke database'}
+            <p className="text-xs text-gray-500 mt-0.5">
+              {initialData
+                ? 'Perbarui data properti yang tersambung di database'
+                : 'Lengkapi informasi properti untuk ditambahkan ke sistem'}
             </p>
           </div>
           <button
-            type="button"
             onClick={onClose}
-            disabled={isSubmitting}
-            className="rounded-full p-1 text-gray-500 hover:bg-[#C7D3C0]/40 transition-colors disabled:opacity-50"
+            className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Error Alert */}
-        {errorMessage && (
-          <div className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 p-3 text-xs font-semibold text-red-700 border border-red-200">
-            <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
+        {/* Modal Body / Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+          {errorMessage && (
+            <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-600 font-medium">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
           {/* Nama Properti */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
@@ -225,8 +246,8 @@ export default function PropertyFormModal({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Kost Griya Melati"
-              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+              placeholder="Contoh: Kos Graha Asri Dago"
+              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2.5 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
             />
           </div>
 
@@ -256,7 +277,7 @@ export default function PropertyFormModal({
                 onChange={(e) => setCategoryId(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
               >
-                {categories.map((cat) => (
+                {effectiveCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
@@ -273,7 +294,7 @@ export default function PropertyFormModal({
                 onChange={(e) => setStatusId(e.target.value)}
                 className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
               >
-                {statuses.map((st) => (
+                {effectiveStatuses.map((st) => (
                   <option key={st.id} value={st.id}>
                     {st.name}
                   </option>
@@ -282,35 +303,52 @@ export default function PropertyFormModal({
             </div>
           </div>
 
-          {/* Total Units & Occupied Units */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Financial Defaults Grid: Denda & Deposit */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                Total Unit/Kamar <span className="text-red-500">*</span>
+                Denda Keterlambatan Default (Rp)
               </label>
-              <input
-                type="number"
-                min="0"
-                required
-                value={totalUnits}
-                onChange={(e) => setTotalUnits(Math.max(0, Number(e.target.value)))}
-                className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-              />
+              <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-xs text-gray-500 font-bold">Rp</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={defaultLateFee !== '' && defaultLateFee !== undefined ? new Intl.NumberFormat('id-ID').format(Number(defaultLateFee)) : ''}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/\D/g, '');
+                    setDefaultLateFee(clean ? Number(clean) : 0);
+                  }}
+                  placeholder="50.000"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                />
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">
+                Nominal denda default saat membuat Kontrak Sewa baru.
+              </p>
             </div>
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
-                Unit Terisi <span className="text-red-500">*</span>
+                Uang Jaminan / Deposit Default (Rp)
               </label>
-              <input
-                type="number"
-                min="0"
-                max={totalUnits}
-                required
-                value={occupiedUnits}
-                onChange={(e) => setOccupiedUnits(Math.min(totalUnits, Math.max(0, Number(e.target.value))))}
-                className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-              />
+              <div className="relative">
+                <span className="absolute left-3.5 top-2.5 text-xs text-gray-500 font-bold">Rp</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={defaultDeposit !== '' && defaultDeposit !== undefined ? new Intl.NumberFormat('id-ID').format(Number(defaultDeposit)) : ''}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/\D/g, '');
+                    setDefaultDeposit(clean ? Number(clean) : 0);
+                  }}
+                  placeholder="500.000"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                />
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1">
+                Nominal deposit default saat membuat Unit atau Kontrak Sewa baru.
+              </p>
             </div>
           </div>
 

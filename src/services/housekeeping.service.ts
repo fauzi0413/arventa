@@ -80,6 +80,11 @@ export class HousekeepingService {
           isActive: true,
           createdAt: true,
           updatedAt: true,
+          userCredential: {
+            select: {
+              rawPassword: true,
+            },
+          },
           housekeepingAssignments: {
             where: {
               property: { ownerId },
@@ -120,6 +125,7 @@ export class HousekeepingService {
         isActive: staff.isActive,
         createdAt: staff.createdAt,
         updatedAt: staff.updatedAt,
+        password: staff.userCredential?.rawPassword || undefined,
         assignedProperties,
         totalPropertiesCount: assignedProperties.length,
         totalStatusLogsCount: staff._count.unitStatusLogs,
@@ -171,6 +177,11 @@ export class HousekeepingService {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        userCredential: {
+          select: {
+            rawPassword: true,
+          },
+        },
         housekeepingAssignments: {
           where: isPlatformAdmin
             ? {}
@@ -198,6 +209,7 @@ export class HousekeepingService {
 
     return {
       ...staff,
+      password: staff.userCredential?.rawPassword || undefined,
       assignedProperties: staff.housekeepingAssignments.map((a) => a.property),
     };
   }
@@ -285,6 +297,14 @@ export class HousekeepingService {
           role: UserRole.HOUSEKEEPING,
           isActive: data.isActive ?? true,
           supabaseAuthId,
+        },
+      });
+
+      // Save managed password in UserCredential table
+      await tx.userCredential.create({
+        data: {
+          userId: newUser.id,
+          rawPassword: staffPassword,
         },
       });
 
@@ -461,6 +481,118 @@ export class HousekeepingService {
   }
 
   /**
+   * Delete housekeeping staff permanently
+   */
+  static async deleteHousekeepingStaff(
+    ownerId: string,
+    staffId: string,
+    isPlatformAdmin: boolean = false
+  ) {
+    const whereCondition: any = {
+      id: staffId,
+      role: UserRole.HOUSEKEEPING,
+    };
+
+    if (!isPlatformAdmin) {
+      whereCondition.housekeepingAssignments = {
+        some: { property: { ownerId } },
+      };
+    }
+
+    const staff = await prisma.user.findFirst({
+      where: whereCondition,
+    });
+
+    if (!staff) {
+      throw new Error("Staf housekeeping tidak ditemukan atau bukan milik properti Anda.");
+    }
+
+    // 1. Delete user from Supabase Auth if applicable
+    if (staff.supabaseAuthId || staff.email) {
+      const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+        try {
+          const { createClient: createSupabaseAdmin } = await import("@supabase/supabase-js");
+          const supabaseAdmin = createSupabaseAdmin(
+            process.env.NEXT_PUBLIC_SUPABASE_URL,
+            supabaseServiceRoleKey,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+          );
+
+          if (staff.supabaseAuthId) {
+            await supabaseAdmin.auth.admin.deleteUser(staff.supabaseAuthId).catch((err) => {
+              console.warn("Failed to delete user from Supabase Auth by ID:", err?.message);
+            });
+          } else {
+            const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+            const target = listData?.users?.find(
+              (u) => u.email?.toLowerCase().trim() === staff.email.toLowerCase().trim()
+            );
+            if (target) {
+              await supabaseAdmin.auth.admin.deleteUser(target.id).catch((err) => {
+                console.warn("Failed to delete user from Supabase Auth by email:", err?.message);
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to connect to Supabase Auth for user deletion:", e);
+        }
+      }
+    }
+
+    // 2. Perform atomic database cleanup & deletion
+    return prisma.$transaction(async (tx) => {
+      // Clean up assignments
+      await tx.housekeepingAssignment.deleteMany({
+        where: { userId: staffId },
+      });
+
+      // Clean up password credentials
+      await tx.userCredential.deleteMany({
+        where: { userId: staffId },
+      });
+
+      // Unassign maintenance tickets
+      await tx.maintenanceTicket.updateMany({
+        where: { assignedStaffId: staffId },
+        data: { assignedStaffId: null, assignedStaffName: null },
+      });
+
+      // Clean up unit status logs created by this staff
+      await tx.unitStatusLog.deleteMany({
+        where: { changedById: staffId },
+      });
+
+      // Clean up expenses created by this staff
+      await tx.expense.deleteMany({
+        where: { createdById: staffId },
+      });
+
+      // Delete the User record
+      const deletedUser = await tx.user.delete({
+        where: { id: staffId },
+      });
+
+      // Write Audit Log
+      await tx.auditLog.create({
+        data: {
+          userId: ownerId,
+          action: "DELETE_HOUSEKEEPING",
+          entityName: "User",
+          entityId: staffId,
+          details: {
+            fullName: staff.fullName,
+            email: staff.email,
+            deletedAt: new Date().toISOString(),
+          },
+        },
+      });
+
+      return deletedUser;
+    });
+  }
+
+  /**
    * Reset housekeeping password securely
    */
   static async resetStaffPassword(
@@ -555,6 +687,13 @@ export class HousekeepingService {
         console.warn("Failed to reset password in Supabase Auth:", e);
       }
     }
+
+    // Save / update raw password in UserCredential table
+    await prisma.userCredential.upsert({
+      where: { userId: staffId },
+      update: { rawPassword: resetPass },
+      create: { userId: staffId, rawPassword: resetPass },
+    });
 
     // Audit Log
     await prisma.auditLog.create({

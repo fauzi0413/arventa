@@ -97,7 +97,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/operations/housekeeping/[id]
- * Deactivate housekeeping staff
+ * Delete housekeeping staff account permanently
  */
 export async function DELETE(
   request: NextRequest,
@@ -110,28 +110,27 @@ export async function DELETE(
     }
 
     if (authUser.role !== UserRole.OWNER && authUser.role !== UserRole.PLATFORM_ADMIN) {
-      return ApiResponse.forbidden("Hanya owner atau admin yang memiliki wewenang menonaktifkan staf.");
+      return ApiResponse.forbidden("Hanya owner atau admin yang memiliki wewenang menghapus akun staf.");
     }
 
     const isPlatformAdmin = authUser.role === UserRole.PLATFORM_ADMIN;
     const ownerId = authUser.id;
 
     const { id } = await context.params;
-    const deactivated = await HousekeepingService.toggleStaffStatus(
+    const deleted = await HousekeepingService.deleteHousekeepingStaff(
       ownerId,
       id,
-      false,
       isPlatformAdmin
     );
 
     return ApiResponse.success({
-      message: "Akun housekeeping berhasil dinonaktifkan",
-      data: deactivated,
+      message: "Akun housekeeping berhasil dihapus secara permanen",
+      data: deleted,
     });
   } catch (error: any) {
     console.error("DELETE /api/operations/housekeeping/[id] error:", error);
     return ApiResponse.error({
-      message: error?.message || "Gagal menonaktifkan staf housekeeping",
+      message: error?.message || "Gagal menghapus akun housekeeping",
       error: error?.message || error,
       status: 400,
     });

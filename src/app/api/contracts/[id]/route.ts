@@ -69,7 +69,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, startDate, endDate, rentPrice, securityDeposit, notes, customClauses } = body;
+    const { status, startDate, endDate, rentPrice, securityDeposit, lateFeeAmount, notes, customClauses } = body;
 
     const existingLease = await prisma.lease.findUnique({
       where: { id },
@@ -91,6 +91,7 @@ export async function PUT(
           ...(endDate && { endDate: new Date(endDate) }),
           ...(rentPrice !== undefined && { rentPrice: Number(rentPrice) }),
           ...(securityDeposit !== undefined && { securityDeposit: Number(securityDeposit) }),
+          ...(lateFeeAmount !== undefined && { lateFeeAmount: Number(lateFeeAmount) }),
           ...(notes !== undefined && { notes }),
           ...(customClauses !== undefined && { customClauses: Array.isArray(customClauses) ? customClauses : [] }),
         },

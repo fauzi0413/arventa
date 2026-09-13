@@ -30,6 +30,7 @@ export const updateInvoiceStatusSchema = z.object({
 
 export const invoiceFilterSchema = z.object({
   propertyId: z.string().optional(),
+  unitId: z.string().optional(),
   status: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { ApiResponse } from "@/lib/api-response";
 import { PropertyService } from "@/services/property.service";
+import { TenantService } from "@/services/tenant.service";
 import { createPropertySchema } from "@/lib/validations/property.schema";
 import { PropertyType } from "@/generated/prisma/client";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
         propertyIds = tenantUnits.map((u) => u.propertyId);
       }
     }
+
+    await TenantService.syncUnitStatusesWithActiveLeases();
 
     const result = await PropertyService.getAllProperties({
       search,

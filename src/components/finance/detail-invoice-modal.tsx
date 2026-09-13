@@ -76,6 +76,7 @@ export function DetailInvoiceModal({
   const numUtility = Number(invoice.utilityAmount || 0);
   const numPenalty = Number(invoice.penaltyAmount || 0);
   const totalAmount = Number(invoice.totalAmount || 0);
+  const depositDiff = Math.max(0, totalAmount - (numAmount + numUtility + numPenalty));
 
   const getStatusBadge = (st: string) => {
     switch (st) {
@@ -111,10 +112,10 @@ export function DetailInvoiceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl text-slate-900 overflow-hidden flex flex-col max-h-[90vh] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 sm:p-6 md:p-8 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+      <div className="relative w-full max-w-3xl lg:max-w-4xl my-auto max-h-[85vh] sm:max-h-[88vh] rounded-3xl border border-slate-200 bg-white shadow-2xl text-slate-900 overflow-hidden flex flex-col dark:border-slate-800 dark:bg-slate-900 dark:text-slate-100">
         {/* Top Action Bar */}
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/60 dark:bg-slate-800/60 dark:border-slate-800 print:hidden">
+        <div className="shrink-0 flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-slate-50/60 dark:bg-slate-800/60 dark:border-slate-800 print:hidden">
           <div className="flex items-center gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
             <IconReceipt className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span>Kuitansi Digital & Detail Invoice</span>
@@ -222,6 +223,12 @@ export function DetailInvoiceModal({
                     <tr>
                       <td className="px-4 py-3.5 text-rose-600 dark:text-rose-400 font-semibold">Denda Keterlambatan / Biaya Tambahan</td>
                       <td className="px-4 py-3.5 text-right font-bold text-rose-600 dark:text-rose-400">Rp {numPenalty.toLocaleString("id-ID")}</td>
+                    </tr>
+                  )}
+                  {depositDiff > 0 && (
+                    <tr>
+                      <td className="px-4 py-3.5 text-slate-700 dark:text-slate-300 font-semibold">Deposit Jaminan Awal (Security Deposit)</td>
+                      <td className="px-4 py-3.5 text-right font-bold text-slate-900 dark:text-white">Rp {depositDiff.toLocaleString("id-ID")}</td>
                     </tr>
                   )}
                 </tbody>

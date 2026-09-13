@@ -43,6 +43,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const validationResult = updateTenantSchema.safeParse(body);
     if (!validationResult.success) {
+      console.error("PUT /api/tenants/[id] validation error:", JSON.stringify(validationResult.error.flatten().fieldErrors, null, 2));
       return ApiResponse.badRequest(
         "Validasi pembaruan data penyewa gagal",
         validationResult.error.flatten().fieldErrors
@@ -56,6 +57,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       data: updatedTenant,
     });
   } catch (error: any) {
+    console.error("PUT /api/tenants/[id] execution error:", error?.stack || error);
     return ApiResponse.error({
       message: error.message || "Gagal memperbarui data penyewa",
       error,

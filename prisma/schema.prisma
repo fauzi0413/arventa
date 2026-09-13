@@ -142,6 +142,7 @@ model User {
   reportedMaintenanceTickets MaintenanceTicket[]      @relation("ReportedTickets")
   assignedMaintenanceTickets MaintenanceTicket[]      @relation("AssignedTickets")
   ownerPaymentMethods        OwnerPaymentMethod[]
+  userCredential             UserCredential?
 
   @@map("users")
 }
@@ -483,6 +484,8 @@ model Property {
   description        String?      @db.Text
   coverImage         String?      @map("cover_image")
   hasCleaningService Boolean      @default(true) @map("has_cleaning_service")
+  defaultLateFee     Decimal      @default(50000) @map("default_late_fee") @db.Decimal(12, 2)
+  defaultDeposit     Decimal      @default(0) @map("default_deposit") @db.Decimal(12, 2)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -702,6 +705,7 @@ model Lease {
   endDate         DateTime         @map("end_date")
   rentPrice       Decimal          @map("rent_price") @db.Decimal(12, 2)
   securityDeposit Decimal          @default(0) @map("security_deposit") @db.Decimal(12, 2)
+  lateFeeAmount   Decimal          @default(50000) @map("late_fee_amount") @db.Decimal(12, 2)
   status          LeaseStatus      @default(ACTIVE)
 
   contractUrl   String?  @map("contract_url")
@@ -921,4 +925,16 @@ model CarouselLandingPageFeature {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   @@map("carousel_landing_page_features")
+}
+
+// --- 11. MANAGED USER CREDENTIALS (HOUSEKEEPING & TENANTS) ---
+model UserCredential {
+  id          String   @id @default(uuid())
+  userId      String   @unique @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawPassword String   @map("raw_password")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("user_credentials")
 }

@@ -20,30 +20,8 @@ export default function PropertyCard({
   onEdit,
   onDelete,
 }: PropertyCardProps) {
-  const [totalUnits, setTotalUnits] = useState(property.totalUnits ?? 0);
-  const [occupiedUnits, setOccupiedUnits] = useState(property.occupiedUnits ?? 0);
-
-  useEffect(() => {
-    const storedUnits = localStorage.getItem('arventa_units');
-    if (storedUnits) {
-      try {
-        const allUnits = JSON.parse(storedUnits);
-        const propUnits = allUnits.filter((u: any) => u.propertyId === property.id);
-        if (propUnits.length > 0) {
-          setTotalUnits(propUnits.length);
-          setOccupiedUnits(
-            propUnits.filter((u: any) => u.status === 'Occupied' || u.status === 'OCCUPIED').length
-          );
-          return;
-        }
-      } catch (e) {
-        console.error('Error parsing stored units:', e);
-      }
-    }
-
-    setTotalUnits(property.totalUnits ?? 0);
-    setOccupiedUnits(property.occupiedUnits ?? 0);
-  }, [property.id, property.totalUnits, property.occupiedUnits]);
+  const totalUnits = property.totalUnits ?? 0;
+  const occupiedUnits = property.occupiedUnits ?? 0;
 
   const occupancyRate = totalUnits > 0 
     ? Math.round((occupiedUnits / totalUnits) * 100) 
@@ -113,8 +91,14 @@ export default function PropertyCard({
             <span className="line-clamp-1">{property.address}</span>
           </div>
 
-          <p className="mt-3 text-xs text-gray-500 line-clamp-2 h-8 leading-relaxed">
-            {property.description || 'Tidak ada deskripsi untuk properti ini.'}
+          <p className="mt-3 text-xs text-gray-500 leading-relaxed min-h-[2.5rem]">
+            {(() => {
+              const text = property.description?.trim();
+              if (!text) return 'Tidak ada deskripsi untuk properti ini.';
+              const maxLen = 85;
+              if (text.length <= maxLen) return text;
+              return text.replace(new RegExp(`^(.{1,${maxLen}})(?:\\s.*|$)`, 's'), '$1') + '...';
+            })()}
           </p>
 
           {/* Occupancy Stats Section */}

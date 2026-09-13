@@ -27,6 +27,7 @@ import { CreateInvoiceModal } from "./create-invoice-modal";
 import { EditInvoiceModal } from "./edit-invoice-modal";
 import { DetailInvoiceModal } from "./detail-invoice-modal";
 import { UpdateStatusModal } from "./update-status-modal";
+import AutoBillingResultModal, { type AutoBillingResult } from "./auto-billing-result-modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 
 interface PropertyOption {
@@ -44,6 +45,7 @@ interface ActiveLeaseOption {
   tenantName: string;
   tenantPhone: string;
   rentPrice: number;
+  lateFeeAmount?: number;
 }
 
 interface InvoiceItem {
@@ -133,29 +135,34 @@ export function InvoiceManagementView() {
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isStatusOpen, setIsStatusOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isAutoBillingResultOpen, setIsAutoBillingResultOpen] = useState(false);
 
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceItem | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [runningCron, setRunningCron] = useState(false);
+  const [autoBillingResult, setAutoBillingResult] = useState<AutoBillingResult | null>(null);
+  const [autoBillingError, setAutoBillingError] = useState<string | null>(null);
 
   const handleRunAutoBilling = async () => {
     setRunningCron(true);
+    setAutoBillingError(null);
+    setAutoBillingResult(null);
     try {
       const res = await fetch("/api/cron/billing", { method: "POST" });
       const json = await res.json();
       if (!res.ok || !json.success) {
         throw new Error(json.error || json.message || "Gagal menjalankan auto billing.");
       }
-      const data = json.data;
-      alert(
-        `Auto Billing Selesai!\n\n` +
-          `• Overdue diperbarui: ${data.overdueUpdatedCount || 0}\n` +
-          `• Invoice H-7 dibuat: ${data.invoicesGeneratedCount || 0}\n` +
-          `• Email Reminder terkirim: ${data.remindersSentCount || 0}`
-      );
+      setAutoBillingResult({
+        overdueUpdatedCount: json.data?.overdueUpdatedCount || 0,
+        invoicesGeneratedCount: json.data?.invoicesGeneratedCount || 0,
+        remindersSentCount: json.data?.remindersSentCount || 0,
+      });
+      setIsAutoBillingResultOpen(true);
       fetchInvoices();
     } catch (err: any) {
-      alert(err.message || "Gagal menjalankan auto billing.");
+      setAutoBillingError(err.message || "Gagal menjalankan auto billing.");
+      setIsAutoBillingResultOpen(true);
     } finally {
       setRunningCron(false);
     }
@@ -300,7 +307,7 @@ export function InvoiceManagementView() {
               <IconReceipt className="h-6 w-6" />
             </div>
             <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Keuangan & Penagihan Invoice
+              Manajemen Invoice
             </h1>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -470,11 +477,10 @@ export function InvoiceManagementView() {
                 setSelectedStatus(tab.key);
                 setPage(1);
               }}
-              className={`rounded-xl px-3.5 py-1.5 text-xs transition-all ${
-                selectedStatus === tab.key
-                  ? "bg-emerald-600 text-white font-bold shadow-sm"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300"
-              }`}
+              className={`rounded-xl px-3.5 py-1.5 text-xs transition-all ${selectedStatus === tab.key
+                ? "bg-emerald-600 text-white font-bold shadow-sm"
+                : "bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300"
+                }`}
             >
               {tab.label}
             </button>
@@ -717,6 +723,13 @@ export function InvoiceManagementView() {
         cancelText="Batal"
         variant="danger"
         isLoading={deleting}
+      />
+
+      <AutoBillingResultModal
+        isOpen={isAutoBillingResultOpen}
+        onClose={() => setIsAutoBillingResultOpen(false)}
+        result={autoBillingResult}
+        error={autoBillingError}
       />
     </div>
   );

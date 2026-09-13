@@ -45,20 +45,21 @@ export class UnitService {
    */
   static formatUnit(unit: any) {
     const activeLease = unit.leases?.[0];
-    const isOccupiedUnit = unit.status === 'OCCUPIED';
+    const isOccupiedUnit = unit.status === 'OCCUPIED' || Boolean(activeLease);
+    const resolvedDeposit = Number(unit.deposit || activeLease?.securityDeposit || unit.property?.defaultDeposit || 0);
     return {
       id: unit.id,
       propertyId: unit.propertyId,
       propertyName: unit.property?.name,
       name: unit.unitNumber,
       unitNumber: unit.unitNumber,
-      rawStatus: unit.status,
+      rawStatus: isOccupiedUnit ? 'OCCUPIED' : unit.status,
       floor: unit.floor,
-      status: unit.status === 'CLEANING' ? 'Need Cleaning' : unit.status === 'AVAILABLE' ? 'Available' : unit.status === 'OCCUPIED' ? 'Occupied' : unit.status === 'MAINTENANCE' ? 'Maintenance' : 'Reserved',
+      status: isOccupiedUnit ? 'Occupied' : (unit.status === 'CLEANING' ? 'Need Cleaning' : unit.status === 'AVAILABLE' ? 'Available' : unit.status === 'MAINTENANCE' ? 'Maintenance' : 'Reserved'),
       pricing: {
         monthly: Number(unit.basePrice || 0),
         daily: unit.transitPrice ? Number(unit.transitPrice) : undefined,
-        deposit: Number(unit.deposit || 0),
+        deposit: resolvedDeposit,
       },
       capacity: {
         maxPersons: unit.capacity || 1,
@@ -75,12 +76,15 @@ export class UnitService {
       checkInDate: isOccupiedUnit && activeLease?.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
       activeLease: isOccupiedUnit && activeLease ? {
         id: activeLease.id,
-        contractNumber: activeLease.contractUrl || `KTR/ARV/${activeLease.id.slice(0, 6).toUpperCase()}`,
+        contractNumber: (activeLease.contractUrl && !activeLease.contractUrl.startsWith('http'))
+          ? activeLease.contractUrl
+          : `KTR/ARV/${activeLease.id.slice(0, 6).toUpperCase()}`,
+        contractUrl: activeLease.contractUrl && activeLease.contractUrl.startsWith('http') ? activeLease.contractUrl : undefined,
         startDate: activeLease.startDate ? (typeof activeLease.startDate === 'string' ? activeLease.startDate.split('T')[0] : activeLease.startDate.toISOString().split('T')[0]) : undefined,
         endDate: activeLease.endDate ? (typeof activeLease.endDate === 'string' ? activeLease.endDate.split('T')[0] : activeLease.endDate.toISOString().split('T')[0]) : undefined,
         status: activeLease.status || 'ACTIVE',
         rentPrice: Number(activeLease.rentPrice || unit.basePrice || 0),
-        securityDeposit: Number(activeLease.securityDeposit || unit.deposit || 0),
+        securityDeposit: Number(activeLease.securityDeposit || resolvedDeposit || 0),
         rentalPeriod: activeLease.rentalPeriod || 'MONTHLY',
       } : undefined,
       createdAt: typeof unit.createdAt === 'string' ? unit.createdAt : unit.createdAt.toISOString(),
@@ -131,6 +135,8 @@ export class UnitService {
             id: true,
             name: true,
             hasCleaningService: true,
+            defaultDeposit: true,
+            defaultLateFee: true,
           },
         },
         unitUser: {
@@ -179,6 +185,8 @@ export class UnitService {
             name: true,
             address: true,
             hasCleaningService: true,
+            defaultDeposit: true,
+            defaultLateFee: true,
           },
         },
         unitUser: {

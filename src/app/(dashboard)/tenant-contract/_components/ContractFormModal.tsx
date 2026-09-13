@@ -139,6 +139,7 @@ export default function ContractFormModal({
   const [endDate, setEndDate] = useState('');
   const [rentPrice, setRentPrice] = useState<number | ''>('');
   const [securityDeposit, setSecurityDeposit] = useState<number | ''>(0);
+  const [lateFeeAmount, setLateFeeAmount] = useState<number | ''>(50000);
   const [status, setStatus] = useState<ContractStatus>('ACTIVE');
   const [notes, setNotes] = useState('');
 
@@ -173,6 +174,7 @@ export default function ContractFormModal({
       }
       setRentPrice(initialData.rentPrice ?? '');
       setSecurityDeposit(initialData.securityDeposit ?? 0);
+      setLateFeeAmount(initialData.lateFeeAmount ?? 50000);
       setStatus(initialData.status || 'ACTIVE');
       setNotes(initialData.notes || '');
       setCustomClauses(Array.isArray(initialData.customClauses) ? initialData.customClauses : []);
@@ -198,6 +200,7 @@ export default function ContractFormModal({
 
       setRentPrice('');
       setSecurityDeposit(0);
+      setLateFeeAmount(50000);
       setStatus('ACTIVE');
       setNotes('');
       setCustomClauses([]);
@@ -297,13 +300,17 @@ export default function ContractFormModal({
     }
   }, [propertyId, isOpen]);
 
-  // Auto fetch property contract template clauses when property is selected
+  // Auto fetch property contract template clauses & default late fee when property is selected
   const handlePropertyChange = async (selectedPropId: string) => {
     setPropertyId(selectedPropId);
     setUnitId('');
     if (!selectedPropId) {
       setPropertyArticles([]);
       return;
+    }
+    const propObj = propertiesList.find((p) => p.id === selectedPropId);
+    if (propObj && (propObj as any).defaultLateFee !== undefined) {
+      setLateFeeAmount(Number((propObj as any).defaultLateFee) || 50000);
     }
     loadPropertyTemplate(selectedPropId);
   };
@@ -410,6 +417,7 @@ export default function ContractFormModal({
         endDate,
         rentPrice: Number(rentPrice),
         securityDeposit: Number(securityDeposit || 0),
+        lateFeeAmount: Number(lateFeeAmount || 50000),
         customClauses,
         notes,
       });
@@ -694,29 +702,30 @@ export default function ContractFormModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1">
-                      Harga Sewa (Rp / Periode) <span className="text-destructive">*</span>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                      Harga Sewa ({periodLabelMap[rentalPeriod] || 'Periode'}) <span className="text-destructive">*</span>
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-semibold">Rp</span>
                       <input
                         type="text"
-                        readOnly
-                        disabled
-                        value={rentPrice !== '' && rentPrice !== undefined ? new Intl.NumberFormat('id-ID').format(Number(rentPrice)) : '0'}
-                        className="w-full pl-[34px] pr-3 py-2 rounded-xl border border-input bg-muted/60 text-foreground cursor-not-allowed font-extrabold select-none opacity-90"
+                        inputMode="numeric"
+                        value={rentPrice !== '' && rentPrice !== undefined ? new Intl.NumberFormat('id-ID').format(Number(rentPrice)) : ''}
+                        onChange={(e) => {
+                          const clean = e.target.value.replace(/\D/g, '');
+                          setRentPrice(clean ? Number(clean) : '');
+                        }}
+                        placeholder="1.500.000"
+                        className="w-full pl-[34px] pr-3 py-2 rounded-xl border border-input bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none font-semibold"
                       />
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                      <span>🔒</span> Harga sewa terkunci otomatis sesuai tarif unit kamar dari database.
-                    </p>
                     {errors.rentPrice && <p className="text-xs text-destructive mt-1">{errors.rentPrice}</p>}
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Uang Deposit / Jaminan (Rp)</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Uang Deposit (Rp)</label>
                     <div className="relative">
                       <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-semibold">Rp</span>
                       <input
@@ -728,6 +737,24 @@ export default function ContractFormModal({
                           setSecurityDeposit(clean ? Number(clean) : 0);
                         }}
                         placeholder="500.000"
+                        className="w-full pl-[34px] pr-3 py-2 rounded-xl border border-input bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Denda Keterlambatan (Rp)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-semibold">Rp</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={lateFeeAmount !== '' && lateFeeAmount !== undefined ? new Intl.NumberFormat('id-ID').format(Number(lateFeeAmount)) : ''}
+                        onChange={(e) => {
+                          const clean = e.target.value.replace(/\D/g, '');
+                          setLateFeeAmount(clean ? Number(clean) : 0);
+                        }}
+                        placeholder="50.000"
                         className="w-full pl-[34px] pr-3 py-2 rounded-xl border border-input bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none font-semibold"
                       />
                     </div>
@@ -1010,6 +1037,10 @@ export default function ContractFormModal({
                         <strong className="text-slate-900">Rp {Number(securityDeposit).toLocaleString('id-ID')}</strong> yang akan dikembalikan setelah masa sewa berakhir jika tidak ada tunggakan atau kerusakan fasilitas.
                       </li>
                     )}
+                    <li>
+                      <strong>Ketentuan Denda Keterlambatan:</strong> Apabila pembayaran sewa melewati tanggal jatuh tempo, PIHAK KEDUA dikenakan denda keterlambatan sebesar{' '}
+                      <strong className="text-rose-700">Rp {Number(lateFeeAmount || 50000).toLocaleString('id-ID')}</strong> per keterlambatan yang akan ditambahkan secara otomatis pada invoice penagihan.
+                    </li>
                   </ol>
 
                   <h3 className="font-bold text-slate-900 border-b border-slate-200 pb-1 pt-2">

@@ -466,13 +466,17 @@ function TenantsPageContent() {
 
   const searchParams = useSearchParams();
   const editTenantId = searchParams ? (searchParams.get('editTenantId') || searchParams.get('editForTenantId')) : null;
+  const openAddParam = searchParams ? (searchParams.get('openAdd') || searchParams.get('addTenant')) : null;
 
   useEffect(() => {
     fetchTenants();
   }, []);
 
   useEffect(() => {
-    if (editTenantId && tenants.length > 0) {
+    if (openAddParam) {
+      setTenantToEdit(null);
+      setIsFormModalOpen(true);
+    } else if (editTenantId && tenants.length > 0) {
       const targetParam = decodeURIComponent(editTenantId);
       const match = tenants.find(
         (t) =>
@@ -486,7 +490,7 @@ function TenantsPageContent() {
         setIsFormModalOpen(true);
       }
     }
-  }, [editTenantId, tenants]);
+  }, [editTenantId, openAddParam, tenants]);
 
   const saveTenantsLocally = (updated: Tenant[]) => {
     setTenants(updated);

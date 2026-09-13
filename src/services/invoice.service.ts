@@ -62,6 +62,14 @@ export class InvoiceService {
       };
     }
 
+    // Filter by specific unit
+    if (filters?.unitId && filters.unitId !== "ALL") {
+      whereClause.lease = {
+        ...(whereClause.lease || {}),
+        unitId: filters.unitId,
+      };
+    }
+
     // Filter by Status
     if (filters?.status && filters.status !== "ALL") {
       whereClause.status = filters.status as InvoiceStatus;
@@ -134,6 +142,12 @@ export class InvoiceService {
         },
       };
     }
+    if (filters?.unitId && filters.unitId !== "ALL") {
+      statsWhere.lease = {
+        ...(statsWhere.lease || {}),
+        unitId: filters.unitId,
+      };
+    }
 
     // Execute queries in parallel
     const [items, totalCount, statsAll, statsPaid, statsPending, statsOverdue] = await Promise.all([
@@ -197,10 +211,29 @@ export class InvoiceService {
       }),
     ]);
 
+    // Sanitize and auto-sync any database records with anomalous dates (e.g. createdAt > dueDate)
+    const sanitizedItems = await Promise.all(
+      items.map(async (inv) => {
+        if (new Date(inv.createdAt).getTime() > new Date(inv.dueDate).getTime()) {
+          const fixedCreatedAt = new Date(new Date(inv.dueDate).getTime() - 7 * 24 * 60 * 60 * 1000);
+          try {
+            await prisma.invoice.update({
+              where: { id: inv.id },
+              data: { createdAt: fixedCreatedAt },
+            });
+            return { ...inv, createdAt: fixedCreatedAt };
+          } catch (err) {
+            console.warn("Auto-sync invoice date update warning:", err);
+          }
+        }
+        return inv;
+      })
+    );
+
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
-      items,
+      items: sanitizedItems,
       meta: {
         page,
         limit,
@@ -282,6 +315,19 @@ export class InvoiceService {
 
     if (!invoice) {
       throw new Error("Invoice tidak ditemukan atau Anda tidak memiliki akses ke properti ini.");
+    }
+
+    if (new Date(invoice.createdAt).getTime() > new Date(invoice.dueDate).getTime()) {
+      const fixedCreatedAt = new Date(new Date(invoice.dueDate).getTime() - 7 * 24 * 60 * 60 * 1000);
+      try {
+        await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: { createdAt: fixedCreatedAt },
+        });
+        return { ...invoice, createdAt: fixedCreatedAt };
+      } catch (err) {
+        console.warn("Auto-sync invoice date update warning in getInvoiceById:", err);
+      }
     }
 
     return invoice;
@@ -515,6 +561,7 @@ export class InvoiceService {
       tenantName: lease.tenant.fullName || lease.tenant.user?.fullName || "Penyewa Tanpa Nama",
       tenantPhone: lease.tenant.phoneNumber || lease.tenant.user?.phoneNumber || "-",
       rentPrice: Number(lease.rentPrice || lease.unit.basePrice || 0),
+      lateFeeAmount: Number(lease.lateFeeAmount || 50000),
     }));
   }
 }
