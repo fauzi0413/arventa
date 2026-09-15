@@ -106,6 +106,7 @@ export async function POST(request: NextRequest) {
       tenantName: body.tenantName,
       tenantPhone: body.tenantPhone,
       checkInDate: body.checkInDate,
+      inventoryIds: body.inventoryIds,
     });
 
     return ApiResponse.success({

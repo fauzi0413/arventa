@@ -1,16 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IconPlus,
   IconX,
   IconBuilding,
-  IconMessageCircle,
   IconLoader2,
 } from "@tabler/icons-react";
 import {
   AssignedPropertyOption,
-  CreateThreadInput,
+  CreateTopicInput,
   ForumCategory,
 } from "../types";
 
@@ -18,7 +17,7 @@ interface CreateTopicModalProps {
   isOpen: boolean;
   onClose: () => void;
   assignedProperties: AssignedPropertyOption[];
-  onCreate: (input: CreateThreadInput) => Promise<boolean>;
+  onCreate: (input: CreateTopicInput) => Promise<boolean>;
   actionLoading: boolean;
 }
 
@@ -29,25 +28,39 @@ export function CreateTopicModal({
   onCreate,
   actionLoading,
 }: CreateTopicModalProps) {
-  const [propertyId, setPropertyId] = useState(
-    assignedProperties[0]?.id || ""
-  );
-  const [category, setCategory] = useState<ForumCategory>("DISKUSI");
+  const [propertyId, setPropertyId] = useState("");
+  const [category, setCategory] = useState<ForumCategory>("OBROLAN_SANTAI");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Derive effective property ID (auto fallback to first available property if not set)
+  const effectivePropertyId =
+    (propertyId && assignedProperties.some((p) => p.id === propertyId)
+      ? propertyId
+      : assignedProperties[0]?.id) || "";
+
+  // Auto-sync propertyId when assignedProperties load or change
+  useEffect(() => {
+    if (assignedProperties.length > 0) {
+      if (!propertyId || !assignedProperties.some((p) => p.id === propertyId)) {
+        setPropertyId(assignedProperties[0].id);
+      }
+    }
+  }, [assignedProperties, propertyId]);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim() || !propertyId || isSubmitting) return;
+    const targetPropId = effectivePropertyId;
+    if (!title.trim() || !content.trim() || !targetPropId || isSubmitting) return;
 
     setIsSubmitting(true);
     const ok = await onCreate({
       title: title.trim(),
       content: content.trim(),
-      propertyId,
+      propertyId: targetPropId,
       category,
     });
     setIsSubmitting(false);
@@ -72,7 +85,7 @@ export function CreateTopicModal({
                 Mulai Topik Diskusi Baru
               </h3>
               <p className="text-xs text-muted-foreground">
-                Buat utas diskusi atau informasi komunitas untuk penghuni
+                Buat utas diskusi atau informasi komunitas untuk sesama penghuni
               </p>
             </div>
           </div>
@@ -85,6 +98,15 @@ export function CreateTopicModal({
           </button>
         </div>
 
+        {/* Maintenance Guidance Notice */}
+        <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs flex items-start gap-2.5">
+          <span className="text-base leading-none">💡</span>
+          <p className="leading-relaxed">
+            <span className="font-bold">Punya keluhan kerusakan fasilitas atau kamar?</span>{" "}
+            Harap laporkan melalui menu <span className="font-bold underline">Laporan Pemeliharaan</span> agar langsung ditangani oleh teknisi properti.
+          </p>
+        </div>
+
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* Property Selection */}
@@ -94,7 +116,7 @@ export function CreateTopicModal({
               <span>Pilih Properti Kos:</span>
             </label>
             <select
-              value={propertyId}
+              value={effectivePropertyId}
               onChange={(e) => setPropertyId(e.target.value)}
               className="w-full rounded-xl border border-border bg-background p-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-[#8FA28A]/40"
               required
@@ -109,31 +131,54 @@ export function CreateTopicModal({
 
           {/* Category Selector */}
           <div className="space-y-1.5">
-            <label className="font-bold text-foreground">Kategori Topik:</label>
+            <label className="font-bold text-foreground">Kategori Komunitas:</label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setCategory("DISKUSI")}
+                onClick={() => setCategory("OBROLAN_SANTAI")}
                 className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                  category === "DISKUSI"
-                    ? "bg-blue-500/15 border-blue-500 text-blue-600 dark:text-blue-400"
-                    : "border-border bg-background text-muted-foreground"
+                  category === "OBROLAN_SANTAI"
+                    ? "bg-[#8FA28A]/20 border-[#8FA28A] text-[#8FA28A]"
+                    : "border-border bg-background text-muted-foreground hover:border-[#8FA28A]/40"
                 }`}
               >
-                <IconMessageCircle className="h-4 w-4" />
-                <span>Diskusi Umum</span>
+                <span>☕ Obrolan Santai</span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setCategory("KELUHAN")}
+                onClick={() => setCategory("TANYA_JAWAB")}
                 className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                  category === "KELUHAN"
-                    ? "bg-rose-500/15 border-rose-500 text-rose-600 dark:text-rose-400"
-                    : "border-border bg-background text-muted-foreground"
+                  category === "TANYA_JAWAB"
+                    ? "bg-blue-500/20 border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-border bg-background text-muted-foreground hover:border-blue-500/40"
                 }`}
               >
-                <span>Keluhan / Masalah</span>
+                <span>❓ Tanya Jawab</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCategory("INFO_KEGIATAN")}
+                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  category === "INFO_KEGIATAN"
+                    ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-400"
+                    : "border-border bg-background text-muted-foreground hover:border-purple-500/40"
+                }`}
+              >
+                <span>📅 Info Kegiatan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCategory("PENGUMUMAN")}
+                className={`flex items-center justify-center gap-1.5 p-2.5 rounded-xl border text-xs font-bold transition-all ${
+                  category === "PENGUMUMAN"
+                    ? "bg-amber-500/20 border-amber-500 text-amber-600 dark:text-amber-400"
+                    : "border-border bg-background text-muted-foreground hover:border-amber-500/40"
+                }`}
+              >
+                <span>📢 Pengumuman</span>
               </button>
             </div>
           </div>
@@ -178,11 +223,11 @@ export function CreateTopicModal({
               disabled={
                 !title.trim() ||
                 !content.trim() ||
-                !propertyId ||
+                !effectivePropertyId ||
                 isSubmitting ||
                 actionLoading
               }
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 disabled:opacity-50 text-white font-bold transition-all shadow-xs"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 disabled:opacity-50 text-white font-bold transition-all shadow-xs cursor-pointer disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <>

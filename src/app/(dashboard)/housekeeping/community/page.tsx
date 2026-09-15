@@ -18,7 +18,6 @@ import { ForumMetricCards } from "./components/ForumMetricCards";
 import { ForumFilterBar } from "./components/ForumFilterBar";
 import { ForumThreadCard } from "./components/ForumThreadCard";
 import { ForumDetailDrawer } from "./components/ForumDetailDrawer";
-import { ResolveComplaintModal } from "./components/ResolveComplaintModal";
 import { CreateTopicModal } from "./components/CreateTopicModal";
 import { ForumThreadItem } from "./types";
 
@@ -37,8 +36,6 @@ export default function HousekeepingCommunityPage() {
     setFilter,
     resetFilters,
     replyToThread,
-    resolveComplaint,
-    reopenThread,
     createThread,
     deleteThread,
     refresh,
@@ -48,7 +45,6 @@ export default function HousekeepingCommunityPage() {
   // Modals & Drawer states
   const [selectedThread, setSelectedThread] = useState<ForumThreadItem | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [resolvingThread, setResolvingThread] = useState<ForumThreadItem | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const handleOpenDetail = (thread: ForumThreadItem) => {
@@ -59,35 +55,6 @@ export default function HousekeepingCommunityPage() {
   const handleCloseDetail = () => {
     setIsDetailOpen(false);
     setSelectedThread(null);
-  };
-
-  const handleOpenResolve = (thread: ForumThreadItem) => {
-    setResolvingThread(thread);
-  };
-
-  const handleCloseResolve = () => {
-    setResolvingThread(null);
-  };
-
-  const handleConfirmResolve = async (threadId: string, notes: string): Promise<boolean> => {
-    const ok = await resolveComplaint(threadId, notes);
-    if (ok) {
-      // If thread is currently open in detail drawer, update it
-      if (selectedThread && selectedThread.id === threadId) {
-        setSelectedThread((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: "RESOLVED",
-                isResolved: true,
-                resolutionNotes: notes,
-                resolvedAt: new Date().toISOString(),
-              }
-            : null
-        );
-      }
-    }
-    return ok;
   };
 
   // Keep selectedThread in sync with threads state updates
@@ -138,14 +105,14 @@ export default function HousekeepingCommunityPage() {
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-[#8FA28A]/20 px-3.5 py-1 text-xs font-bold text-[#8FA28A] border border-[#8FA28A]/30">
               <IconSparkles className="h-3.5 w-3.5" />
-              <span>ARV-M5-04 • Moderasi Komunitas & Keluhan Lapangan</span>
+              <span>ARV-M5-04 • Ruang Diskusi & Komunitas Penghuni</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight flex items-center gap-3">
               <IconMessages className="h-8 w-8 text-[#8FA28A]" />
-              Komunitas & Pengumuman
+              Komunitas & Forum Warga
             </h1>
             <p className="text-xs text-gray-300 leading-relaxed">
-              Moderasi forum diskusi penghuni, pantau keluhan fasilitas gedung kos secara terpusat, dan berikan tanggapan cepat pada kos yang Anda kelola.
+              Ruang silaturahmi penghuni kos, tanya jawab, pengumuman kegiatan, dan sapa warga baru yang baru check-in secara hangat.
             </p>
           </div>
 
@@ -238,10 +205,10 @@ export default function HousekeepingCommunityPage() {
           </div>
           <div className="space-y-1">
             <h3 className="text-base font-bold text-foreground">
-              Tidak Ada Diskusi atau Keluhan
+              Belum Ada Topik Diskusi
             </h3>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              Belum ada keluhan atau diskusi aktif yang sesuai dengan kriteria filter Anda saat ini.
+              Belum ada topik diskusi atau informasi komunitas yang sesuai kriteria filter Anda saat ini.
             </p>
           </div>
           <div className="flex items-center justify-center gap-2 pt-2">
@@ -267,8 +234,6 @@ export default function HousekeepingCommunityPage() {
               key={thread.id}
               thread={thread}
               onOpenDetail={handleOpenDetail}
-              onOpenResolve={handleOpenResolve}
-              onReopen={reopenThread}
               onDelete={deleteThread}
             />
           ))}
@@ -283,15 +248,6 @@ export default function HousekeepingCommunityPage() {
         isOpen={isDetailOpen}
         onClose={handleCloseDetail}
         onReply={replyToThread}
-        onOpenResolve={handleOpenResolve}
-        actionLoading={actionLoading}
-      />
-
-      <ResolveComplaintModal
-        thread={resolvingThread}
-        isOpen={Boolean(resolvingThread)}
-        onClose={handleCloseResolve}
-        onConfirm={handleConfirmResolve}
         actionLoading={actionLoading}
       />
 

@@ -1,4 +1,14 @@
-export type ForumCategory = "KELUHAN" | "DISKUSI" | "SARAN" | "PERTANYAAN";
+export type ForumCategory =
+  | "OBROLAN_SANTAI"
+  | "TANYA_JAWAB"
+  | "INFO_KEGIATAN"
+  | "PENGUMUMAN"
+  | "SAMBUTAN"
+  | "DISKUSI"
+  | "SARAN"
+  | "PERTANYAAN"
+  | "KELUHAN";
+
 export type ForumStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
 export interface ForumCommentItem {
@@ -8,6 +18,10 @@ export interface ForumCommentItem {
   authorName: string;
   authorRole: string;
   authorAvatar?: string | null;
+  authorUnitNumber?: string | null;
+  isNewResident?: boolean;
+  authorDisplayRole?: string;
+  authorDisplayName?: string;
   createdAt: string;
 }
 
@@ -21,6 +35,9 @@ export interface ForumThreadItem {
   authorRole: string;
   authorAvatar?: string | null;
   authorUnitNumber?: string | null;
+  isNewResident?: boolean;
+  authorDisplayRole?: string;
+  authorDisplayName?: string;
   title: string;
   content: string;
   category: ForumCategory;
@@ -39,8 +56,8 @@ export interface ForumThreadItem {
 
 export interface ForumMetrics {
   totalPosts: number;
-  activeComplaintsCount: number;
-  resolvedComplaintsCount: number;
+  welcomePostsCount: number;
+  discussionsCount: number;
   totalRepliesCount: number;
 }
 
@@ -48,7 +65,7 @@ export interface ForumFilterState {
   search: string;
   propertyId: string;
   category: string;
-  status: string;
+  status?: string;
 }
 
 export interface AssignedPropertyOption {
@@ -58,7 +75,7 @@ export interface AssignedPropertyOption {
   city?: string;
 }
 
-export interface CreateThreadInput {
+export interface CreateTopicInput {
   title: string;
   content: string;
   propertyId: string;

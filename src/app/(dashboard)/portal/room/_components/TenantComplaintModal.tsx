@@ -4,12 +4,21 @@ import React, { useState, useRef } from 'react';
 import { X, AlertTriangle, Loader2, Image as ImageIcon, Send, Upload, Trash2 } from 'lucide-react';
 import { TenantComplaint, ComplaintCategory, ComplaintPriority } from '../_types';
 
+export interface UnitInventoryOption {
+  id: string;
+  name: string;
+  category?: string;
+  condition?: string;
+  propertyInventoryId?: string | null;
+}
+
 interface TenantComplaintModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (complaintData: Omit<TenantComplaint, 'id' | 'createdAt' | 'status'>) => Promise<void> | void;
+  onSubmit: (complaintData: Omit<TenantComplaint, 'id' | 'createdAt' | 'status'> & { inventoryId?: string; propertyInventoryId?: string }) => Promise<void> | void;
   unitId: string;
   unitName: string;
+  inventoryItems?: UnitInventoryOption[];
 }
 
 const CATEGORY_OPTIONS: ComplaintCategory[] = [
@@ -27,10 +36,12 @@ export default function TenantComplaintModal({
   onSubmit,
   unitId,
   unitName,
+  inventoryItems = [],
 }: TenantComplaintModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [selectedInventoryId, setSelectedInventoryId] = useState<string>('');
   const [category, setCategory] = useState<ComplaintCategory>('Fasilitas Kamar');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -61,9 +72,26 @@ export default function TenantComplaintModal({
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const handleInventorySelect = (itemId: string) => {
+    setSelectedInventoryId(itemId);
+    const item = inventoryItems.find((i) => i.id === itemId);
+    if (item) {
+      setTitle(`Perbaikan: ${item.name}`);
+      if (item.category?.toLowerCase().includes('perabot') || item.category?.toLowerCase().includes('furnitur')) {
+        setCategory('Inventaris Perabot');
+      } else if (item.category?.toLowerCase().includes('elektronik') || item.name.toLowerCase().includes('ac') || item.name.toLowerCase().includes('lampu')) {
+        setCategory('Fasilitas Kamar');
+      }
+    } else if (itemId === 'OTHER') {
+      setTitle('');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) return;
+
+    const chosenItem = inventoryItems.find((i) => i.id === selectedInventoryId);
 
     setIsSubmitting(true);
     try {
@@ -75,6 +103,8 @@ export default function TenantComplaintModal({
         description: description.trim(),
         priority,
         photoUrl: photoBase64 || undefined,
+        inventoryId: selectedInventoryId && selectedInventoryId !== 'OTHER' ? selectedInventoryId : undefined,
+        propertyInventoryId: chosenItem?.propertyInventoryId || undefined,
       });
       onClose();
     } catch (err) {
@@ -109,6 +139,28 @@ export default function TenantComplaintModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Dropdown Pilihan Barang Rusak (Relasi Master Inventory) */}
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+              <span>Pilih Barang / Inventaris yang Rusak *</span>
+              <span className="text-[10px] text-[#8FA28A] font-bold">✓ Master Data Unit</span>
+            </label>
+            <select
+              value={selectedInventoryId}
+              required
+              onChange={(e) => handleInventorySelect(e.target.value)}
+              className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+            >
+              <option value="">-- Pilih Barang dari Inventaris Kamar --</option>
+              {inventoryItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} {item.condition ? `(${item.condition})` : ''}
+                </option>
+              ))}
+              <option value="OTHER">Lainnya (Fasilitas Kamar Non-Inventaris)</option>
+            </select>
+          </div>
+
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1">Kategori Masalah *</label>
             <select

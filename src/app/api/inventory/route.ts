@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
           },
         },
         include: {
+          propertyInventory: true,
           unit: {
             select: { id: true, unitNumber: true, propertyId: true, property: { select: { name: true } } },
           },
@@ -82,11 +83,12 @@ export async function GET(request: NextRequest) {
 
     const formattedUnitItems = unitInvs.map((u) => ({
       id: u.id,
+      propertyInventoryId: u.propertyInventoryId || undefined,
       propertyId: u.unit.propertyId,
       propertyName: u.unit.property.name,
       unitId: u.unit.id,
       unitName: u.unit.unitNumber,
-      itemName: u.itemName,
+      itemName: u.propertyInventory?.itemName || u.itemName,
       quantity: u.quantity,
       condition: u.condition,
       notes: u.notes,
@@ -122,45 +124,175 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/inventory
- * Create inventory item.
- * If unitId is present -> saves to `unit_inventories` table (UnitInventory).
- * If unitId is null/empty -> saves to `property_inventories` table (PropertyInventory).
+ * Create inventory item or sync unit inventory from Master Inventory.
+ * - action === "SYNC_UNIT": syncs unit's items based on an array of master item IDs.
+ * - If unitId is present -> requires propertyInventoryId (or matches existing master).
+ * - If propertyId is present -> creates Master Property Inventory item.
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { propertyId, unitId, itemName, condition, quantity = 1, notes } = body;
+    const { action, propertyId, unitId, propertyInventoryId, itemName, condition, quantity = 1, notes, items } = body;
 
-    if (!itemName) {
-      return ApiResponse.badRequest("Nama barang wajib diisi");
-    }
+    // Handle Bulk Sync of Unit Inventory with Master Inventory
+    if (action === "SYNC_UNIT" && unitId) {
+      const unit = await prisma.unit.findUnique({
+        where: { id: unitId },
+        include: { property: true },
+      });
 
-    if (unitId) {
-      const item = await prisma.unitInventory.create({
-        data: {
-          unitId,
-          itemName,
-          condition: condition || "Baik",
-          quantity: Number(quantity) || 1,
-          notes: notes || null,
+      if (!unit) {
+        return ApiResponse.notFound("Unit tidak ditemukan");
+      }
+
+      const inputItems: Array<{ inventory_id: string; quantity?: number; condition?: string }> = Array.isArray(items) ? items : [];
+
+      // Fetch all referenced master items to ensure they belong to this property
+      const masterIds = inputItems.map((i) => i.inventory_id).filter(Boolean);
+      const masterItems = await prisma.propertyInventory.findMany({
+        where: {
+          id: { in: masterIds },
+          propertyId: unit.propertyId,
         },
       });
-      return ApiResponse.success({
-        message: "Inventaris unit berhasil disimpan ke database",
-        data: item,
+
+      const masterMap = new Map(masterItems.map((m) => [m.id, m]));
+
+      // Replace unit inventories in a transaction
+      await prisma.$transaction(async (tx) => {
+        await tx.unitInventory.deleteMany({
+          where: { unitId },
+        });
+
+        const createdRows = [];
+        const facilityNames: string[] = [];
+
+        for (const item of inputItems) {
+          const master = masterMap.get(item.inventory_id);
+          if (master) {
+            facilityNames.push(master.itemName);
+            createdRows.push({
+              unitId,
+              propertyInventoryId: master.id,
+              itemName: master.itemName,
+              condition: item.condition || master.condition || "Baik",
+              quantity: Number(item.quantity) || 1,
+              notes: master.notes || null,
+            });
+          }
+        }
+
+        if (createdRows.length > 0) {
+          await tx.unitInventory.createMany({
+            data: createdRows,
+          });
+        }
+
+        // Keep unit facilities string array in sync for legacy compatibility
+        await tx.unit.update({
+          where: { id: unitId },
+          data: {
+            facilities: Array.from(new Set(facilityNames)),
+          },
+        });
       });
-    } else if (propertyId) {
+
+      const updatedUnitInvs = await prisma.unitInventory.findMany({
+        where: { unitId },
+        include: { propertyInventory: true },
+      });
+
+      return ApiResponse.success({
+        message: "Inventaris unit berhasil disinkronkan dengan Master Inventaris",
+        data: updatedUnitInvs,
+      });
+    }
+
+    // Creating Master Item for Property
+    if (propertyId && !unitId) {
+      if (!itemName) {
+        return ApiResponse.badRequest("Nama barang master wajib diisi");
+      }
+
       const item = await prisma.propertyInventory.create({
         data: {
           propertyId,
-          itemName,
+          itemName: itemName.trim(),
           condition: condition || "Baik",
           quantity: Number(quantity) || 1,
           notes: notes || null,
         },
       });
+
       return ApiResponse.success({
-        message: "Inventaris umum properti berhasil disimpan ke database",
+        message: "Barang master inventaris properti berhasil ditambahkan",
+        data: item,
+      });
+    }
+
+    // Assigning single master item to a unit
+    if (unitId) {
+      let resolvedMasterId = propertyInventoryId;
+      let finalItemName = itemName;
+
+      if (!resolvedMasterId && itemName) {
+        // Find existing master item by name in this property
+        const unit = await prisma.unit.findUnique({
+          where: { id: unitId },
+          select: { propertyId: true },
+        });
+        if (unit) {
+          const existingMaster = await prisma.propertyInventory.findFirst({
+            where: { propertyId: unit.propertyId, itemName: { equals: itemName.trim(), mode: "insensitive" } },
+          });
+          if (existingMaster) {
+            resolvedMasterId = existingMaster.id;
+            finalItemName = existingMaster.itemName;
+          } else {
+            // Auto-register to Master Inventory to enforce single source of truth
+            const newMaster = await prisma.propertyInventory.create({
+              data: {
+                propertyId: unit.propertyId,
+                itemName: itemName.trim(),
+                condition: condition || "Baik",
+                quantity: 1,
+              },
+            });
+            resolvedMasterId = newMaster.id;
+            finalItemName = newMaster.itemName;
+          }
+        }
+      }
+
+      if (resolvedMasterId) {
+        const master = await prisma.propertyInventory.findUnique({
+          where: { id: resolvedMasterId },
+        });
+        if (master) {
+          finalItemName = master.itemName;
+        }
+      }
+
+      if (!finalItemName) {
+        return ApiResponse.badRequest("Barang harus dipilih dari Master Inventaris Properti");
+      }
+
+      const item = await prisma.unitInventory.create({
+        data: {
+          unitId,
+          propertyInventoryId: resolvedMasterId || null,
+          itemName: finalItemName,
+          condition: condition || "Baik",
+          quantity: Number(quantity) || 1,
+          notes: notes || null,
+        },
+        include: {
+          propertyInventory: true,
+        },
+      });
+
+      return ApiResponse.success({
+        message: "Barang berhasil dialokasikan ke unit dari Master Inventaris",
         data: item,
       });
     }

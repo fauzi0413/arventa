@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { LeaseStatus, RentalPeriodType, UnitStatus, UserRole } from "@/generated/prisma/client";
+import { CommunityWelcomeService } from "./community-welcome.service";
 
 export interface UnitFilterParams {
   propertyId?: string;
@@ -27,6 +28,7 @@ export interface CreateUnitData {
   tenantName?: string;
   tenantPhone?: string;
   checkInDate?: string;
+  inventoryIds?: string[];
 }
 
 export interface BulkActionInput {
@@ -90,10 +92,12 @@ export class UnitService {
       createdAt: typeof unit.createdAt === 'string' ? unit.createdAt : unit.createdAt.toISOString(),
       inventories: (unit.inventoryItems || unit.inventories || []).map((inv: any) => ({
         id: inv.id,
+        propertyInventoryId: inv.propertyInventoryId || undefined,
         propertyId: unit.propertyId,
         unitId: inv.unitId,
         unitName: unit.unitNumber,
-        name: inv.itemName,
+        name: inv.propertyInventory?.itemName || inv.itemName,
+        itemName: inv.propertyInventory?.itemName || inv.itemName,
         quantity: inv.quantity,
         condition: inv.condition,
         imageUrl: inv.imageUrl || undefined,
@@ -147,6 +151,9 @@ export class UnitService {
           },
         },
         inventoryItems: {
+          include: {
+            propertyInventory: true,
+          },
           orderBy: { createdAt: 'desc' },
         },
         leases: {
@@ -197,6 +204,9 @@ export class UnitService {
           },
         },
         inventoryItems: {
+          include: {
+            propertyInventory: true,
+          },
           orderBy: { createdAt: 'desc' },
         },
         leases: {
@@ -228,7 +238,7 @@ export class UnitService {
    * Create a single unit and auto-generate its dedicated room user account (1 Kamar 1 Akun)
    */
   static async createUnit(data: CreateUnitData) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // 1. Generate unique room account email & initial password
       const cleanNum = data.name.toLowerCase().replace(/[^a-z0-9]/g, '') || `u${Date.now()}`;
       const roomEmail = `${cleanNum}@arventa.id`;
@@ -282,7 +292,25 @@ export class UnitService {
         },
       });
 
-      // 3. If tenantName is provided on create, create active lease
+      // 3. If master inventoryIds provided, sync UnitInventory records
+      if (data.inventoryIds && Array.isArray(data.inventoryIds) && data.inventoryIds.length > 0) {
+        const masterItems = await tx.propertyInventory.findMany({
+          where: { id: { in: data.inventoryIds } },
+        });
+        for (const master of masterItems) {
+          await tx.unitInventory.create({
+            data: {
+              unitId: unit.id,
+              propertyInventoryId: master.id,
+              itemName: master.itemName,
+              condition: master.condition || "GOOD",
+              quantity: 1,
+            },
+          });
+        }
+      }
+
+      // 4. If tenantName is provided on create, create active lease
       if (data.tenantName) {
         const tenantEmail = `tenant.${Date.now()}@tenant.arventa.id`;
         const tenantUser = await tx.user.create({
@@ -323,6 +351,19 @@ export class UnitService {
 
       return this.getUnitById(unit.id);
     });
+
+    // Auto Welcome Post if tenant assigned
+    const createdUnitNumber = (result as any)?.name || (result as any)?.unitNumber || "";
+    if (data.tenantName && result?.propertyId && createdUnitNumber) {
+      CommunityWelcomeService.createWelcomePost({
+        propertyId: result.propertyId,
+        unitNumber: createdUnitNumber,
+        tenantName: data.tenantName,
+        checkInDate: data.checkInDate,
+      }).catch((e) => console.error("Auto welcome post error:", e));
+    }
+
+    return result;
   }
 
   /**
@@ -341,7 +382,7 @@ export class UnitService {
    * Update existing unit
    */
   static async updateUnit(id: string, data: Partial<CreateUnitData>) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       if (data.status && data.status !== 'OCCUPIED') {
         await tx.lease.updateMany({
           where: { unitId: id, status: LeaseStatus.ACTIVE },
@@ -367,8 +408,43 @@ export class UnitService {
         },
       });
 
+      // Sync UnitInventory relations if inventoryIds passed
+      if (data.inventoryIds && Array.isArray(data.inventoryIds)) {
+        await tx.unitInventory.deleteMany({
+          where: { unitId: id },
+        });
+        if (data.inventoryIds.length > 0) {
+          const masterItems = await tx.propertyInventory.findMany({
+            where: { id: { in: data.inventoryIds } },
+          });
+          for (const master of masterItems) {
+            await tx.unitInventory.create({
+              data: {
+                unitId: id,
+                propertyInventoryId: master.id,
+                itemName: master.itemName,
+                condition: master.condition || "GOOD",
+                quantity: 1,
+              },
+            });
+          }
+        }
+      }
+
       return this.getUnitById(updated.id);
     });
+
+    const updatedUnitNumber = (result as any)?.name || (result as any)?.unitNumber || "";
+    if (data.tenantName && result?.propertyId && updatedUnitNumber) {
+      CommunityWelcomeService.createWelcomePost({
+        propertyId: result.propertyId,
+        unitNumber: updatedUnitNumber,
+        tenantName: data.tenantName,
+        checkInDate: data.checkInDate,
+      }).catch((e) => console.error("Auto welcome post error:", e));
+    }
+
+    return result;
   }
 
   /**

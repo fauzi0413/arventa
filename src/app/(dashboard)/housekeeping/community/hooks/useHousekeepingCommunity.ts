@@ -6,7 +6,7 @@ import {
   ForumMetrics,
   ForumFilterState,
   AssignedPropertyOption,
-  CreateThreadInput,
+  CreateTopicInput,
 } from "../types";
 
 export function useHousekeepingCommunity() {
@@ -14,8 +14,8 @@ export function useHousekeepingCommunity() {
   const [assignedProperties, setAssignedProperties] = useState<AssignedPropertyOption[]>([]);
   const [metrics, setMetrics] = useState<ForumMetrics>({
     totalPosts: 0,
-    activeComplaintsCount: 0,
-    resolvedComplaintsCount: 0,
+    welcomePostsCount: 0,
+    discussionsCount: 0,
     totalRepliesCount: 0,
   });
 
@@ -193,14 +193,8 @@ export function useHousekeepingCommunity() {
           prev.map((t) => (t.id === threadId ? { ...t, ...updated } : t))
         );
 
-        setMetrics((prev) => ({
-          ...prev,
-          activeComplaintsCount: Math.max(0, prev.activeComplaintsCount - 1),
-          resolvedComplaintsCount: prev.resolvedComplaintsCount + 1,
-        }));
-
-        showToast("success", "Keluhan berhasil ditandai sebagai SELESAI");
-        // Trigger a background refresh to synchronize audit comment
+        showToast("success", "Status berhasil diperbarui");
+        // Trigger a background refresh to synchronize thread & metrics
         fetchCommunityData(true);
         return true;
       } catch (err: any) {
@@ -251,7 +245,7 @@ export function useHousekeepingCommunity() {
 
   // Create new thread/topic
   const createThread = useCallback(
-    async (input: CreateThreadInput): Promise<boolean> => {
+    async (input: CreateTopicInput): Promise<boolean> => {
       setActionLoading(true);
       try {
         const res = await fetch("/api/community/forum", {
@@ -270,10 +264,14 @@ export function useHousekeepingCommunity() {
         setMetrics((prev) => ({
           ...prev,
           totalPosts: prev.totalPosts + 1,
-          activeComplaintsCount:
-            newPost.category === "KELUHAN"
-              ? prev.activeComplaintsCount + 1
-              : prev.activeComplaintsCount,
+          welcomePostsCount:
+            newPost.category === "SAMBUTAN"
+              ? prev.welcomePostsCount + 1
+              : prev.welcomePostsCount,
+          discussionsCount:
+            newPost.category !== "SAMBUTAN"
+              ? prev.discussionsCount + 1
+              : prev.discussionsCount,
         }));
 
         showToast("success", "Topik diskusi berhasil diterbitkan");

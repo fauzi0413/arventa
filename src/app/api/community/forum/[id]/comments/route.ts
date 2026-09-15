@@ -3,6 +3,7 @@ import { ApiResponse } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
 import { UserRole } from "@/types/roles";
+import { formatResidentIdentity } from "@/lib/forum-helper";
 
 /**
  * POST /api/community/forum/[id]/comments
@@ -94,6 +95,37 @@ export async function POST(
       data: { updatedAt: new Date() },
     });
 
+    // 5. Resolve comment author's unit info & new resident status
+    const lease = await prisma.lease.findFirst({
+      where: {
+        status: "ACTIVE",
+        unit: { propertyId: post.propertyId },
+        OR: [
+          { tenant: { userId: authUser.id } },
+          { unit: { unitUserId: authUser.id } },
+        ],
+      },
+      select: {
+        startDate: true,
+        createdAt: true,
+        unit: { select: { unitNumber: true } },
+      },
+    });
+
+    let authorUnitNumber: string | null = lease?.unit?.unitNumber || null;
+    let isNewResident = false;
+    if (lease) {
+      const checkInDate = lease.startDate ? new Date(lease.startDate) : new Date(lease.createdAt);
+      const diffMs = Date.now() - checkInDate.getTime();
+      isNewResident = diffMs >= -86400000 && diffMs <= 7 * 24 * 60 * 60 * 1000;
+    }
+
+    const { displayName: authorDisplayName, displayRole: authorDisplayRole } = formatResidentIdentity(
+      newComment.author.fullName,
+      newComment.author.role,
+      authorUnitNumber
+    );
+
     return ApiResponse.success({
       message: "Balasan berhasil dikirimkan",
       data: {
@@ -103,6 +135,10 @@ export async function POST(
         authorName: newComment.author.fullName,
         authorRole: newComment.author.role,
         authorAvatar: newComment.author.avatarUrl,
+        authorUnitNumber,
+        isNewResident,
+        authorDisplayName,
+        authorDisplayRole,
         createdAt: newComment.createdAt.toISOString(),
       },
       status: 201,

@@ -1,14 +1,24 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Check, Plus, Info, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Check, Plus, Info, Loader2, Package, Sparkles, ExternalLink, AlertCircle, X } from 'lucide-react';
 
-export interface PropertyInventoryAsset {
+export interface PropertyMasterItem {
   id: string;
   name: string;
-  locationLabel: string; // e.g. "Unit: Apt 12B-01" or "Area Umum"
-  isUnitSpecific: boolean;
+  quantity: number;
+  condition: string;
+  notes?: string | null;
 }
+
+export interface SelectedUnitInventoryRef {
+  inventory_id: string;
+  name: string;
+  quantity: number;
+  condition: string;
+}
+
+export type SelectedInventoryRef = SelectedUnitInventoryRef;
 
 interface FacilitySelectorProps {
   propertyId?: string;
@@ -16,12 +26,13 @@ interface FacilitySelectorProps {
   unitName?: string;
   selectedFacilities: string[];
   onChange: (facilities: string[]) => void;
+  onSelectedInventoryChange?: (items: SelectedUnitInventoryRef[]) => void;
 }
 
 const getFacilityIcon = (name: string) => {
   const n = name.toLowerCase();
   if (n.includes('ac')) return '❄️';
-  if (n.includes('kasur') || n.includes('bed')) return '🛏️';
+  if (n.includes('kasur') || n.includes('bed') || n.includes('springbed')) return '🛏️';
   if (n.includes('mandi') || n.includes('shower')) return '🚿';
   if (n.includes('lemari') || n.includes('pakaian')) return '🚪';
   if (n.includes('wifi') || n.includes('internet')) return '🌐';
@@ -39,255 +50,444 @@ export default function FacilitySelector({
   unitName,
   selectedFacilities,
   onChange,
+  onSelectedInventoryChange,
 }: FacilitySelectorProps) {
-  const [inventoryAssets, setInventoryAssets] = useState<PropertyInventoryAsset[]>([]);
+  const [masterItems, setMasterItems] = useState<PropertyMasterItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [customInput, setCustomInput] = useState('');
-  const [showAddInput, setShowAddInput] = useState(false);
+
+  // Modal State for "Tambah ke Master Inventaris Properti"
+  const [isAddMasterOpen, setIsAddMasterOpen] = useState(false);
+  const [newMasterName, setNewMasterName] = useState('');
+  const [newMasterQty, setNewMasterQty] = useState('1');
+  const [newMasterCondition, setNewMasterCondition] = useState('Baik');
+  const [newMasterNotes, setNewMasterNotes] = useState('');
+  const [isSubmittingMaster, setIsSubmittingMaster] = useState(false);
+  const [masterError, setMasterError] = useState<string | null>(null);
+
+  const loadMasterInventory = useCallback(async () => {
+    if (!propertyId) return;
+    setLoading(true);
+
+    try {
+      // 1. Fetch live master inventory from DB API
+      const res = await fetch(`/api/inventory?propertyId=${propertyId}`);
+      if (res.ok) {
+        const json = await res.json();
+        const propItems = json.data?.propertyInventories || [];
+        if (Array.isArray(propItems) && propItems.length > 0) {
+          setMasterItems(
+            propItems.map((p: any) => ({
+              id: p.id,
+              name: p.itemName,
+              quantity: Number(p.quantity) || 1,
+              condition: p.condition || 'Baik',
+              notes: p.notes,
+            }))
+          );
+          setLoading(false);
+          return;
+        }
+      }
+
+      // 2. Fallback: check /api/properties/[id]
+      const pRes = await fetch(`/api/properties/${propertyId}`);
+      if (pRes.ok) {
+        const pJson = await pRes.json();
+        const p = pJson.data;
+        const pInventories = p?.inventories || p?.propertyInventories || [];
+        if (Array.isArray(pInventories) && pInventories.length > 0) {
+          setMasterItems(
+            pInventories.map((inv: any) => ({
+              id: inv.id,
+              name: inv.itemName,
+              quantity: Number(inv.quantity) || 1,
+              condition: inv.condition || 'Baik',
+              notes: inv.notes,
+            }))
+          );
+          setLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('FacilitySelector: DB fetch notice:', e);
+    }
+
+    // 3. Fallback to localStorage arventa_inventory
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('arventa_inventory');
+      if (stored) {
+        try {
+          const all = JSON.parse(stored);
+          const propItems = all.filter((i: any) => i.propertyId === propertyId);
+          if (propItems.length > 0) {
+            const mapped = propItems.map((i: any) => ({
+              id: i.id,
+              name: i.name || i.itemName,
+              quantity: 1,
+              condition: i.condition || 'Baik',
+            }));
+            setMasterItems(mapped);
+            setLoading(false);
+            return;
+          }
+        } catch (err) {}
+      }
+    }
+
+    // Default Seed Master Data for Property if completely empty
+    const seedMasters: PropertyMasterItem[] = [
+      { id: `seed-ac-${propertyId}`, name: 'Air Conditioner (AC) 1 PK', quantity: 10, condition: 'Baik' },
+      { id: `seed-bed-${propertyId}`, name: 'Kasur Springbed Queen Size', quantity: 10, condition: 'Baik' },
+      { id: `seed-wardrobe-${propertyId}`, name: 'Lemari Pakaian 2 Pintu', quantity: 10, condition: 'Baik' },
+      { id: `seed-desk-${propertyId}`, name: 'Meja Kerja & Kursi Ergonomis', quantity: 10, condition: 'Baik' },
+      { id: `seed-tv-${propertyId}`, name: 'Smart TV 32 Inch', quantity: 5, condition: 'Baik' },
+      { id: `seed-heater-${propertyId}`, name: 'Water Heater Kamar Mandi', quantity: 10, condition: 'Baik' },
+      { id: `seed-wifi-${propertyId}`, name: 'Router WiFi dedicated', quantity: 10, condition: 'Baik' },
+    ];
+    setMasterItems(seedMasters);
+    setLoading(false);
+  }, [propertyId]);
 
   useEffect(() => {
-    if (!propertyId) return;
+    loadMasterInventory();
+  }, [loadMasterInventory]);
 
-    const loadPropertyInventoriesFromDB = async () => {
-      setLoading(true);
-      const assetsList: PropertyInventoryAsset[] = [];
-      const seenIds = new Set<string>();
-
-      try {
-        // Fetch live property data with units & inventories from PostgreSQL DB
-        const res = await fetch(`/api/properties/${propertyId}`);
-        if (res.ok) {
-          const json = await res.json();
-          const p = json.data;
-
-          if (p) {
-            // 1. Property Inventories (Area Umum) - ALWAYS INCLUDE
-            const propInvs = p.inventories || p.propertyInventories || [];
-            if (Array.isArray(propInvs)) {
-              propInvs.forEach((inv: any) => {
-                const id = inv.id || `prop-inv-${inv.itemName}`;
-                if (!seenIds.has(id)) {
-                  seenIds.add(id);
-                  assetsList.push({
-                    id,
-                    name: inv.itemName,
-                    locationLabel: 'Area Umum',
-                    isUnitSpecific: false,
-                  });
-                }
-              });
-            }
-
-            // 2. Unit Inventories (ONLY for THIS unit, EXCLUDING items from other units)
-            if (Array.isArray(p.units)) {
-              p.units.forEach((u: any) => {
-                const matchesThisUnit =
-                  !unitId && !unitName
-                    ? true
-                    : (unitId && u.id === unitId) ||
-                      (unitName && u.unitNumber?.toLowerCase() === unitName?.toLowerCase());
-
-                if (matchesThisUnit) {
-                  const unitLabel = `Unit: ${u.unitNumber}`;
-                  const unitInvs = u.inventoryItems || u.inventories || [];
-                  if (Array.isArray(unitInvs)) {
-                    unitInvs.forEach((inv: any) => {
-                      const id = inv.id || `unit-inv-${u.id}-${inv.itemName}`;
-                      if (!seenIds.has(id)) {
-                        seenIds.add(id);
-                        assetsList.push({
-                          id,
-                          name: inv.itemName,
-                          locationLabel: unitLabel,
-                          isUnitSpecific: true,
-                        });
-                      }
-                    });
-                  }
-                }
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.warn('Notice: API property inventory fetch notice:', e);
-      }
-
-      // 3. Fallback to localStorage arventa_inventory for this propertyId if DB array is empty
-      if (assetsList.length === 0 && typeof window !== 'undefined') {
-        const storedInv = localStorage.getItem('arventa_inventory');
-        if (storedInv) {
-          try {
-            const allInv: any[] = JSON.parse(storedInv);
-            const propInv = allInv.filter((inv) => {
-              if (inv.propertyId !== propertyId) return false;
-              if (inv.unitName && unitName && inv.unitName.toLowerCase() !== unitName.toLowerCase()) return false;
-              if (inv.unitId && unitId && inv.unitId !== unitId) return false;
-              return true;
-            });
-            propInv.forEach((inv) => {
-              const id = inv.id || `local-inv-${inv.name || inv.itemName}`;
-              if (!seenIds.has(id)) {
-                seenIds.add(id);
-                assetsList.push({
-                  id,
-                  name: inv.name || inv.itemName,
-                  locationLabel: inv.unitName ? `Unit: ${inv.unitName}` : 'Area Umum',
-                  isUnitSpecific: Boolean(inv.unitName),
-                });
-              }
-            });
-          } catch (e) {}
-        }
-      }
-
-      // Merge any currently selected facility names that might not be in the asset list
-      selectedFacilities.forEach((selName) => {
-        const exists = assetsList.some((a) => a.name === selName);
-        if (!exists) {
-          assetsList.push({
-            id: `sel-${selName}`,
-            name: selName,
-            locationLabel: 'Fasilitas Unit',
-            isUnitSpecific: true,
+  // Sync selected inventory objects whenever selection or master items change
+  useEffect(() => {
+    if (onSelectedInventoryChange && masterItems.length > 0) {
+      const selectedRefs: SelectedUnitInventoryRef[] = [];
+      selectedFacilities.forEach((facName) => {
+        const master = masterItems.find((m) => m.name.toLowerCase() === facName.toLowerCase());
+        if (master) {
+          selectedRefs.push({
+            inventory_id: master.id,
+            name: master.name,
+            quantity: 1,
+            condition: master.condition,
           });
         }
       });
+      onSelectedInventoryChange(selectedRefs);
+    }
+  }, [selectedFacilities, masterItems, onSelectedInventoryChange]);
 
-      setInventoryAssets(assetsList);
-      setLoading(false);
-    };
+  const toggleFacility = (master: PropertyMasterItem) => {
+    const isSelected = selectedFacilities.some(
+      (f) => f.toLowerCase() === master.name.toLowerCase()
+    );
 
-    loadPropertyInventoriesFromDB();
-  }, [propertyId]);
-
-  const toggleFacility = (facilityName: string) => {
-    if (selectedFacilities.includes(facilityName)) {
-      onChange(selectedFacilities.filter((f) => f !== facilityName));
+    let updatedFacilities: string[];
+    if (isSelected) {
+      updatedFacilities = selectedFacilities.filter(
+        (f) => f.toLowerCase() !== master.name.toLowerCase()
+      );
     } else {
-      onChange([...selectedFacilities, facilityName]);
+      updatedFacilities = [...selectedFacilities, master.name];
+    }
+
+    onChange(updatedFacilities);
+
+    if (onSelectedInventoryChange) {
+      const updatedRefs = masterItems
+        .filter((m) => updatedFacilities.some((f) => f.toLowerCase() === m.name.toLowerCase()))
+        .map((m) => ({
+          inventory_id: m.id,
+          name: m.name,
+          quantity: 1,
+          condition: m.condition,
+        }));
+      onSelectedInventoryChange(updatedRefs);
     }
   };
 
-  const handleAddCustomFacility = () => {
-    if (!customInput.trim()) return;
-    const name = customInput.trim();
-    const exists = inventoryAssets.some((a) => a.name === name);
-    if (!exists) {
-      setInventoryAssets((prev) => [
-        ...prev,
-        {
-          id: `custom-${Date.now()}`,
-          name,
-          locationLabel: 'Aset Kustom',
-          isUnitSpecific: true,
-        },
-      ]);
+  const handleCreateMasterItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMasterName.trim()) return;
+    if (!propertyId) {
+      setMasterError('Pilih properti terlebih dahulu.');
+      return;
     }
-    if (!selectedFacilities.includes(name)) {
-      onChange([...selectedFacilities, name]);
+
+    setIsSubmittingMaster(true);
+    setMasterError(null);
+
+    const itemName = newMasterName.trim();
+    const qty = Math.max(1, Number(newMasterQty) || 1);
+
+    try {
+      const res = await fetch('/api/inventory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId,
+          itemName,
+          quantity: qty,
+          condition: newMasterCondition,
+          notes: newMasterNotes.trim() || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const createdItem = json.data;
+
+        const newMaster: PropertyMasterItem = {
+          id: createdItem?.id || `master-${Date.now()}`,
+          name: itemName,
+          quantity: qty,
+          condition: newMasterCondition,
+          notes: newMasterNotes.trim() || undefined,
+        };
+
+        // Add to state and auto-select in unit
+        setMasterItems((prev) => [newMaster, ...prev]);
+        if (!selectedFacilities.includes(itemName)) {
+          onChange([...selectedFacilities, itemName]);
+        }
+
+        // Reset form & close
+        setNewMasterName('');
+        setNewMasterQty('1');
+        setNewMasterCondition('Baik');
+        setNewMasterNotes('');
+        setIsAddMasterOpen(false);
+      } else {
+        const err = await res.json();
+        setMasterError(err.message || 'Gagal menyimpan ke Master Inventaris');
+      }
+    } catch (err: any) {
+      console.error('Failed to create master inventory item:', err);
+      // Local fallback
+      const localMaster: PropertyMasterItem = {
+        id: `local-master-${Date.now()}`,
+        name: itemName,
+        quantity: qty,
+        condition: newMasterCondition,
+      };
+      setMasterItems((prev) => [localMaster, ...prev]);
+      if (!selectedFacilities.includes(itemName)) {
+        onChange([...selectedFacilities, itemName]);
+      }
+      setIsAddMasterOpen(false);
+    } finally {
+      setIsSubmittingMaster(false);
     }
-    setCustomInput('');
-    setShowAddInput(false);
   };
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-center justify-between">
-        <label className="block text-xs font-bold text-gray-700">
-          Fasilitas Unit * <span className="text-[11px] font-normal text-muted-foreground">(Database Inventaris Properti)</span>
-        </label>
+    <div className="space-y-3 rounded-2xl border border-[#C7D3C0]/40 bg-muted/20 p-4">
+      {/* Header with Title & CTA */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+        <div>
+          <label className="block text-xs font-black text-foreground flex items-center gap-1.5">
+            <Package className="h-4 w-4 text-[#8FA28A]" />
+            Inventaris & Fasilitas Unit
+          </label>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Pilih barang yang tersedia di unit ini dari <strong>Master Inventaris Properti</strong>.
+          </p>
+        </div>
+
+        {/* CTA: Barang belum ada di daftar? Tambahkan ke Master Inventaris terlebih dahulu */}
         <button
           type="button"
-          onClick={() => setShowAddInput(!showAddInput)}
-          className="text-[11px] font-bold text-[#8FA28A] hover:underline flex items-center gap-1"
+          onClick={() => setIsAddMasterOpen(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8FA28A]/15 hover:bg-[#8FA28A]/25 text-[#8FA28A] border border-[#8FA28A]/30 text-xs font-bold transition-all shrink-0 cursor-pointer"
+          title="Tambah barang baru ke Master Inventaris Properti"
         >
-          <Plus className="h-3 w-3" /> Tambah Barang Baru
+          <Plus className="h-3.5 w-3.5" />
+          <span>Barang belum ada di daftar? Tambahkan ke Master</span>
         </button>
       </div>
 
-      {showAddInput && (
-        <div className="flex items-center gap-2 p-2 rounded-xl bg-gray-50 border border-gray-200 animate-in slide-in-from-top-1 duration-200">
-          <input
-            type="text"
-            value={customInput}
-            onChange={(e) => setCustomInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                handleAddCustomFacility();
-              }
-            }}
-            placeholder="Ketik nama barang inventaris baru..."
-            className="flex-1 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium bg-white focus:outline-none focus:border-[#8FA28A]"
-          />
-          <button
-            type="button"
-            onClick={handleAddCustomFacility}
-            className="px-3 py-1.5 rounded-lg bg-[#8FA28A] text-white font-bold text-xs hover:bg-[#8FA28A]/90 transition-colors"
-          >
-            Simpan
-          </button>
-        </div>
-      )}
-
+      {/* Checklist / Multi-select Picker */}
       {loading ? (
-        <div className="flex items-center justify-center p-4 bg-muted/20 rounded-xl border border-border">
+        <div className="flex items-center justify-center p-6 bg-card rounded-xl border border-border">
           <Loader2 className="h-4 w-4 animate-spin text-[#8FA28A] mr-2" />
-          <span className="text-xs font-semibold text-muted-foreground">Memuat aset inventaris dari database...</span>
-        </div>
-      ) : inventoryAssets.length === 0 ? (
-        <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs flex items-center gap-2 font-medium">
-          <Info className="h-4 w-4 shrink-0 text-amber-600" />
-          <span>
-            Belum ada barang terdaftar pada <strong>Inventaris Barang</strong> properti ini. Tambahkan barang melalui tab Inventaris Barang pada detail properti.
+          <span className="text-xs font-semibold text-muted-foreground">
+            Memuat Master Inventaris Properti...
           </span>
         </div>
+      ) : masterItems.length === 0 ? (
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs space-y-2">
+          <div className="flex items-center gap-2 font-bold">
+            <Info className="h-4 w-4 shrink-0 text-amber-600" />
+            <span>Belum Ada Master Inventaris pada Properti Ini</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Master Inventaris adalah single source of truth untuk seluruh perabot kamar. Klik tombol di bawah untuk mendaftarkan barang pertama.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsAddMasterOpen(true)}
+            className="mt-1 px-3.5 py-1.5 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors shadow-xs"
+          >
+            + Tambahkan ke Master Inventaris
+          </button>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-          {inventoryAssets.map((asset) => {
-            const isSelected = selectedFacilities.includes(asset.name);
-            const icon = getFacilityIcon(asset.name);
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
+          {masterItems.map((master) => {
+            const isSelected = selectedFacilities.some(
+              (f) => f.toLowerCase() === master.name.toLowerCase()
+            );
+            const icon = getFacilityIcon(master.name);
 
             return (
               <button
-                key={asset.id}
+                key={master.id}
                 type="button"
-                onClick={() => toggleFacility(asset.name)}
-                className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all ${
+                onClick={() => toggleFacility(master)}
+                className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all text-left ${
                   isSelected
-                    ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-gray-900 font-bold shadow-xs'
-                    : 'border-gray-200 bg-white text-gray-600 font-semibold hover:bg-gray-50'
+                    ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-foreground font-bold shadow-xs'
+                    : 'border-border bg-card text-muted-foreground font-semibold hover:bg-muted/40 hover:text-foreground'
                 }`}
               >
-                <div className="flex items-center gap-2 truncate pr-2">
+                <div className="flex items-center gap-2.5 truncate pr-2">
                   <span className="text-base shrink-0">{icon}</span>
-                  <div className="text-left truncate">
-                    <span className="block truncate font-bold">{asset.name}</span>
-                    <span
-                      className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 ${
-                        asset.isUnitSpecific
-                          ? 'bg-blue-100/80 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                          : 'bg-amber-100/80 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
-                      }`}
-                    >
-                      {asset.locationLabel}
+                  <div className="truncate">
+                    <span className="block truncate font-bold text-foreground">{master.name}</span>
+                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+                      <span>Kondisi Master: {master.condition}</span>
+                      {master.quantity > 1 && <span>• Stok: {master.quantity} unit</span>}
                     </span>
                   </div>
                 </div>
 
                 <div className="shrink-0 flex items-center justify-center">
                   {isSelected ? (
-                    <div className="h-5 w-5 rounded-full bg-[#8FA28A] text-white flex items-center justify-center">
-                      <Check className="h-3 w-3" />
+                    <div className="h-5 w-5 rounded-full bg-[#8FA28A] text-white flex items-center justify-center shadow-xs">
+                      <Check className="h-3 w-3 stroke-[3]" />
                     </div>
                   ) : (
-                    <div className="h-5 w-5 rounded-full border border-gray-300" />
+                    <div className="h-5 w-5 rounded-full border border-border bg-card" />
                   )}
                 </div>
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* Selected Items Counter */}
+      <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+        <span>
+          Terpilih: <strong>{selectedFacilities.length}</strong> barang inventaris master untuk unit ini
+        </span>
+        <span className="text-[10px] text-[#8FA28A] font-semibold flex items-center gap-1">
+          <Check className="h-3 w-3" /> Terikat ke Master Data Properti
+        </span>
+      </div>
+
+      {/* POPUP MODAL: Quick Add to Property Master Inventory */}
+      {isAddMasterOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-[#8FA28A]/15 text-[#8FA28A]">
+                  <Package className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-foreground">Tambah ke Master Inventaris Properti</h3>
+                  <p className="text-[11px] text-muted-foreground">Single source of truth inventaris untuk properti ini</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddMasterOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {masterError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-600 rounded-xl text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>{masterError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateMasterItem} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-foreground mb-1">Nama Barang Master *</label>
+                <input
+                  type="text"
+                  required
+                  value={newMasterName}
+                  onChange={(e) => setNewMasterName(e.target.value)}
+                  placeholder="Contoh: Kipas Angin Dinding Cosmos, Meja Belajar Kayu"
+                  className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-bold text-foreground mb-1">Jumlah Total (Stok)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={newMasterQty}
+                    onChange={(e) => setNewMasterQty(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-foreground mb-1">Kondisi Standar</label>
+                  <select
+                    value={newMasterCondition}
+                    onChange={(e) => setNewMasterCondition(e.target.value)}
+                    className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
+                  >
+                    <option value="Baik">Baik</option>
+                    <option value="Perlu Perbaikan">Perlu Perbaikan</option>
+                    <option value="Rusak Berat">Rusak Berat</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-foreground mb-1">Catatan / Merek / Spesifikasi (Opsional)</label>
+                <input
+                  type="text"
+                  value={newMasterNotes}
+                  onChange={(e) => setNewMasterNotes(e.target.value)}
+                  placeholder="Contoh: Garansi resmi 1 tahun, ukuran 120x60 cm"
+                  className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setIsAddMasterOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-border text-muted-foreground font-bold hover:bg-muted"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingMaster}
+                  className="px-5 py-2 rounded-xl bg-[#8FA28A] text-white font-bold hover:bg-[#8FA28A]/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isSubmittingMaster ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>Simpan ke Master Data</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

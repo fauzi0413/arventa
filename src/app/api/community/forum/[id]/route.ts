@@ -52,25 +52,44 @@ export async function GET(
       }
     }
 
-    // Resolve unit info
-    const activeLease = await prisma.lease.findFirst({
+    // Resolve unit info & new resident badge for thread author & comment authors
+    const allUserIds = Array.from(new Set([post.authorId, ...post.comments.map((c) => c.authorId)]));
+    const activeLeases = await prisma.lease.findMany({
       where: {
         status: "ACTIVE",
         unit: { propertyId: post.propertyId },
         OR: [
-          { tenant: { userId: post.authorId } },
-          { unit: { unitUserId: post.authorId } },
+          { tenant: { userId: { in: allUserIds } } },
+          { unit: { unitUserId: { in: allUserIds } } },
         ],
       },
-      select: { unit: { select: { unitNumber: true } } },
+      select: {
+        startDate: true,
+        createdAt: true,
+        unit: { select: { unitNumber: true, unitUserId: true } },
+        tenant: { select: { userId: true } },
+      },
     });
 
-    const unitMap = new Map<string, string>();
-    if (activeLease?.unit?.unitNumber) {
-      unitMap.set(post.authorId, activeLease.unit.unitNumber);
-    }
+    const now = new Date();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const unitMetaMap = new Map<string, { unitNumber: string; isNewResident: boolean }>();
 
-    const postDTO = parseForumPostRecord(post, unitMap);
+    activeLeases.forEach((l) => {
+      const checkInDate = l.startDate ? new Date(l.startDate) : new Date(l.createdAt);
+      const diffMs = now.getTime() - checkInDate.getTime();
+      const isNewResident = diffMs >= -86400000 && diffMs <= SEVEN_DAYS_MS;
+      const meta = { unitNumber: l.unit.unitNumber, isNewResident };
+
+      if (l.tenant?.userId) {
+        unitMetaMap.set(l.tenant.userId, meta);
+      }
+      if (l.unit?.unitUserId) {
+        unitMetaMap.set(l.unit.unitUserId, meta);
+      }
+    });
+
+    const postDTO = parseForumPostRecord(post, unitMetaMap);
 
     return ApiResponse.success({
       message: "Detail diskusi forum berhasil dimuat",

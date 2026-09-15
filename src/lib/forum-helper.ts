@@ -1,4 +1,14 @@
-export type ForumCategory = "KELUHAN" | "DISKUSI" | "SARAN" | "PERTANYAAN";
+export type ForumCategory =
+  | "OBROLAN_SANTAI"
+  | "TANYA_JAWAB"
+  | "INFO_KEGIATAN"
+  | "PENGUMUMAN"
+  | "SAMBUTAN"
+  | "DISKUSI"
+  | "SARAN"
+  | "PERTANYAAN"
+  | "KELUHAN";
+
 export type ForumStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 
 export interface ForumStoredMeta {
@@ -12,6 +22,11 @@ export interface ForumStoredMeta {
   isPinned?: boolean;
 }
 
+export interface AuthorResidentMeta {
+  unitNumber?: string | null;
+  isNewResident?: boolean;
+}
+
 export interface ForumCommentDTO {
   id: string;
   content: string;
@@ -19,6 +34,10 @@ export interface ForumCommentDTO {
   authorName: string;
   authorRole: string;
   authorAvatar?: string | null;
+  authorUnitNumber?: string | null;
+  isNewResident?: boolean;
+  authorDisplayRole?: string;
+  authorDisplayName?: string;
   createdAt: string;
 }
 
@@ -32,6 +51,9 @@ export interface ForumPostDTO {
   authorRole: string;
   authorAvatar?: string | null;
   authorUnitNumber?: string | null;
+  isNewResident?: boolean;
+  authorDisplayRole?: string;
+  authorDisplayName?: string;
   title: string;
   content: string;
   category: ForumCategory;
@@ -66,21 +88,7 @@ export function serializeForumContent(params: {
   resolutionNotes?: string;
   isPinned?: boolean;
 }): string {
-  // Infer category if not provided
-  let category: ForumCategory = params.category || "DISKUSI";
-  const contentLower = params.content.toLowerCase();
-  if (
-    !params.category &&
-    (contentLower.includes("rusak") ||
-      contentLower.includes("bocor") ||
-      contentLower.includes("mati") ||
-      contentLower.includes("keluhan") ||
-      contentLower.includes("komplain") ||
-      contentLower.includes("bau") ||
-      contentLower.includes("kotor"))
-  ) {
-    category = "KELUHAN";
-  }
+  const category: ForumCategory = params.category || "OBROLAN_SANTAI";
 
   const meta: ForumStoredMeta = {
     category,
@@ -98,11 +106,41 @@ export function serializeForumContent(params: {
 }
 
 /**
+ * Helper to compute formatted display name and role according to ARVENTA specifications:
+ * [Nama Penghuni] - Kamar [Nomor Unit] (e.g., Budi Santoso - Kamar 204)
+ * or [Nama] - Pengelola
+ */
+export function formatResidentIdentity(
+  fullName: string,
+  role: string,
+  unitNumber?: string | null
+): { displayName: string; displayRole: string } {
+  const isManagement = ["OWNER", "HOUSEKEEPING", "PLATFORM_ADMIN"].includes(role?.toUpperCase() || "");
+  if (isManagement) {
+    return {
+      displayName: `${fullName} - Pengelola`,
+      displayRole: "Pengelola",
+    };
+  }
+  if (unitNumber) {
+    const cleanUnit = unitNumber.replace(/^(kamar|unit|apt)\s+/i, "").trim();
+    return {
+      displayName: `${fullName} - Kamar ${cleanUnit}`,
+      displayRole: `Kamar ${cleanUnit}`,
+    };
+  }
+  return {
+    displayName: fullName,
+    displayRole: "Penghuni",
+  };
+}
+
+/**
  * Parses raw Prisma ForumPost record into a clean ForumPostDTO
  */
 export function parseForumPostRecord(
   record: any,
-  unitNumbersMap?: Map<string, string> // userId -> unitNumber
+  unitMetaMap?: Map<string, AuthorResidentMeta | string> // userId -> AuthorResidentMeta or unitNumber
 ): ForumPostDTO {
   let rawContent: string = record.content || "";
   let meta: ForumStoredMeta | null = null;
@@ -121,39 +159,93 @@ export function parseForumPostRecord(
   }
 
   // Automatic heuristic fallback if no metadata was previously stored
-  let category: ForumCategory = meta?.category || "DISKUSI";
+  let category: ForumCategory = meta?.category || "OBROLAN_SANTAI";
   const titleAndContentLower = `${record.title || ""} ${rawContent}`.toLowerCase();
   if (!meta?.category) {
-    if (
-      titleAndContentLower.includes("rusak") ||
-      titleAndContentLower.includes("bocor") ||
-      titleAndContentLower.includes("mati") ||
-      titleAndContentLower.includes("keluhan") ||
-      titleAndContentLower.includes("komplain") ||
-      titleAndContentLower.includes("kotor")
-    ) {
-      category = "KELUHAN";
+    if (titleAndContentLower.includes("selamat datang penghuni baru") || titleAndContentLower.includes("anak baru")) {
+      category = "SAMBUTAN";
+    } else if (titleAndContentLower.includes("tanya") || titleAndContentLower.includes("bagaimana") || titleAndContentLower.includes("apakah")) {
+      category = "TANYA_JAWAB";
+    } else if (titleAndContentLower.includes("kegiatan") || titleAndContentLower.includes("acara") || titleAndContentLower.includes("kerja bakti")) {
+      category = "INFO_KEGIATAN";
+    } else if (titleAndContentLower.includes("pengumuman") || titleAndContentLower.includes("perhatian")) {
+      category = "PENGUMUMAN";
     }
   }
 
   const isResolved = Boolean(meta?.isResolved || meta?.status === "RESOLVED");
   const status: ForumStatus = meta?.status || (isResolved ? "RESOLVED" : "OPEN");
 
-  // Format comments
-  const comments: ForumCommentDTO[] = Array.isArray(record.comments)
-    ? record.comments.map((c: any) => ({
-        id: c.id,
-        content: c.content,
-        authorId: c.authorId || c.author?.id || "",
-        authorName: c.author?.fullName || "Pengguna",
-        authorRole: c.author?.role || "TENANT",
-        authorAvatar: c.author?.avatarUrl || null,
-        createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
-      }))
-    : [];
-
   const authorId = record.authorId || record.author?.id || "";
-  const authorUnitNumber = unitNumbersMap ? unitNumbersMap.get(authorId) || null : null;
+  const authorRole = record.author?.role || "TENANT";
+  const authorName = record.author?.fullName || "Penghuni";
+
+  // Resolve author metadata (unit & new resident badge)
+  let authorUnitNumber: string | null = null;
+  let isNewResident = false;
+
+  if (unitMetaMap && unitMetaMap.has(authorId)) {
+    const val = unitMetaMap.get(authorId);
+    if (typeof val === "string") {
+      authorUnitNumber = val;
+    } else if (val) {
+      authorUnitNumber = val.unitNumber || null;
+      isNewResident = Boolean(val.isNewResident);
+    }
+  }
+
+  // If post title indicates welcome post, flag as new resident for visual delight
+  if (category === "SAMBUTAN" && record.title?.includes("Penghuni Baru")) {
+    // We keep welcome post highlighted
+  }
+
+  const { displayName: authorDisplayName, displayRole: authorDisplayRole } = formatResidentIdentity(
+    authorName,
+    authorRole,
+    authorUnitNumber
+  );
+
+  // Format comments with resident identity
+  const comments: ForumCommentDTO[] = Array.isArray(record.comments)
+    ? record.comments.map((c: any) => {
+        const cAuthorId = c.authorId || c.author?.id || "";
+        const cAuthorRole = c.author?.role || "TENANT";
+        const cAuthorName = c.author?.fullName || "Pengguna";
+
+        let cUnitNumber: string | null = null;
+        let cIsNewResident = false;
+
+        if (unitMetaMap && unitMetaMap.has(cAuthorId)) {
+          const val = unitMetaMap.get(cAuthorId);
+          if (typeof val === "string") {
+            cUnitNumber = val;
+          } else if (val) {
+            cUnitNumber = val.unitNumber || null;
+            cIsNewResident = Boolean(val.isNewResident);
+          }
+        }
+
+        const { displayName: cDisplayName, displayRole: cDisplayRole } = formatResidentIdentity(
+          cAuthorName,
+          cAuthorRole,
+          cUnitNumber
+        );
+
+        return {
+          id: c.id,
+          content: c.content,
+          authorId: cAuthorId,
+          authorName: cAuthorName,
+          authorRole: cAuthorRole,
+          authorAvatar: c.author?.avatarUrl || null,
+          authorUnitNumber: cUnitNumber,
+          isNewResident: cIsNewResident,
+          authorDisplayRole: cDisplayRole,
+          authorDisplayName: cDisplayName,
+          createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+        };
+      })
+    : [];
 
   return {
     id: record.id,
@@ -161,10 +253,13 @@ export function parseForumPostRecord(
     propertyName: record.property?.name || "Properti",
     propertyAddress: record.property?.address || undefined,
     authorId,
-    authorName: record.author?.fullName || "Penghuni",
-    authorRole: record.author?.role || "TENANT",
+    authorName,
+    authorRole,
     authorAvatar: record.author?.avatarUrl || null,
     authorUnitNumber,
+    isNewResident,
+    authorDisplayRole,
+    authorDisplayName,
     title: record.title,
     content: rawContent,
     category,

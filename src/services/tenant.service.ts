@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { UserRole } from "@/generated/prisma/client";
 import { CreateTenantInput, UpdateTenantInput } from "@/lib/validations/tenant.schema";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { CommunityWelcomeService } from "./community-welcome.service";
 
 async function deleteStorageFiles(urls: (string | null | undefined)[]) {
   const validUrls = urls.filter((u): u is string => Boolean(u && typeof u === "string" && !u.startsWith("data:")));
@@ -250,7 +251,8 @@ export class TenantService {
       }
     }
 
-    return prisma.$transaction(async (tx) => {
+    let placedUnit: any = null;
+    const createdProfile = await prisma.$transaction(async (tx) => {
       let user: any = null;
       let unit: any = null;
       let lease: any = null;
@@ -292,6 +294,7 @@ export class TenantService {
         });
 
         if (unit) {
+          placedUnit = unit;
           // Mark unit as occupied
           await tx.unit.update({
             where: { id: unit.id },
@@ -390,6 +393,17 @@ export class TenantService {
 
       return tenantProfile;
     }, { maxWait: 15000, timeout: 30000 });
+
+    if (placedUnit && data.status === "AKTIF") {
+      CommunityWelcomeService.createWelcomePost({
+        propertyId: placedUnit.propertyId,
+        unitNumber: placedUnit.unitNumber,
+        tenantName: data.fullName,
+        checkInDate: data.leaseStartDate,
+      }).catch((e) => console.error("Auto welcome post error in createTenant:", e));
+    }
+
+    return createdProfile;
   }
 
   /**

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { LeaseStatus, RentalPeriodType, UnitStatus, UserRole } from "@/generated/prisma/client";
+import { CommunityWelcomeService } from "./community-welcome.service";
 
 export interface AssignTenantInput {
   tenantName: string;
@@ -41,7 +42,7 @@ export class LeaseService {
    * Assign a tenant to a unit by creating a new active Lease and Tenant User/Profile
    */
   static async assignTenantToUnit(unitId: string, input: AssignTenantInput) {
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       // 1. Check if unit exists
       const unit = await tx.unit.findUnique({
         where: { id: unitId },
@@ -207,6 +208,28 @@ export class LeaseService {
 
       return newLease;
     });
+
+    // Automatically create Community Welcome Post for new tenant
+    if (result && input.tenantName) {
+      try {
+        const unit = await prisma.unit.findUnique({
+          where: { id: unitId },
+          select: { propertyId: true, unitNumber: true },
+        });
+        if (unit) {
+          CommunityWelcomeService.createWelcomePost({
+            propertyId: unit.propertyId,
+            unitNumber: unit.unitNumber,
+            tenantName: input.tenantName,
+            checkInDate: input.checkInDate,
+          }).catch((e) => console.error("Auto welcome post error:", e));
+        }
+      } catch (err) {
+        console.error("Failed to trigger welcome post in LeaseService:", err);
+      }
+    }
+
+    return result;
   }
 
   /**

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Plus, Layers, Sparkles } from 'lucide-react';
 import { Unit, UnitStatus, UnitPricing, UnitCapacity } from '../_types';
-import FacilitySelector from './FacilitySelector';
+import FacilitySelector, { SelectedInventoryRef } from './FacilitySelector';
 import { Property } from '../../properties/_types';
 
 interface UnitFormModalProps {
@@ -47,6 +47,7 @@ export default function UnitFormModal({
   const [name, setName] = useState(initialData?.name || '');
   const [status, setStatus] = useState<UnitStatus>(initialData?.status || 'Available');
   const [facilities, setFacilities] = useState<string[]>(initialData?.facilities || []);
+  const [selectedInventoryRefs, setSelectedInventoryRefs] = useState<SelectedInventoryRef[]>([]);
   const [description, setDescription] = useState(initialData?.description || '');
 
   // Batch Mode states
@@ -90,6 +91,7 @@ export default function UnitFormModal({
       setName('');
       setStatus('Available');
       setFacilities([]);
+      setSelectedInventoryRefs([]);
       setDescription('');
       setMaxPersons(1);
       setDimensions('3x4 m');
@@ -168,9 +170,27 @@ export default function UnitFormModal({
           tenantPhone: status === 'Occupied' ? tenantPhone.trim() || undefined : undefined,
           checkInDate: status === 'Occupied' ? checkInDate || undefined : undefined,
           ...roomCreds,
+          inventoryIds: selectedInventoryRefs.map((r) => r.inventory_id),
         };
 
         await onSubmit(unitData);
+
+        // Sync unit inventory to Master Inventory relations in database
+        if (initialData?.id && selectedInventoryRefs.length > 0) {
+          try {
+            await fetch('/api/inventory', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'SYNC_UNIT',
+                unit_id: initialData.id,
+                inventory_ids: selectedInventoryRefs.map((r) => r.inventory_id),
+              }),
+            });
+          } catch (syncErr) {
+            console.error('Failed to sync unit inventory relations:', syncErr);
+          }
+        }
       } else {
         // BATCH MODE
         const batchNames = getBatchPreviewNames();
@@ -471,6 +491,7 @@ export default function UnitFormModal({
             unitName={name || initialData?.name}
             selectedFacilities={facilities}
             onChange={setFacilities}
+            onSelectedInventoryChange={setSelectedInventoryRefs}
           />
 
           {/* Active Tenant assignment (read-only/disabled view for Occupied units) */}

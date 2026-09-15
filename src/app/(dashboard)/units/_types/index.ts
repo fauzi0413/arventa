@@ -30,6 +30,7 @@ export interface Unit {
   roomEmail?: string;
   roomPassword?: string;
   roomPasswordLastReset?: string;
+  inventoryIds?: string[];
   createdAt: string;
 }
 

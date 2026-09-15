@@ -345,6 +345,7 @@ export default function PortalRoomPage() {
             onSubmit={handleAddComplaint}
             unitId={details.unit.id}
             unitName={details.unit.name}
+            inventoryItems={details.inventories}
           />
         )}
       </Suspense>

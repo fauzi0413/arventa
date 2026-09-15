@@ -79,6 +79,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       facilities: body.facilities,
       description: body.description,
       imageUrl: body.imageUrl,
+      inventoryIds: body.inventoryIds,
     });
 
     return ApiResponse.success({

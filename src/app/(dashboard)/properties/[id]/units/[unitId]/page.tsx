@@ -386,6 +386,21 @@ export default function PropertyUnitDetailPage() {
               setInvoiceKPI(resolveInvoiceKPILogic([], uData.pricing?.monthly || 4500000));
             }
 
+            // Fetch live Master Inventory assigned to this unit
+            try {
+              const invRes = await fetch(`/api/inventory?unit_id=${unitId}`);
+              if (invRes.ok) {
+                const invJson = await invRes.json();
+                if (Array.isArray(invJson.data) && invJson.data.length > 0) {
+                  setInventories(invJson.data);
+                  setLoading(false);
+                  return;
+                }
+              }
+            } catch (invErr) {
+              console.warn('API unit inventory fetch notice:', invErr);
+            }
+
             const storedInventory = localStorage.getItem('arventa_inventory');
             let loadedInventory: InventoryItem[] = storedInventory ? JSON.parse(storedInventory) : [];
             let unitInventory = (uData.inventories && uData.inventories.length > 0)
@@ -909,13 +924,43 @@ export default function PropertyUnitDetailPage() {
             )}
           </div>
 
-          {/* Unit Inventory List */}
+          {/* Unit Inventory List (Master Data Relasional) */}
           <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-foreground dark:text-foreground flex items-center gap-2">
-              <Package className="h-5 w-5 text-[#8FA28A]" />
-              Daftar Inventaris & Foto Kondisi Barang
-            </h3>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-border pb-3">
+              <div>
+                <h3 className="text-base font-bold text-foreground dark:text-foreground flex items-center gap-2">
+                  <Package className="h-5 w-5 text-[#8FA28A]" />
+                  Daftar Inventaris Unit (Master Data)
+                </h3>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Item inventaris dialokasikan langsung dari Master Data Properti.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEditUnitModalOpen(true)}
+                className="min-h-[36px] px-3.5 py-1.5 rounded-xl border border-[#8FA28A]/40 bg-[#8FA28A]/10 text-[#8FA28A] hover:bg-[#8FA28A]/20 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>Pilih dari Master Data</span>
+              </button>
+            </div>
 
+            {inventories.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border dark:border-border p-8 text-center space-y-3">
+                <Package className="h-8 w-8 text-muted-foreground mx-auto opacity-40" />
+                <p className="text-xs text-muted-foreground">
+                  Belum ada barang inventaris master yang dialokasikan untuk unit kamar ini.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setIsEditUnitModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors cursor-pointer"
+                >
+                  + Alokasikan Barang dari Master Data
+                </button>
+              </div>
+            ) : (
             <div className="grid gap-4 sm:grid-cols-2">
               {inventories.map((item) => (
                 <div
@@ -974,6 +1019,7 @@ export default function PropertyUnitDetailPage() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         </div>
 

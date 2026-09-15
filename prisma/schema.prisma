@@ -574,6 +574,8 @@ model PropertyInventory {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  unitInventories UnitInventory[]
+
   @@map("property_inventories")
 }
 
@@ -581,6 +583,9 @@ model UnitInventory {
   id     String @id @default(uuid())
   unitId String @map("unit_id")
   unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  propertyInventoryId String?            @map("property_inventory_id")
+  propertyInventory   PropertyInventory? @relation(fields: [propertyInventoryId], references: [id], onDelete: SetNull)
 
   itemName  String  @map("item_name")
   quantity  Int     @default(1)

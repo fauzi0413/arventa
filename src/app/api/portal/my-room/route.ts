@@ -162,29 +162,34 @@ export async function GET(request: NextRequest) {
 
     const formattedUnit = UnitService.formatUnit(unit);
 
-    // Fetch property common inventory & unit inventory
+    // Fetch property common inventory & unit inventory with relational Master Inventory
     const propertyInventories = await prisma.propertyInventory.findMany({
       where: { propertyId: unit.propertyId },
     });
     const unitInventories = await prisma.unitInventory.findMany({
       where: { unitId: unit.id },
+      include: { propertyInventory: true },
     });
 
     const mappedInventories = [
       ...unitInventories.map((i) => ({
         id: i.id,
-        name: i.itemName,
-        category: "Fasilitas",
+        inventory_id: i.propertyInventoryId || i.id,
+        propertyInventoryId: i.propertyInventoryId,
+        name: i.propertyInventory?.itemName || i.itemName,
+        category: "Fasilitas Kamar",
         condition: i.condition,
         unitId: i.unitId,
         location: `Unit: ${unit.unitNumber}`,
       })),
       ...propertyInventories.map((i) => ({
         id: i.id,
+        inventory_id: i.id,
+        propertyInventoryId: i.id,
         name: i.itemName,
         category: "Area Umum",
         condition: i.condition,
-        unitId: undefined,
+        unitId: unit.id,
         location: "Area Umum",
       })),
     ];
@@ -195,6 +200,8 @@ export async function GET(request: NextRequest) {
       defaultItems.forEach((name, idx) => {
         mappedInventories.push({
           id: `inv-def-${idx}`,
+          inventory_id: `inv-def-${idx}`,
+          propertyInventoryId: null,
           name,
           category: "Fasilitas",
           condition: "BAIK",
