@@ -227,6 +227,7 @@ function UnitsPageContent() {
             tenantName: data.tenantName,
             tenantPhone: data.tenantPhone,
             checkInDate: data.checkInDate,
+            inventoryIds: data.inventoryIds,
           }),
         });
       } catch (e) {
@@ -258,6 +259,7 @@ function UnitsPageContent() {
           dimensions: d.capacity.dimensions,
           facilities: d.facilities,
           description: d.description,
+          inventoryIds: d.inventoryIds,
         }));
         await fetch('/api/units', {
           method: 'POST',

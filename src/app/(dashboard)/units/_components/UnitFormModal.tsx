@@ -194,6 +194,7 @@ export default function UnitFormModal({
       } else {
         // BATCH MODE
         const batchNames = getBatchPreviewNames();
+        const batchInventoryIds = selectedInventoryRefs.map((r) => r.inventory_id);
         const batchUnitsData: Omit<Unit, 'id' | 'createdAt'>[] = batchNames.map((unitName) => {
           const roomCreds = generateRoomCredentials(unitName);
           return {
@@ -204,6 +205,7 @@ export default function UnitFormModal({
             capacity,
             pricing,
             description: description.trim(),
+            inventoryIds: batchInventoryIds,
             ...roomCreds,
           };
         });
@@ -488,7 +490,7 @@ export default function UnitFormModal({
           <FacilitySelector
             propertyId={propertyId}
             unitId={initialData?.id}
-            unitName={name || initialData?.name}
+            unitName={creationMode === 'batch' ? `Batch (${getBatchPreviewNames().length} Unit Sekaligus)` : (name || initialData?.name)}
             selectedFacilities={facilities}
             onChange={setFacilities}
             onSelectedInventoryChange={setSelectedInventoryRefs}
