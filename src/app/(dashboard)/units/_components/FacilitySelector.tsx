@@ -30,7 +30,8 @@ interface FacilitySelectorProps {
   unitId?: string;
   unitName?: string;
   selectedFacilities: string[];
-  onChange: (facilities: string[]) => void;
+  selectedInventoryIds?: string[];
+  onChange: (facilities: string[], inventoryIds: string[]) => void;
   onSelectedInventoryChange?: (items: SelectedUnitInventoryRef[]) => void;
 }
 
@@ -49,11 +50,14 @@ const getFacilityIcon = (name: string) => {
   return '📦';
 };
 
+const PREDEFINED_ITEMS = ['AC', 'Kasur Springbed', 'Lemari Pakaian', 'TV', 'Water Heater', 'Kulkas Mini', 'Meja Belajar'];
+
 export default function FacilitySelector({
   propertyId,
   unitId,
   unitName,
   selectedFacilities,
+  selectedInventoryIds = [],
   onChange,
   onSelectedInventoryChange,
 }: FacilitySelectorProps) {
@@ -62,9 +66,8 @@ export default function FacilitySelector({
 
   // Modal State for "Tambah ke Master Inventaris Properti"
   const [isAddMasterOpen, setIsAddMasterOpen] = useState(false);
-  const [newMasterName, setNewMasterName] = useState('');
-  const [newMasterQty, setNewMasterQty] = useState('1');
-  const [newMasterLocationType, setNewMasterLocationType] = useState<'UNIT' | 'COMMON_AREA'>('UNIT');
+  const [newMasterName, setNewMasterName] = useState(PREDEFINED_ITEMS[0]);
+  const [newMasterCustomName, setNewMasterCustomName] = useState('');
   const [newMasterCondition, setNewMasterCondition] = useState('Baik');
   const [newMasterNotes, setNewMasterNotes] = useState('');
   const [isSubmittingMaster, setIsSubmittingMaster] = useState(false);
@@ -75,55 +78,29 @@ export default function FacilitySelector({
     setLoading(true);
 
     try {
-      // 1. Fetch live master inventory from DB API strictly filtered for UNIT items
-      const res = await fetch(`/api/inventory?propertyId=${propertyId}&locationType=UNIT`);
+      // 1. Fetch live master inventory from DB API strictly filtered for this property
+      const res = await fetch(`/api/inventory?propertyId=${propertyId}`);
       if (res.ok) {
         const json = await res.json();
         const propItems = json.data?.propertyInventories || [];
-        if (Array.isArray(propItems) && propItems.length > 0) {
-          setMasterItems(
-            propItems
-              .filter((p: any) => !p.locationType || p.locationType === 'UNIT')
-              .map((p: any) => ({
-                id: p.id,
-                name: p.itemName,
-                locationType: p.locationType || 'UNIT',
-                quantity: Number(p.quantity) || 1,
-                allocatedQuantity: Number(p.allocatedQuantity) || 0,
-                availableQuantity: p.availableQuantity !== undefined ? Number(p.availableQuantity) : Math.max(0, (Number(p.quantity) || 1) - (Number(p.allocatedQuantity) || 0)),
-                isOverallocated: Boolean(p.isOverallocated),
-                installedUnits: p.installedUnits || [],
-                condition: p.condition || 'Baik',
-                notes: p.notes,
-              }))
-          );
-          setLoading(false);
-          return;
-        }
-      }
+        const allItems = json.data?.items || [];
+        const unitInvs = json.data?.unitInventories || [];
 
-      // 2. Fallback: check /api/properties/[id]
-      const pRes = await fetch(`/api/properties/${propertyId}`);
-      if (pRes.ok) {
-        const pJson = await pRes.json();
-        const p = pJson.data;
-        const pInventories = p?.inventories || p?.propertyInventories || [];
-        if (Array.isArray(pInventories) && pInventories.length > 0) {
+        if (Array.isArray(propItems)) {
+          const unitOnlyItems = propItems.filter((p: any) => !p.locationType || p.locationType === 'UNIT');
           setMasterItems(
-            pInventories
-              .filter((inv: any) => !inv.locationType || inv.locationType === 'UNIT')
-              .map((inv: any) => ({
-                id: inv.id,
-                name: inv.itemName,
-                locationType: inv.locationType || 'UNIT',
-                quantity: Number(inv.quantity) || 1,
-                allocatedQuantity: Number(inv.allocatedQuantity) || 0,
-                availableQuantity: inv.availableQuantity !== undefined ? Number(inv.availableQuantity) : Math.max(0, (Number(inv.quantity) || 1) - (Number(inv.allocatedQuantity) || 0)),
-                isOverallocated: Boolean(inv.isOverallocated),
-                installedUnits: inv.installedUnits || [],
-                condition: inv.condition || 'Baik',
-                notes: inv.notes,
-              }))
+            unitOnlyItems.map((p: any) => ({
+              id: p.id,
+              name: p.itemName,
+              locationType: 'UNIT',
+              quantity: Number(p.quantity) || 1,
+              allocatedQuantity: Number(p.allocatedQuantity) || 0,
+              availableQuantity: p.availableQuantity !== undefined ? Number(p.availableQuantity) : Math.max(0, (Number(p.quantity) || 1) - (Number(p.allocatedQuantity) || 0)),
+              isOverallocated: false,
+              installedUnits: p.installedUnits || [],
+              condition: p.condition || 'Baik',
+              notes: p.notes,
+            }))
           );
           setLoading(false);
           return;
@@ -133,42 +110,8 @@ export default function FacilitySelector({
       console.warn('FacilitySelector: DB fetch notice:', e);
     }
 
-    // 3. Fallback to localStorage arventa_inventory
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('arventa_inventory');
-      if (stored) {
-        try {
-          const all = JSON.parse(stored);
-          const propItems = all.filter((i: any) => i.propertyId === propertyId && (!i.locationType || i.locationType === 'UNIT'));
-          if (propItems.length > 0) {
-            const mapped = propItems.map((i: any) => ({
-              id: i.id,
-              name: i.name || i.itemName,
-              locationType: 'UNIT' as const,
-              quantity: 1,
-              allocatedQuantity: 0,
-              availableQuantity: 1,
-              condition: i.condition || 'Baik',
-            }));
-            setMasterItems(mapped);
-            setLoading(false);
-            return;
-          }
-        } catch (err) {}
-      }
-    }
-
-    // Default Seed Master Data for Property if completely empty
-    const seedMasters: PropertyMasterItem[] = [
-      { id: `seed-ac-${propertyId}`, name: 'Air Conditioner (AC) 1 PK', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
-      { id: `seed-bed-${propertyId}`, name: 'Kasur Springbed Queen Size', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
-      { id: `seed-wardrobe-${propertyId}`, name: 'Lemari Pakaian 2 Pintu', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
-      { id: `seed-desk-${propertyId}`, name: 'Meja Kerja & Kursi Ergonomis', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
-      { id: `seed-tv-${propertyId}`, name: 'Smart TV 32 Inch', locationType: 'UNIT', quantity: 5, allocatedQuantity: 0, availableQuantity: 5, condition: 'Baik' },
-      { id: `seed-heater-${propertyId}`, name: 'Water Heater Kamar Mandi', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
-      { id: `seed-wifi-${propertyId}`, name: 'Router WiFi dedicated', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
-    ];
-    setMasterItems(seedMasters);
+    // Strictly empty if DB has 0 items (NO dummy data)
+    setMasterItems([]);
     setLoading(false);
   }, [propertyId]);
 
@@ -176,13 +119,22 @@ export default function FacilitySelector({
     loadMasterInventory();
   }, [loadMasterInventory]);
 
+  // Check if a master item is currently selected by ID or Name
+  const isItemSelected = (master: PropertyMasterItem) => {
+    if (selectedInventoryIds && selectedInventoryIds.length > 0) {
+      if (selectedInventoryIds.includes(master.id)) return true;
+    }
+    return selectedFacilities.some(
+      (f) => f.toLowerCase() === master.name.toLowerCase() || f === master.id
+    );
+  };
+
   // Sync selected inventory objects whenever selection or master items change
   useEffect(() => {
     if (onSelectedInventoryChange && masterItems.length > 0) {
       const selectedRefs: SelectedUnitInventoryRef[] = [];
-      selectedFacilities.forEach((facName) => {
-        const master = masterItems.find((m) => m.name.toLowerCase() === facName.toLowerCase());
-        if (master) {
+      masterItems.forEach((master) => {
+        if (isItemSelected(master)) {
           selectedRefs.push({
             inventory_id: master.id,
             name: master.name,
@@ -193,27 +145,35 @@ export default function FacilitySelector({
       });
       onSelectedInventoryChange(selectedRefs);
     }
-  }, [selectedFacilities, masterItems, onSelectedInventoryChange]);
+  }, [selectedFacilities, selectedInventoryIds, masterItems, onSelectedInventoryChange]);
 
   const toggleFacility = (master: PropertyMasterItem) => {
-    const isSelected = selectedFacilities.some(
-      (f) => f.toLowerCase() === master.name.toLowerCase()
-    );
+    const selected = isItemSelected(master);
+
+    const currentIds = selectedInventoryIds && selectedInventoryIds.length > 0
+      ? [...selectedInventoryIds]
+      : masterItems
+          .filter((m) => selectedFacilities.some((f) => f.toLowerCase() === m.name.toLowerCase() || f === m.id))
+          .map((m) => m.id);
 
     let updatedFacilities: string[];
-    if (isSelected) {
+    let updatedInventoryIds: string[];
+
+    if (selected) {
       updatedFacilities = selectedFacilities.filter(
-        (f) => f.toLowerCase() !== master.name.toLowerCase()
+        (f) => f.toLowerCase() !== master.name.toLowerCase() && f !== master.id
       );
+      updatedInventoryIds = currentIds.filter((id) => id !== master.id);
     } else {
-      updatedFacilities = [...selectedFacilities, master.name];
+      updatedFacilities = [...selectedFacilities.filter((f) => f.toLowerCase() !== master.name.toLowerCase() && f !== master.id), master.name];
+      updatedInventoryIds = Array.from(new Set([...currentIds, master.id]));
     }
 
-    onChange(updatedFacilities);
+    onChange(updatedFacilities, updatedInventoryIds);
 
     if (onSelectedInventoryChange) {
       const updatedRefs = masterItems
-        .filter((m) => updatedFacilities.some((f) => f.toLowerCase() === m.name.toLowerCase()))
+        .filter((m) => updatedInventoryIds.includes(m.id) || updatedFacilities.some((f) => f.toLowerCase() === m.name.toLowerCase()))
         .map((m) => ({
           inventory_id: m.id,
           name: m.name,
@@ -224,9 +184,18 @@ export default function FacilitySelector({
     }
   };
 
-  const handleCreateMasterItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newMasterName.trim()) return;
+  const handleCreateMasterItem = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (isSubmittingMaster) return;
+
+    const itemName = newMasterName === 'Lainnya' ? newMasterCustomName.trim() : newMasterName.trim();
+    if (!itemName) {
+      setMasterError('Nama fasilitas atau barang wajib diisi.');
+      return;
+    }
     if (!propertyId) {
       setMasterError('Pilih properti terlebih dahulu.');
       return;
@@ -235,9 +204,6 @@ export default function FacilitySelector({
     setIsSubmittingMaster(true);
     setMasterError(null);
 
-    const itemName = newMasterName.trim();
-    const qty = Math.max(1, Number(newMasterQty) || 1);
-
     try {
       const res = await fetch('/api/inventory', {
         method: 'POST',
@@ -245,8 +211,8 @@ export default function FacilitySelector({
         body: JSON.stringify({
           propertyId,
           itemName,
-          quantity: qty,
-          locationType: newMasterLocationType,
+          quantity: 1,
+          locationType: 'UNIT',
           condition: newMasterCondition,
           notes: newMasterNotes.trim() || undefined,
         }),
@@ -259,33 +225,30 @@ export default function FacilitySelector({
         const newMaster: PropertyMasterItem = {
           id: createdItem?.id || `master-${Date.now()}`,
           name: itemName,
-          locationType: newMasterLocationType,
-          quantity: qty,
+          locationType: 'UNIT',
+          quantity: 1,
           allocatedQuantity: 0,
-          availableQuantity: qty,
+          availableQuantity: 1,
           isOverallocated: false,
           condition: newMasterCondition,
           notes: newMasterNotes.trim() || undefined,
         };
 
-        // Add to state and auto-select in unit if it's a UNIT item
-        if (newMasterLocationType === 'UNIT') {
-          setMasterItems((prev) => [newMaster, ...prev]);
-          if (!selectedFacilities.includes(itemName)) {
-            onChange([...selectedFacilities, itemName]);
-          }
-        }
+        // Add to state and auto-select in unit
+        setMasterItems((prev) => [newMaster, ...prev]);
+        const updatedFacs = selectedFacilities.includes(itemName) ? selectedFacilities : [...selectedFacilities, itemName];
+        const updatedInvIds = selectedInventoryIds.includes(newMaster.id) ? selectedInventoryIds : [...selectedInventoryIds, newMaster.id];
+        onChange(updatedFacs, updatedInvIds);
 
         // Reset form & close
-        setNewMasterName('');
-        setNewMasterQty('1');
-        setNewMasterLocationType('UNIT');
+        setNewMasterName(PREDEFINED_ITEMS[0]);
+        setNewMasterCustomName('');
         setNewMasterCondition('Baik');
         setNewMasterNotes('');
         setIsAddMasterOpen(false);
       } else {
         const err = await res.json();
-        setMasterError(err.message || 'Gagal menyimpan ke Master Inventaris');
+        setMasterError(err.message || 'Gagal menyimpan fasilitas baru.');
       }
     } catch (err: any) {
       console.error('Failed to create master inventory item:', err);
@@ -293,48 +256,48 @@ export default function FacilitySelector({
       const localMaster: PropertyMasterItem = {
         id: `local-master-${Date.now()}`,
         name: itemName,
-        locationType: newMasterLocationType,
-        quantity: qty,
+        locationType: 'UNIT',
+        quantity: 1,
         allocatedQuantity: 0,
-        availableQuantity: qty,
+        availableQuantity: 1,
         isOverallocated: false,
         condition: newMasterCondition,
       };
-      if (newMasterLocationType === 'UNIT') {
-        setMasterItems((prev) => [localMaster, ...prev]);
-        if (!selectedFacilities.includes(itemName)) {
-          onChange([...selectedFacilities, itemName]);
-        }
-      }
+      setMasterItems((prev) => [localMaster, ...prev]);
+      const updatedFacs = selectedFacilities.includes(itemName) ? selectedFacilities : [...selectedFacilities, itemName];
+      const updatedInvIds = selectedInventoryIds.includes(localMaster.id) ? selectedInventoryIds : [...selectedInventoryIds, localMaster.id];
+      onChange(updatedFacs, updatedInvIds);
       setIsAddMasterOpen(false);
     } finally {
       setIsSubmittingMaster(false);
     }
   };
 
+  // Strictly count only selected items that belong to Dalam Unit (Kamar)
+  const selectedUnitCount = masterItems.filter((master) => isItemSelected(master)).length;
+
   return (
-    <div className="space-y-3 rounded-2xl border border-[#C7D3C0]/40 bg-muted/20 p-4">
+    <div className="space-y-3.5 rounded-2xl border border-border bg-muted/20 p-4">
       {/* Header with Title & CTA */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-2.5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-border/60 pb-3">
         <div>
-          <label className="block text-xs font-black text-foreground flex items-center gap-1.5">
+          <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
             <Package className="h-4 w-4 text-[#8FA28A]" />
-            Inventaris & Fasilitas Unit
-          </label>
+            <span>Fasilitas & Inventaris Kamar</span>
+          </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Pilih barang yang tersedia di unit ini dari <strong>Master Inventaris Properti (Kategori Kamar)</strong>.
+            Pilih perabot atau perlengkapan yang disediakan di dalam kamar ini.
           </p>
         </div>
 
-        {/* CTA: Barang belum ada di daftar? Tambahkan ke Master Inventaris terlebih dahulu */}
+        {/* CTA Button */}
         <button
           type="button"
           onClick={() => setIsAddMasterOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8FA28A]/15 hover:bg-[#8FA28A]/25 text-[#8FA28A] border border-[#8FA28A]/30 text-xs font-bold transition-all shrink-0 cursor-pointer"
-          title="Tambah barang baru ke Master Inventaris Properti"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8FA28A]/15 hover:bg-[#8FA28A]/25 text-[#8FA28A] border border-[#8FA28A]/30 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-2xs"
         >
           <Plus className="h-3.5 w-3.5" />
-          <span>Barang belum ada di daftar? Tambahkan ke Master</span>
+          <span>Tambah Barang Baru</span>
         </button>
       </div>
 
@@ -343,82 +306,68 @@ export default function FacilitySelector({
         <div className="flex items-center justify-center p-6 bg-card rounded-xl border border-border">
           <Loader2 className="h-4 w-4 animate-spin text-[#8FA28A] mr-2" />
           <span className="text-xs font-semibold text-muted-foreground">
-            Memuat Master Inventaris Properti...
+            Memuat daftar fasilitas...
           </span>
         </div>
       ) : masterItems.length === 0 ? (
         <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs space-y-2">
           <div className="flex items-center gap-2 font-bold">
             <Info className="h-4 w-4 shrink-0 text-amber-600" />
-            <span>Belum Ada Master Inventaris Kamar pada Properti Ini</span>
+            <span>Belum Ada Pilihan Fasilitas</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Master Inventaris Kamar adalah single source of truth untuk seluruh perabot unit. Klik tombol di bawah untuk mendaftarkan barang kamar pertama.
+            Belum ada perabot atau fasilitas terdaftar untuk kamar. Tambahkan barang baru agar dapat dipilih pada kamar ini.
           </p>
           <button
             type="button"
             onClick={() => setIsAddMasterOpen(true)}
-            className="mt-1 px-3.5 py-1.5 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors shadow-xs"
+            className="mt-1 px-3.5 py-1.5 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors shadow-xs cursor-pointer"
           >
-            + Tambahkan ke Master Inventaris
+            + Tambah Fasilitas Pertama
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[280px] overflow-y-auto pr-1">
           {masterItems.map((master) => {
-            const isSelected = selectedFacilities.some(
-              (f) => f.toLowerCase() === master.name.toLowerCase()
-            );
+            const isSelected = isItemSelected(master);
             const icon = getFacilityIcon(master.name);
-            const isFullyAllocated = (master.allocatedQuantity || 0) >= master.quantity;
 
             return (
               <button
                 key={master.id}
                 type="button"
                 onClick={() => toggleFacility(master)}
-                className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all text-left ${
+                className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all text-left cursor-pointer ${
                   isSelected
-                    ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-foreground font-bold shadow-xs'
-                    : 'border-border bg-card text-muted-foreground font-semibold hover:bg-muted/40 hover:text-foreground'
+                    ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-foreground font-bold shadow-2xs'
+                    : 'border-border bg-card/90 text-muted-foreground font-semibold hover:border-[#8FA28A]/50 hover:bg-muted/30 hover:text-foreground'
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate pr-2">
-                  <span className="text-base shrink-0">{icon}</span>
-                  <div className="truncate">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="truncate font-bold text-foreground">{master.name}</span>
-                      {master.isOverallocated ? (
-                        <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-500/15 text-rose-600 border border-rose-500/30">
-                          Melebihi Stok
-                        </span>
-                      ) : isFullyAllocated ? (
-                        <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
-                          Stok Penuh
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium mt-0.5 truncate">
-                      <span>Kondisi: {master.condition}</span>
-                      <span>•</span>
-                      <span>Stok: {master.quantity}</span>
-                      <span>•</span>
-                      <span className={isFullyAllocated ? 'text-amber-600 font-bold' : ''}>
-                        Terpakai: {master.allocatedQuantity || 0}
-                      </span>
-                      <span>•</span>
-                      <span>Sisa: {master.availableQuantity ?? Math.max(0, master.quantity - (master.allocatedQuantity || 0))}</span>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background border border-border text-base shadow-2xs">
+                    {icon}
+                  </span>
+                  <div className="truncate min-w-0">
+                    <span className="block truncate font-bold text-foreground text-xs">{master.name}</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-normal mt-0.5 truncate">
+                      <span>Kondisi: <span className="font-semibold text-foreground/80">{master.condition}</span></span>
+                      {master.notes && (
+                        <>
+                          <span className="text-muted-foreground/50">•</span>
+                          <span className="truncate text-muted-foreground/80">{master.notes}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                <div className="shrink-0 flex items-center justify-center">
+                <div className="shrink-0 flex items-center justify-center pl-2">
                   {isSelected ? (
                     <div className="h-5 w-5 rounded-full bg-[#8FA28A] text-white flex items-center justify-center shadow-xs">
-                      <Check className="h-3 w-3 stroke-[3]" />
+                      <Check className="h-3.5 w-3.5 stroke-[3]" />
                     </div>
                   ) : (
-                    <div className="h-5 w-5 rounded-full border border-border bg-card" />
+                    <div className="h-5 w-5 rounded-full border-2 border-border bg-card hover:border-[#8FA28A]/60 transition-colors" />
                   )}
                 </div>
               </button>
@@ -428,12 +377,12 @@ export default function FacilitySelector({
       )}
 
       {/* Selected Items Counter */}
-      <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+      <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[11px] text-muted-foreground">
         <span>
-          Terpilih: <strong>{selectedFacilities.length}</strong> barang inventaris master untuk unit ini
+          Terpilih: <strong className="text-foreground">{selectedUnitCount}</strong> fasilitas kamar
         </span>
-        <span className="text-[10px] text-[#8FA28A] font-semibold flex items-center gap-1">
-          <Check className="h-3 w-3" /> Terikat ke Master Data Properti
+        <span className="text-[11px] text-[#8FA28A] font-semibold flex items-center gap-1">
+          <Check className="h-3 w-3" /> Otomatis tersimpan ke kamar ini
         </span>
       </div>
 
@@ -443,18 +392,18 @@ export default function FacilitySelector({
           <div className="w-full max-w-md rounded-2xl bg-card border border-border p-5 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-[#8FA28A]/15 text-[#8FA28A]">
+                <div className="p-2 rounded-xl bg-[#8FA28A]/15 text-[#8FA28A]">
                   <Package className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-foreground">Tambah ke Master Inventaris Properti</h3>
-                  <p className="text-[11px] text-muted-foreground">Single source of truth inventaris untuk properti ini</p>
+                  <h3 className="text-sm font-bold text-foreground">Tambah Fasilitas Kamar</h3>
+                  <p className="text-[11px] text-muted-foreground">Tambahkan perabot atau fasilitas baru untuk kamar ini</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddMasterOpen(false)}
-                className="text-muted-foreground hover:text-foreground p-1 rounded-lg"
+                className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted cursor-pointer transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -467,69 +416,94 @@ export default function FacilitySelector({
               </div>
             )}
 
-            <form onSubmit={handleCreateMasterItem} className="space-y-3.5 text-xs">
+            <div className="space-y-3.5 text-xs">
+              {/* Item Selection Dropdown */}
               <div>
-                <label className="block font-bold text-foreground mb-1">Kategori Penempatan Aset *</label>
+                <label className="block font-bold text-foreground mb-1">Nama Fasilitas / Barang *</label>
                 <select
-                  value={newMasterLocationType}
-                  onChange={(e) => setNewMasterLocationType(e.target.value as 'UNIT' | 'COMMON_AREA')}
+                  value={newMasterName}
+                  onChange={(e) => setNewMasterName(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
                 >
-                  <option value="UNIT">Barang Kamar Unit (Bisa dipilih unit kos)</option>
-                  <option value="COMMON_AREA">Fasilitas Umum Kos (Dapur, ruang tamu, parkiran - Tidak masuk kamar)</option>
+                  {PREDEFINED_ITEMS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                  <option value="Lainnya">Lainnya (Ketik Sendiri)</option>
                 </select>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  Pilih "Barang Kamar Unit" agar barang ini muncul pada checklist fasilitas kamar.
+              </div>
+
+              {/* Custom Write-in Name */}
+              {newMasterName === 'Lainnya' && (
+                <div>
+                  <label className="block font-bold text-foreground mb-1">Tulis Nama Barang *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newMasterCustomName}
+                    onChange={(e) => setNewMasterCustomName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCreateMasterItem(e);
+                      }
+                    }}
+                    placeholder="Contoh: Meja Belajar Kayu, Kipas Dinding, Dispenser"
+                    className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {/* Area Placement (Readonly indicator) */}
+              <div>
+                <label className="block font-bold text-foreground mb-1">Penempatan</label>
+                <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-xs font-medium text-foreground">
+                  <span className="flex items-center gap-2 font-bold text-foreground">
+                    <span className="h-2 w-2 rounded-full bg-[#8FA28A]" />
+                    Di Dalam Kamar Unit
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-semibold px-2 py-0.5 rounded-md bg-muted border border-border/80">
+                    Kamar
+                  </span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Barang ini otomatis ditambahkan ke daftar fasilitas kamar dan langsung dipilih.
                 </p>
               </div>
 
+              {/* Initial Condition */}
               <div>
-                <label className="block font-bold text-foreground mb-1">Nama Barang Master *</label>
-                <input
-                  type="text"
-                  required
-                  value={newMasterName}
-                  onChange={(e) => setNewMasterName(e.target.value)}
-                  placeholder="Contoh: Kipas Angin Dinding Cosmos, Meja Belajar Kayu"
+                <label className="block font-bold text-foreground mb-1">Kondisi Barang *</label>
+                <select
+                  value={newMasterCondition}
+                  onChange={(e) => setNewMasterCondition(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
-                  autoFocus
-                />
+                >
+                  <option value="Baik">Baik</option>
+                  <option value="Perlu Perbaikan">Perlu Perbaikan</option>
+                  <option value="Rusak Berat">Rusak Berat</option>
+                  <option value="Hilang">Hilang</option>
+                </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block font-bold text-foreground mb-1">Jumlah Total (Stok)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={newMasterQty}
-                    onChange={(e) => setNewMasterQty(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-foreground mb-1">Kondisi Standar</label>
-                  <select
-                    value={newMasterCondition}
-                    onChange={(e) => setNewMasterCondition(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
-                  >
-                    <option value="Baik">Baik</option>
-                    <option value="Perlu Perbaikan">Perlu Perbaikan</option>
-                    <option value="Rusak Berat">Rusak Berat</option>
-                  </select>
-                </div>
-              </div>
-
+              {/* Notes / Specs */}
               <div>
-                <label className="block font-bold text-foreground mb-1">Catatan / Merek / Spesifikasi (Opsional)</label>
+                <label className="block font-bold text-foreground mb-1">Catatan Tambahan (Opsional)</label>
                 <input
                   type="text"
                   value={newMasterNotes}
                   onChange={(e) => setNewMasterNotes(e.target.value)}
-                  placeholder="Contoh: Garansi resmi 1 tahun, ukuran 120x60 cm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleCreateMasterItem(e);
+                    }
+                  }}
+                  placeholder="Contoh: Ukuran 120x200 cm, Merk Sharp 1 PK"
                   className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
                 />
               </div>
@@ -537,27 +511,29 @@ export default function FacilitySelector({
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
+                  disabled={isSubmittingMaster}
                   onClick={() => setIsAddMasterOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-border text-muted-foreground font-bold hover:bg-muted"
+                  className="px-4 py-2 rounded-xl border border-border text-muted-foreground font-bold hover:bg-muted disabled:opacity-50 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
-                  type="submit"
+                  type="button"
                   disabled={isSubmittingMaster}
-                  className="px-5 py-2 rounded-xl bg-[#8FA28A] text-white font-bold hover:bg-[#8FA28A]/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                  onClick={handleCreateMasterItem}
+                  className="px-5 py-2 rounded-xl bg-[#8FA28A] text-white font-bold hover:bg-[#8FA28A]/90 transition-all shadow-sm disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer min-w-[140px] justify-center"
                 >
                   {isSubmittingMaster ? (
                     <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
                       <span>Menyimpan...</span>
                     </>
                   ) : (
-                    <span>Simpan ke Master Data</span>
+                    <span>Tambah Barang</span>
                   )}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

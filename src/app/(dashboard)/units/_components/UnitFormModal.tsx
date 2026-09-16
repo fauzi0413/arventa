@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Loader2, Plus, Layers, Sparkles } from 'lucide-react';
 import { Unit, UnitStatus, UnitPricing, UnitCapacity } from '../_types';
 import FacilitySelector, { SelectedInventoryRef } from './FacilitySelector';
@@ -47,6 +47,12 @@ export default function UnitFormModal({
   const [name, setName] = useState(initialData?.name || '');
   const [status, setStatus] = useState<UnitStatus>(initialData?.status || 'Available');
   const [facilities, setFacilities] = useState<string[]>(initialData?.facilities || []);
+  const [inventoryIds, setInventoryIds] = useState<string[]>(
+    initialData?.inventoryIds ||
+    (initialData as any)?.inventories?.map((i: any) => i.propertyInventoryId || i.id).filter(Boolean) ||
+    (initialData as any)?.inventoryItems?.map((i: any) => i.propertyInventoryId || i.id).filter(Boolean) ||
+    []
+  );
   const [selectedInventoryRefs, setSelectedInventoryRefs] = useState<SelectedInventoryRef[]>([]);
   const [description, setDescription] = useState(initialData?.description || '');
 
@@ -70,40 +76,65 @@ export default function UnitFormModal({
   const [tenantPhone, setTenantPhone] = useState(initialData?.tenantPhone || '');
   const [checkInDate, setCheckInDate] = useState(initialData?.checkInDate || '');
 
+  const prevIsOpenRef = useRef(false);
+  const prevDataIdRef = useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    if (initialData) {
-      setPropertyId(initialData.propertyId || initialPropertyId || properties[0]?.id || '');
-      setName(initialData.name || '');
-      setStatus(initialData.status || 'Available');
-      setFacilities(initialData.facilities || []);
-      setDescription(initialData.description || '');
-      setMaxPersons(initialData.capacity?.maxPersons || 1);
-      setDimensions(initialData.capacity?.dimensions || '3x4 m');
-      setPriceMonthly(initialData.pricing?.monthly ?? '');
-      setPriceDaily(initialData.pricing?.daily ?? '');
-      setPriceDeposit(initialData.pricing?.deposit ?? '');
-      setUtilities(initialData.pricing?.utilities || '');
-      setTenantName(initialData.tenantName || '');
-      setTenantPhone(initialData.tenantPhone || '');
-      setCheckInDate(initialData.checkInDate ? initialData.checkInDate.split('T')[0] : '');
-    } else {
-      setPropertyId(initialPropertyId || properties[0]?.id || '');
-      setName('');
-      setStatus('Available');
-      setFacilities([]);
-      setSelectedInventoryRefs([]);
-      setDescription('');
-      setMaxPersons(1);
-      setDimensions('3x4 m');
-      setPriceMonthly('');
-      setPriceDaily('');
-      setPriceDeposit('');
-      setUtilities('');
-      setTenantName('');
-      setTenantPhone('');
-      setCheckInDate('');
+    if (!isOpen) {
+      prevIsOpenRef.current = false;
+      return;
     }
-  }, [initialData, isOpen, initialPropertyId, properties]);
+
+    if (isSubmitting) return;
+
+    // Only initialize form fields when the modal opens or target unit changes
+    const isNewOpen = !prevIsOpenRef.current && isOpen;
+    const isTargetChanged = initialData?.id !== prevDataIdRef.current;
+
+    if (isNewOpen || isTargetChanged) {
+      prevIsOpenRef.current = true;
+      prevDataIdRef.current = initialData?.id;
+
+      if (initialData) {
+        setPropertyId(initialData.propertyId || initialPropertyId || properties[0]?.id || '');
+        setName(initialData.name || '');
+        setStatus(initialData.status || 'Available');
+        setFacilities(initialData.facilities || []);
+        const initialInvIds = initialData.inventoryIds ||
+          (initialData as any)?.inventories?.map((i: any) => i.propertyInventoryId || i.id).filter(Boolean) ||
+          (initialData as any)?.inventoryItems?.map((i: any) => i.propertyInventoryId || i.id).filter(Boolean) ||
+          [];
+        setInventoryIds(initialInvIds);
+        setDescription(initialData.description || '');
+        setMaxPersons(initialData.capacity?.maxPersons || 1);
+        setDimensions(initialData.capacity?.dimensions || '3x4 m');
+        setPriceMonthly(initialData.pricing?.monthly ?? '');
+        setPriceDaily(initialData.pricing?.daily ?? '');
+        setPriceDeposit(initialData.pricing?.deposit ?? '');
+        setUtilities(initialData.pricing?.utilities || '');
+        setTenantName(initialData.tenantName || '');
+        setTenantPhone(initialData.tenantPhone || '');
+        setCheckInDate(initialData.checkInDate ? initialData.checkInDate.split('T')[0] : '');
+      } else {
+        setPropertyId(initialPropertyId || properties[0]?.id || '');
+        setName('');
+        setStatus('Available');
+        setFacilities([]);
+        setInventoryIds([]);
+        setSelectedInventoryRefs([]);
+        setDescription('');
+        setMaxPersons(1);
+        setDimensions('3x4 m');
+        setPriceMonthly('');
+        setPriceDaily('');
+        setPriceDeposit('');
+        setUtilities('');
+        setTenantName('');
+        setTenantPhone('');
+        setCheckInDate('');
+      }
+    }
+  }, [initialData, isOpen, initialPropertyId, properties, isSubmitting]);
 
   if (!isOpen) return null;
 
@@ -158,6 +189,10 @@ export default function UnitFormModal({
           ? { roomEmail: initialData.roomEmail, roomPassword: initialData.roomPassword, roomPasswordLastReset: initialData.roomPasswordLastReset }
           : generateRoomCredentials(name.trim());
 
+        const finalInventoryIds = inventoryIds.length > 0
+          ? inventoryIds
+          : selectedInventoryRefs.map((r) => r.inventory_id);
+
         const unitData: Omit<Unit, 'id' | 'createdAt'> = {
           propertyId,
           name: name.trim(),
@@ -170,13 +205,13 @@ export default function UnitFormModal({
           tenantPhone: status === 'Occupied' ? tenantPhone.trim() || undefined : undefined,
           checkInDate: status === 'Occupied' ? checkInDate || undefined : undefined,
           ...roomCreds,
-          inventoryIds: selectedInventoryRefs.map((r) => r.inventory_id),
+          inventoryIds: finalInventoryIds,
         };
 
         await onSubmit(unitData);
 
         // Sync unit inventory to Master Inventory relations in database
-        if (initialData?.id && selectedInventoryRefs.length > 0) {
+        if (initialData?.id && finalInventoryIds.length > 0) {
           try {
             await fetch('/api/inventory', {
               method: 'POST',
@@ -184,7 +219,7 @@ export default function UnitFormModal({
               body: JSON.stringify({
                 action: 'SYNC_UNIT',
                 unitId: initialData.id,
-                inventoryIds: selectedInventoryRefs.map((r) => r.inventory_id),
+                inventoryIds: finalInventoryIds,
               }),
             });
           } catch (syncErr) {
@@ -194,7 +229,9 @@ export default function UnitFormModal({
       } else {
         // BATCH MODE
         const batchNames = getBatchPreviewNames();
-        const batchInventoryIds = selectedInventoryRefs.map((r) => r.inventory_id);
+        const batchInventoryIds = inventoryIds.length > 0
+          ? inventoryIds
+          : selectedInventoryRefs.map((r) => r.inventory_id);
         const batchUnitsData: Omit<Unit, 'id' | 'createdAt'>[] = batchNames.map((unitName) => {
           const roomCreds = generateRoomCredentials(unitName);
           return {
@@ -492,7 +529,11 @@ export default function UnitFormModal({
             unitId={initialData?.id}
             unitName={creationMode === 'batch' ? `Batch (${getBatchPreviewNames().length} Unit Sekaligus)` : (name || initialData?.name)}
             selectedFacilities={facilities}
-            onChange={setFacilities}
+            selectedInventoryIds={inventoryIds}
+            onChange={(newFacilities, newInventoryIds) => {
+              setFacilities(newFacilities);
+              setInventoryIds(newInventoryIds);
+            }}
             onSelectedInventoryChange={setSelectedInventoryRefs}
           />
 

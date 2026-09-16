@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Edit3, MessageCircle, AlertCircle, Filter, CheckCircle2, Wrench } from 'lucide-react';
+import { Plus, Trash2, Edit3, MessageCircle, AlertCircle, Filter, CheckCircle2, Wrench, Loader2, Package } from 'lucide-react';
 import { InventoryItem, InventoryCondition } from '../_types';
 import PhotoUploader from './PhotoUploader';
 import { Unit } from '../../units/_types';
@@ -33,33 +33,50 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
 
-  // Filtering
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('all');
+  // Filtering by Area
+  const [selectedArea, setSelectedArea] = useState<string>('all'); // 'all' | 'UNIT' | 'COMMON_AREA'
 
   // Form State
   const [isAdding, setIsAdding] = useState(false);
-  const [name, setName] = useState('');
+  const [name, setName] = useState(PREDEFINED_ITEMS[0]);
   const [customName, setCustomName] = useState('');
-  const [unitId, setUnitId] = useState(''); // Empty = Area Umum
+  const [locationType, setLocationType] = useState<'UNIT' | 'COMMON_AREA'>('UNIT');
   const [condition, setCondition] = useState<InventoryCondition>('Baik');
   const [imageUrl, setImageUrl] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [loading, setLoading] = useState(true);
 
-  // Load inventory from API or localStorage
+  // Load inventory strictly from API without dummy seeds
   useEffect(() => {
     const loadInventory = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/api/properties/${propertyId}`);
-        if (res.ok) {
-          const json = await res.json();
-          const p = json.data;
-          if (p) {
-            const dbItems: InventoryItem[] = [];
-            const dbUnits: Unit[] = [];
+        // Purge any old dummy seed items from localStorage
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('arventa_inventory');
+          if (stored) {
+            try {
+              const all = JSON.parse(stored);
+              const cleaned = all.filter((i: any) => !String(i.id).startsWith('inv-') || !i.id.includes('-1') && !i.id.includes('-2') && !i.id.includes('-3') && !i.id.includes('-4'));
+              localStorage.setItem('arventa_inventory', JSON.stringify(cleaned));
+            } catch (e) {}
+          }
+        }
 
+        const [invRes, propRes] = await Promise.all([
+          fetch(`/api/inventory?propertyId=${propertyId}`),
+          fetch(`/api/properties/${propertyId}`),
+        ]);
+
+        let dbItems: InventoryItem[] = [];
+        let dbUnits: Unit[] = [];
+
+        if (propRes.ok) {
+          const json = await propRes.json();
+          const p = json.data;
+          if (p && Array.isArray(p.units)) {
             const statusMap: Record<string, any> = {
               AVAILABLE: 'Available',
               OCCUPIED: 'Occupied',
@@ -67,129 +84,61 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
               CLEANING: 'Need Cleaning',
             };
 
-            // 1. Property Inventories (Area Umum)
-            const propInvs = p.inventories || p.propertyInventories || [];
-            if (Array.isArray(propInvs)) {
-              propInvs.forEach((inv: any) => {
-                dbItems.push({
-                  id: inv.id,
-                  propertyId: p.id,
-                  name: inv.itemName,
-                  condition: (inv.condition as InventoryCondition) || 'Baik',
-                  imageUrl: inv.imageUrl || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
-                  lastUpdated: inv.updatedAt || new Date().toISOString(),
-                });
-              });
-            }
-
-            // 2. Unit Inventories & Units
-            if (Array.isArray(p.units)) {
-              p.units.forEach((u: any) => {
-                dbUnits.push({
-                  id: u.id,
-                  propertyId: p.id,
-                  name: u.unitNumber,
-                  status: statusMap[u.status] || 'Available',
-                  facilities: u.facilities || [],
-                  capacity: { maxPersons: u.capacity || 1, dimensions: `Lantai ${u.floor || 1}` },
-                  pricing: { monthly: Number(u.basePrice) || 1500000, deposit: 500000 },
-                  description: `Lantai ${u.floor || 1}`,
-                  createdAt: u.createdAt || new Date().toISOString(),
-                });
-
-                const unitInvs = u.inventoryItems || u.inventories || [];
-                if (Array.isArray(unitInvs) && unitInvs.length > 0) {
-                  unitInvs.forEach((inv: any) => {
-                    dbItems.push({
-                      id: inv.id,
-                      propertyId: p.id,
-                      unitId: u.id,
-                      unitName: u.unitNumber,
-                      name: inv.itemName,
-                      condition: (inv.condition as InventoryCondition) || 'Baik',
-                      imageUrl: inv.imageUrl || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
-                      lastUpdated: inv.updatedAt || new Date().toISOString(),
-                    });
-                  });
-                }
-              });
-            }
-
+            dbUnits = p.units.map((u: any) => ({
+              id: u.id,
+              propertyId: p.id,
+              name: u.unitNumber,
+              status: statusMap[u.status] || 'Available',
+              facilities: u.facilities || [],
+              capacity: {
+                maxPersons: typeof u.capacity === 'object' && u.capacity !== null ? Number(u.capacity.maxPersons || 1) : Number(u.capacity || 1),
+                dimensions: typeof u.capacity === 'object' && u.capacity !== null && u.capacity.dimensions ? String(u.capacity.dimensions) : `Lantai ${u.floor || 1}`,
+              },
+              pricing: { monthly: Number(u.basePrice) || 1500000, deposit: 500000 },
+              description: `Lantai ${u.floor || 1}`,
+              createdAt: u.createdAt || new Date().toISOString(),
+            }));
             setUnits(dbUnits);
-            if (dbItems.length > 0) {
-              setItems(dbItems);
-              setLoading(false);
-              return;
-            }
+          }
+        }
+
+        if (invRes.ok) {
+          const invJson = await invRes.json();
+          const propInvs = invJson.data?.propertyInventories || [];
+          if (Array.isArray(propInvs)) {
+            dbItems = propInvs.map((inv: any) => {
+              const installedCount = inv.installedUnits?.length || 0;
+              let locLabel = inv.locationType === 'COMMON_AREA' ? 'Area Umum' : 'Dalam Unit (Kamar)';
+              if (inv.locationType === 'UNIT' && installedCount > 0) {
+                const unitNames = inv.installedUnits.map((u: any) => u.unitNumber).join(', ');
+                locLabel = `${installedCount} Unit (${unitNames})`;
+              }
+
+              return {
+                id: inv.id,
+                propertyId,
+                name: inv.itemName,
+                locationType: inv.locationType || 'UNIT',
+                unitName: locLabel,
+                condition: (inv.condition as InventoryCondition) || 'Baik',
+                imageUrl: inv.imageUrl || 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
+                lastUpdated: inv.updatedAt || new Date().toISOString(),
+              };
+            });
+
+            setItems(dbItems);
+            setLoading(false);
+            return;
           }
         }
       } catch (err) {
-        console.warn('API fetch inventory notice: using fallback', err);
+        console.warn('API fetch inventory notice:', err);
       }
 
-      // Local storage fallback with default seed items for this propertyId
-      const storedItems = localStorage.getItem('arventa_inventory');
-      const storedUnits = localStorage.getItem('arventa_units');
-
-      let loadedItems: InventoryItem[] = storedItems ? JSON.parse(storedItems) : [];
-      let loadedUnits: Unit[] = storedUnits ? JSON.parse(storedUnits).filter((u: Unit) => u.propertyId === propertyId) : [];
-
-      const propItems = loadedItems.filter((item) => item.propertyId === propertyId);
-      if (propItems.length === 0) {
-        const defaultSeedItems: InventoryItem[] = [
-          {
-            id: `inv-${Date.now()}-1`,
-            propertyId,
-            unitId: loadedUnits[0]?.id || 'unit-1',
-            unitName: loadedUnits[0]?.name || 'Apt 12B-01',
-            name: 'Kasur Springbed',
-            condition: 'Baik',
-            imageUrl: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=200',
-            lastUpdated: new Date().toISOString(),
-          },
-          {
-            id: `inv-${Date.now()}-2`,
-            propertyId,
-            unitId: loadedUnits[0]?.id || 'unit-1',
-            unitName: loadedUnits[0]?.name || 'Apt 12B-01',
-            name: 'AC LG 1PK',
-            condition: 'Baik',
-            imageUrl: 'https://images.unsplash.com/photo-1621905252507-b354bc25edac?auto=format&fit=crop&q=80&w=200',
-            lastUpdated: new Date().toISOString(),
-          },
-          {
-            id: `inv-${Date.now()}-3`,
-            propertyId,
-            unitId: loadedUnits[1]?.id || 'unit-2',
-            unitName: loadedUnits[1]?.name || 'Apt 12B-02',
-            name: 'Smart TV 32 inch',
-            condition: 'Baik',
-            imageUrl: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?auto=format&fit=crop&q=80&w=200',
-            lastUpdated: new Date().toISOString(),
-          },
-          {
-            id: `inv-${Date.now()}-4`,
-            propertyId,
-            unitId: loadedUnits[1]?.id || 'unit-2',
-            unitName: loadedUnits[1]?.name || 'Apt 12B-02',
-            name: 'Lemari Pakaian',
-            condition: 'Baik',
-            imageUrl: 'https://images.unsplash.com/photo-1558997519-83ea9252edf8?auto=format&fit=crop&q=80&w=200',
-            lastUpdated: new Date().toISOString(),
-          },
-        ];
-
-        const mergedItems = [...loadedItems, ...defaultSeedItems];
-        localStorage.setItem('arventa_inventory', JSON.stringify(mergedItems));
-        setItems(defaultSeedItems);
-      } else {
-        setItems(propItems);
-      }
-      setUnits(loadedUnits);
+      // If DB is empty or has 0 items, set items to empty array (NO dummy data)
+      setItems([]);
       setLoading(false);
     };
-
-    loadInventory();
 
     loadInventory();
   }, [propertyId]);
@@ -214,66 +163,79 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
 
   const handleAddOrEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+
     const itemName = name === 'Lainnya' ? customName.trim() : name;
     if (!itemName) return;
 
-    const assignedUnit = units.find((u) => u.id === unitId);
+    setIsSubmitting(true);
+    const locBadge = locationType === 'COMMON_AREA' ? 'Area Umum' : 'Dalam Unit (Kamar)';
 
-    // Save to DB via API
     try {
-      await fetch('/api/inventory', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      let savedDbItem: any = null;
+      // Save to DB via API
+      try {
+        const res = await fetch('/api/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId,
+            itemName,
+            locationType,
+            condition,
+            quantity: 1,
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          savedDbItem = json.data;
+        }
+      } catch (err) {
+        console.warn('API post inventory notice:', err);
+      }
+
+      if (editingId) {
+        // Edit
+        const updated = items.map((item) =>
+          item.id === editingId
+            ? {
+                ...item,
+                name: itemName,
+                locationType,
+                unitName: locBadge,
+                condition,
+                imageUrl: imageUrl || undefined,
+                lastUpdated: new Date().toISOString(),
+              }
+            : item
+        );
+        saveItems(updated);
+        setEditingId(null);
+      } else {
+        // Add
+        const newItem: InventoryItem = {
+          id: savedDbItem?.id || generateItemId(),
           propertyId,
-          unitId: unitId || undefined,
-          itemName,
+          locationType,
+          unitName: locBadge,
+          name: itemName,
           condition,
-        }),
-      });
-    } catch (err) {
-      console.warn('API post inventory notice:', err);
-    }
+          imageUrl: imageUrl || undefined,
+          lastUpdated: new Date().toISOString(),
+        };
+        saveItems([...items, newItem]);
+      }
 
-    if (editingId) {
-      // Edit
-      const updated = items.map((item) =>
-        item.id === editingId
-          ? {
-              ...item,
-              name: itemName,
-              unitId: unitId || undefined,
-              unitName: assignedUnit ? assignedUnit.name : undefined,
-              condition,
-              imageUrl: imageUrl || undefined,
-              lastUpdated: new Date().toISOString(),
-            }
-          : item
-      );
-      saveItems(updated);
-      setEditingId(null);
-    } else {
-      // Add
-      const newItem: InventoryItem = {
-        id: generateItemId(),
-        propertyId,
-        unitId: unitId || undefined,
-        unitName: assignedUnit ? assignedUnit.name : undefined,
-        name: itemName,
-        condition,
-        imageUrl: imageUrl || undefined,
-        lastUpdated: new Date().toISOString(),
-      };
-      saveItems([...items, newItem]);
+      resetForm();
+    } finally {
+      setIsSubmitting(false);
     }
-
-    resetForm();
   };
 
   const resetForm = () => {
     setName(PREDEFINED_ITEMS[0]);
     setCustomName('');
-    setUnitId('');
+    setLocationType('UNIT');
     setCondition('Baik');
     setImageUrl('');
     setIsAdding(false);
@@ -289,41 +251,49 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
   const [ticketDesc, setTicketDesc] = useState('');
   const [isSubmittingTicket, setIsSubmittingTicket] = useState(false);
   const [ticketSuccessToast, setTicketSuccessToast] = useState<string | null>(null);
+  const [deleteTargetItem, setDeleteTargetItem] = useState<InventoryItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const triggerEdit = (item: InventoryItem) => {
     setEditingId(item.id);
     setName(PREDEFINED_ITEMS.includes(item.name) ? item.name : 'Lainnya');
     setCustomName(PREDEFINED_ITEMS.includes(item.name) ? '' : item.name);
-    setUnitId(item.unitId || '');
+    setLocationType(item.locationType === 'COMMON_AREA' ? 'COMMON_AREA' : 'UNIT');
     setCondition(item.condition);
     setImageUrl(item.imageUrl || '');
     setIsAdding(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus inventaris ini?')) {
-      const target = items.find((i) => i.id === id);
-      try {
-        await fetch(`/api/inventory?id=${id}&isUnitInventory=${Boolean(target?.unitId)}`, {
-          method: 'DELETE',
-        });
-      } catch (err) {
-        console.warn('API delete inventory notice:', err);
-      }
-      const updated = items.filter((item) => item.id !== id);
+  const openDeleteModal = (item: InventoryItem) => {
+    setDeleteTargetItem(item);
+  };
+
+  const handleExecuteDelete = async () => {
+    if (!deleteTargetItem) return;
+    setIsDeleting(true);
+    try {
+      await fetch(`/api/inventory?id=${deleteTargetItem.id}`, {
+        method: 'DELETE',
+      });
+      const updated = items.filter((item) => item.id !== deleteTargetItem.id);
       saveItems(updated);
+      setTicketSuccessToast(`Inventaris "${deleteTargetItem.name}" berhasil dihapus.`);
+      setTimeout(() => setTicketSuccessToast(null), 3000);
+    } catch (err) {
+      console.warn('API delete inventory notice:', err);
+    } finally {
+      setIsDeleting(false);
+      setDeleteTargetItem(null);
     }
   };
 
   const handleQuickConditionUpdate = async (id: string, newCond: InventoryCondition) => {
-    const target = items.find((i) => i.id === id);
     try {
       await fetch('/api/inventory', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id,
-          isUnitInventory: Boolean(target?.unitId),
           condition: newCond,
         }),
       });
@@ -348,7 +318,7 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
 
   const openTicketModal = (item: InventoryItem) => {
     setTicketTargetItem(item);
-    const loc = item.unitName ? `Kamar ${item.unitName}` : 'Area Umum';
+    const loc = item.locationType === 'COMMON_AREA' ? 'Area Umum' : 'Dalam Unit';
     setTicketTitle(`Perbaikan ${item.name} (${loc})`);
     setTicketDesc(`Kondisi fisik barang: ${item.condition}. Ditemukan saat inspeksi properti ${propertyName}.`);
     setTicketPriority(item.condition === 'Rusak Berat' ? 'HIGH' : 'MEDIUM');
@@ -367,7 +337,6 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           propertyId,
-          unitId: ticketTargetItem.unitId || undefined,
           type: 'REPAIR',
           serviceType: 'INVENTORY_REPAIR',
           title: ticketTitle,
@@ -394,10 +363,10 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
   };
 
   const sendWhatsAppReport = (item: InventoryItem) => {
-    const unitText = item.unitName ? `kamar *${item.unitName}*` : '*Area Umum*';
+    const locText = item.locationType === 'COMMON_AREA' ? '*Area Umum*' : '*Dalam Unit / Kamar*';
     const message = `Halo, Laporan Kondisi Inventaris Properti *${propertyName}*:\n\n` +
       `Barang: *${item.name}*\n` +
-      `Lokasi: ${unitText}\n` +
+      `Area Penempatan: ${locText}\n` +
       `Kondisi: *${item.condition}*\n` +
       `Terakhir Diupdate: ${new Date(item.lastUpdated).toLocaleDateString('id-ID', { hour: '2-digit', minute: '2-digit' })}\n\n` +
       `Mohon segera ditindaklanjuti. Terima kasih.`;
@@ -406,69 +375,32 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
     window.open(waUrl, '_blank');
   };
 
-  // Filter & Deduplicate Logic for Property-level inventory view
+  // Filter Logic per Area (Semua Area, Dalam Unit, Area Umum)
   const displayItems = useMemo(() => {
-    if (selectedUnitId !== 'all') {
-      return items.filter((item) => {
-        if (selectedUnitId === 'umum') return !item.unitId;
-        return item.unitId === selectedUnitId;
-      });
+    if (selectedArea === 'UNIT') {
+      return items.filter((item) => !item.locationType || item.locationType === 'UNIT');
     }
-
-    // When viewing 'Semua Lokasi / Kamar' at property level:
-    // Deduplicate / group items by item name to present a clean per-property inventory view
-    const groupedMap = new Map<string, { item: InventoryItem; totalCount: number; unitNames: string[] }>();
-
-    items.forEach((item) => {
-      const key = item.name.trim().toLowerCase();
-      const existing = groupedMap.get(key);
-      if (existing) {
-        existing.totalCount += 1;
-        if (item.unitName && !existing.unitNames.includes(item.unitName)) {
-          existing.unitNames.push(item.unitName);
-        }
-      } else {
-        groupedMap.set(key, {
-          item: { ...item },
-          totalCount: 1,
-          unitNames: item.unitName ? [item.unitName] : [],
-        });
-      }
-    });
-
-    return Array.from(groupedMap.values()).map(({ item, totalCount, unitNames }) => {
-      let locationBadge = 'Area Umum';
-      if (unitNames.length === 1) {
-        locationBadge = `Unit: ${unitNames[0]}`;
-      } else if (unitNames.length > 1) {
-        locationBadge = `${totalCount} Unit (${unitNames.join(', ')})`;
-      }
-      return {
-        ...item,
-        unitName: locationBadge,
-      };
-    });
-  }, [items, selectedUnitId]);
+    if (selectedArea === 'COMMON_AREA') {
+      return items.filter((item) => item.locationType === 'COMMON_AREA');
+    }
+    return items;
+  }, [items, selectedArea]);
 
   return (
     <div className="space-y-6">
       {/* Filters & Actions Bar */}
       <div className="flex flex-col gap-3 rounded-2xl border border-[#C7D3C0]/40 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        {/* Unit Filter */}
+        {/* Area Filter */}
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-gray-400" />
           <select
-            value={selectedUnitId}
-            onChange={(e) => setSelectedUnitId(e.target.value)}
+            value={selectedArea}
+            onChange={(e) => setSelectedArea(e.target.value)}
             className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none"
           >
-            <option value="all">Semua Lokasi / Kamar</option>
-            <option value="umum">Area Umum (Luar Kamar)</option>
-            {units.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
+            <option value="all">Semua Area Penempatan</option>
+            <option value="UNIT">Dalam Unit (Inventaris Kamar)</option>
+            <option value="COMMON_AREA">Area Umum (Fasilitas Bersama)</option>
           </select>
         </div>
 
@@ -476,7 +408,8 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
         {!isAdding && (
           <button
             onClick={() => setIsAdding(true)}
-            className="flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-black transition-all shadow-sm"
+            disabled={isSubmitting}
+            className="flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-black transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="h-4 w-4" />
             Tambah Barang
@@ -529,20 +462,16 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
               </div>
             )}
 
-            {/* Room Assignment Dropdown */}
+            {/* Area Placement Dropdown */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Penempatan Unit</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Area Penempatan *</label>
               <select
-                value={unitId}
-                onChange={(e) => setUnitId(e.target.value)}
+                value={locationType}
+                onChange={(e) => setLocationType(e.target.value as 'UNIT' | 'COMMON_AREA')}
                 className="w-full rounded-lg border border-gray-300 bg-white text-gray-800 px-3 py-2 text-sm focus:border-[#8FA28A] focus:outline-none"
               >
-                <option value="">Area Umum (Luar Kamar)</option>
-                {units.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
+                <option value="UNIT">Dalam Unit (Inventaris Kamar)</option>
+                <option value="COMMON_AREA">Area Umum (Fasilitas Bersama)</option>
               </select>
             </div>
 
@@ -567,37 +496,76 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
 
           <div className="flex justify-end gap-2 pt-2">
             <button
-              type="submit"
-              className="rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm"
+              type="button"
+              onClick={resetForm}
+              disabled={isSubmitting}
+              className="rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 px-4 py-2 text-xs font-semibold transition-all shadow-xs cursor-pointer disabled:opacity-50"
             >
-              Simpan Barang
+              Batal
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-5 py-2 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 min-w-[140px] justify-center"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                  <span>Menyimpan...</span>
+                </>
+              ) : (
+                <span>{editingId ? 'Simpan Perubahan' : 'Tambah Barang'}</span>
+              )}
             </button>
           </div>
         </form>
       )}
+
 
       {/* Grid of Items */}
       {loading ? (
         <div className="flex h-52 items-center justify-center rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-8 shadow-xs">
           <div className="text-center space-y-2.5">
             <div className="h-7 w-7 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
-            <p className="text-xs text-gray-500 font-bold">Memuat barang inventaris dari database...</p>
+            <p className="text-xs text-gray-500 font-bold">Memuat barang inventaris...</p>
           </div>
         </div>
       ) : displayItems.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm">
-          <p className="text-sm font-semibold text-gray-400">Tidak ada barang inventaris terdaftar untuk filter ini.</p>
+        <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-xs space-y-3">
+          <div className="mx-auto h-12 w-12 rounded-full bg-[#8FA28A]/10 text-[#8FA28A] flex items-center justify-center">
+            <Package className="h-6 w-6" />
+          </div>
+          <div className="space-y-1">
+            <h5 className="text-sm font-bold text-gray-800">Belum Ada Barang Inventaris Terdaftar</h5>
+            <p className="text-xs text-gray-400 max-w-md mx-auto">
+              Belum ada data inventaris untuk properti ini. Tambahkan inventaris baru untuk fasilitas umum atau inventaris kamar unit.
+            </p>
+          </div>
+          {!isAdding && (
+            <button
+              onClick={() => setIsAdding(true)}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2 text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="h-4 w-4" />
+              Tambah Barang Pertama
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {displayItems.map((item: InventoryItem) => {
             const condStyle = CONDITION_COLORS(item.condition);
             const CondIcon = condStyle.icon;
-            const badgeText = item.unitName
-              ? item.unitName.includes('Unit') || item.unitName.includes('Area')
+            const isCommonArea = item.locationType === 'COMMON_AREA';
+            const badgeText = isCommonArea
+              ? 'Area Umum'
+              : item.unitName && item.unitName.includes('Unit')
                 ? item.unitName
-                : `Unit: ${item.unitName}`
-              : 'Area Umum';
+                : 'Dalam Unit (Kamar)';
+            const badgeClass = isCommonArea
+              ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25'
+              : 'bg-[#8FA28A]/10 text-[#8FA28A] border-[#8FA28A]/25';
 
             return (
               <div
@@ -620,7 +588,7 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
                   <div className="flex-1 space-y-1.5 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <h5 className="font-bold text-gray-800 truncate">{item.name}</h5>
-                      <span className="text-[10px] text-[#8FA28A] font-bold shrink-0 bg-[#8FA28A]/10 px-2 py-0.5 rounded-full border border-[#8FA28A]/20">
+                      <span className={`text-[10px] font-bold shrink-0 px-2 py-0.5 rounded-full border ${badgeClass}`}>
                         {badgeText}
                       </span>
                     </div>
@@ -667,8 +635,8 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
                       <Edit3 className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDelete(item.id)}
-                      className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      onClick={() => openDeleteModal(item)}
+                      className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors cursor-pointer"
                       title="Hapus Barang"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -822,6 +790,67 @@ export default function InventoryManager({ propertyId, propertyName }: Inventory
           </div>
         </div>
       )}
+
+      {/* Modal: Custom Delete Confirmation Modal */}
+      {deleteTargetItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150 border border-red-100">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Hapus Inventaris?</h3>
+                <p className="text-xs text-gray-500">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-gray-50 p-3 border border-gray-100 text-xs text-gray-700 space-y-1">
+              <p className="font-semibold text-gray-900">
+                Barang: <span className="font-bold">{deleteTargetItem.name}</span>
+              </p>
+              <p className="text-gray-500">
+                Area: {deleteTargetItem.locationType === 'COMMON_AREA' ? 'Area Umum (Fasilitas Bersama)' : 'Dalam Unit (Inventaris Kamar)'}
+              </p>
+              <p className="text-gray-500">Kondisi: {deleteTargetItem.condition}</p>
+            </div>
+
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Apakah Anda yakin ingin menghapus barang inventaris ini dari daftar properti?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteTargetItem(null)}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleExecuteDelete}
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-all shadow-sm disabled:opacity-60 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Ya, Hapus Barang</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

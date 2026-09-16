@@ -22,6 +22,8 @@ import {
   XCircle,
   Copy,
   Check,
+  AlertTriangle,
+  Loader2,
 } from 'lucide-react';
 import { Unit, UnitStatus } from '../_types';
 import UnitFormModal from '../_components/UnitFormModal';
@@ -38,6 +40,8 @@ export default function UnitDetailPage() {
   const [unit, setUnit] = useState<Unit | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeletingUnit, setIsDeletingUnit] = useState(false);
   const [isAssignTenantOpen, setIsAssignTenantOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -163,22 +167,29 @@ export default function UnitDetailPage() {
     }
   };
 
-  const handleDeleteUnit = async () => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus unit ini?')) {
-      const storedUnits = localStorage.getItem('arventa_units');
-      if (storedUnits) {
-        const allUnits: Unit[] = JSON.parse(storedUnits);
-        const updated = allUnits.filter((u) => u.id !== unit.id);
-        localStorage.setItem('arventa_units', JSON.stringify(updated));
-      }
+  const handleDeleteUnit = () => {
+    setIsDeleteModalOpen(true);
+  };
 
-      // Backend Prisma DB delete
-      try {
-        await fetch(`/api/units/${unit.id}`, { method: 'DELETE' });
-      } catch (e) {
-        console.error('Failed to delete unit in database:', e);
-      }
+  const confirmDeleteUnit = async () => {
+    if (!unit || isDeletingUnit) return;
+    setIsDeletingUnit(true);
 
+    const storedUnits = localStorage.getItem('arventa_units');
+    if (storedUnits) {
+      const allUnits: Unit[] = JSON.parse(storedUnits);
+      const updated = allUnits.filter((u) => u.id !== unit.id);
+      localStorage.setItem('arventa_units', JSON.stringify(updated));
+    }
+
+    // Backend Prisma DB delete
+    try {
+      await fetch(`/api/units/${unit.id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to delete unit in database:', e);
+    } finally {
+      setIsDeletingUnit(false);
+      setIsDeleteModalOpen(false);
       router.push('/units');
     }
   };
@@ -364,14 +375,20 @@ export default function UnitDetailPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsFormOpen(true)}
-            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-border bg-card dark:bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted transition-all shadow-sm"
+            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-border bg-card dark:bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted transition-all shadow-sm cursor-pointer"
           >
             <Edit3 className="h-4 w-4 text-[#8FA28A]" />
             Ubah Unit
           </button>
           <button
-            onClick={handleDeleteUnit}
-            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-card dark:bg-card px-4 py-2 text-xs font-bold text-destructive hover:bg-destructive/10 transition-all shadow-sm"
+            disabled={unit.status === 'Occupied'}
+            onClick={() => unit.status !== 'Occupied' && handleDeleteUnit()}
+            className={`min-h-[44px] flex items-center gap-1.5 rounded-xl border px-4 py-2 text-xs font-bold transition-all shadow-sm ${
+              unit.status === 'Occupied'
+                ? 'border-border bg-muted/40 text-muted-foreground/40 cursor-not-allowed opacity-50'
+                : 'border-destructive/30 bg-card dark:bg-card text-destructive hover:bg-destructive/10 cursor-pointer'
+            }`}
+            title={unit.status === 'Occupied' ? 'Unit sedang terisi oleh penyewa, tidak dapat dihapus' : 'Hapus Unit'}
           >
             <Trash2 className="h-4 w-4" />
             Hapus Unit
@@ -832,6 +849,73 @@ export default function UnitDetailPage() {
           onSaveTenant={handleSaveTenant}
           onCheckoutTenant={handleCheckoutTenant}
         />
+      )}
+
+      {/* Custom Delete Confirmation Modal */}
+      {unit && isDeleteModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-foreground">Hapus Unit Kamar?</h4>
+                <p className="text-xs text-muted-foreground">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-muted/40 border border-border p-3.5 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-medium">Nama Unit:</span>
+                <span className="font-bold text-foreground">{unit.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-medium">Status:</span>
+                <span className="font-bold text-foreground">{unit.status}</span>
+              </div>
+              {unit.status === 'Occupied' && unit.tenantName && (
+                <div className="flex justify-between items-center pt-2 border-t border-border text-amber-600 dark:text-amber-400 font-semibold">
+                  <span>Penyewa Aktif:</span>
+                  <span>{unit.tenantName}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Unit <strong className="text-foreground">{unit.name}</strong> beserta riwayat data di dalamnya akan dihapus secara permanen.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border">
+              <button
+                type="button"
+                disabled={isDeletingUnit}
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted disabled:opacity-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUnit}
+                onClick={confirmDeleteUnit}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer min-w-[120px] justify-center"
+              >
+                {isDeletingUnit ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Hapus Unit</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
