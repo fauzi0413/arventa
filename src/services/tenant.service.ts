@@ -395,6 +395,14 @@ export class TenantService {
     }, { maxWait: 15000, timeout: 30000 });
 
     if (placedUnit && data.status === "AKTIF") {
+      import("./property-chat.service").then(({ PropertyChatService }) => {
+        PropertyChatService.sendSystemJoinMessage({
+          propertyId: placedUnit.propertyId,
+          tenantName: data.fullName,
+          unitNumber: placedUnit.unitNumber,
+        }).catch((e) => console.error("Auto chat join event error in createTenant:", e));
+      });
+
       CommunityWelcomeService.createWelcomePost({
         propertyId: placedUnit.propertyId,
         unitNumber: placedUnit.unitNumber,
@@ -482,6 +490,18 @@ export class TenantService {
               toStatus: isNonAktif ? 'NONAKTIF' : 'CALON',
             },
           });
+
+          // Broadcast SYSTEM_LEAVE message to Kost Group Chat
+          if (isNonAktif && l.unit?.propertyId) {
+            import("./property-chat.service").then(({ PropertyChatService }) => {
+              PropertyChatService.sendSystemLeaveMessage({
+                propertyId: l.unit.propertyId,
+                tenantName: tenant.fullName || data.fullName || "Penghuni",
+                unitNumber: l.unit.unitNumber,
+                tenantUserId: tenant.userId,
+              }).catch((e) => console.error("Auto chat leave event error in updateTenant:", e));
+            });
+          }
         }
       } else if (isAktif) {
         if (data.unitName || data.propertyName) {

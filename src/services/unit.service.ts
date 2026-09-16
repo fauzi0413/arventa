@@ -353,9 +353,17 @@ export class UnitService {
       return this.getUnitById(unit.id);
     });
 
-    // Auto Welcome Post if tenant assigned
+    // Auto Welcome Post & SYSTEM_JOIN if tenant assigned
     const createdUnitNumber = (result as any)?.name || (result as any)?.unitNumber || "";
     if (data.tenantName && result?.propertyId && createdUnitNumber) {
+      import("./property-chat.service").then(({ PropertyChatService }) => {
+        PropertyChatService.sendSystemJoinMessage({
+          propertyId: result.propertyId,
+          tenantName: data.tenantName!,
+          unitNumber: createdUnitNumber,
+        }).catch((e) => console.error("Auto chat join event error in createUnit:", e));
+      });
+
       CommunityWelcomeService.createWelcomePost({
         propertyId: result.propertyId,
         unitNumber: createdUnitNumber,

@@ -110,6 +110,13 @@ enum InventoryLocationType {
   COMMON_AREA
 }
 
+enum MessageType {
+  CHAT
+  SYSTEM_JOIN
+  SYSTEM_LEAVE
+  ANNOUNCEMENT
+}
+
 // ============================================================================
 // MODEL DEFINITIONS
 // ============================================================================
@@ -148,6 +155,8 @@ model User {
   assignedMaintenanceTickets MaintenanceTicket[]      @relation("AssignedTickets")
   ownerPaymentMethods        OwnerPaymentMethod[]
   userCredential             UserCredential?
+  propertyChatMessages       PropertyChatMessage[]
+  propertyChatMemberReads    PropertyChatMemberRead[]
 
   @@map("users")
 }
@@ -505,6 +514,8 @@ model Property {
   forumPosts              ForumPost[]
   maintenanceTickets      MaintenanceTicket[]
   paymentMethods          OwnerPaymentMethod[]
+  chatMessages            PropertyChatMessage[]
+  chatMemberReads         PropertyChatMemberRead[]
 
   @@map("properties")
 }
@@ -852,6 +863,50 @@ model ForumComment {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("forum_comments")
+}
+
+model PropertyChatMessage {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  senderId   String?  @map("sender_id")
+  sender     User?    @relation(fields: [senderId], references: [id], onDelete: SetNull)
+
+  // Tipe pesan: CHAT biasa, atau notifikasi otomatis sistem
+  messageType MessageType @default(CHAT) @map("message_type") // ENUM: CHAT, SYSTEM_JOIN, SYSTEM_LEAVE, ANNOUNCEMENT
+  content     String      @db.Text
+  mediaUrl    String?     @map("media_url")
+
+  // Snapshot identitas pengirim saat pesan terkirim
+  senderName       String?  @map("sender_name")
+  senderUnitNumber String?  @map("sender_unit_number")
+  senderRole       String?  @map("sender_role")
+
+  // WhatsApp Style Pinned Message fields
+  isPinned         Boolean   @default(false) @map("is_pinned")
+  pinnedAt         DateTime? @map("pinned_at")
+  pinnedById       String?   @map("pinned_by_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([propertyId, createdAt])
+  @@index([propertyId, isPinned])
+  @@map("property_chat_messages")
+}
+
+model PropertyChatMemberRead {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  userId     String   @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime @default(now()) @map("last_read_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([propertyId, userId])
+  @@index([propertyId])
+  @@map("property_chat_member_reads")
 }
 
 // --- 8. AUDIT TRAIL & SYSTEM SETTINGS ---

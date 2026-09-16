@@ -209,7 +209,7 @@ export class LeaseService {
       return newLease;
     });
 
-    // Automatically create Community Welcome Post for new tenant
+    // Automatically broadcast SYSTEM_JOIN message to Kost Group Chat
     if (result && input.tenantName) {
       try {
         const unit = await prisma.unit.findUnique({
@@ -217,6 +217,14 @@ export class LeaseService {
           select: { propertyId: true, unitNumber: true },
         });
         if (unit) {
+          const { PropertyChatService } = await import("./property-chat.service");
+          PropertyChatService.sendSystemJoinMessage({
+            propertyId: unit.propertyId,
+            unitNumber: unit.unitNumber,
+            tenantName: input.tenantName,
+            tenantUserId: result.tenant?.user?.id,
+          }).catch((e) => console.error("Auto chat join event error:", e));
+
           CommunityWelcomeService.createWelcomePost({
             propertyId: unit.propertyId,
             unitNumber: unit.unitNumber,
@@ -225,7 +233,7 @@ export class LeaseService {
           }).catch((e) => console.error("Auto welcome post error:", e));
         }
       } catch (err) {
-        console.error("Failed to trigger welcome post in LeaseService:", err);
+        console.error("Failed to trigger welcome events in LeaseService:", err);
       }
     }
 
@@ -236,7 +244,16 @@ export class LeaseService {
    * Checkout tenant: Terminate active lease and reset unit status & password
    */
   static async checkoutTenant(unitId: string) {
-    return prisma.$transaction(async (tx) => {
+    // 0. Find current active lease and tenant before terminating
+    const currentActiveLease = await prisma.lease.findFirst({
+      where: { unitId, status: LeaseStatus.ACTIVE },
+      include: {
+        unit: { select: { propertyId: true, unitNumber: true } },
+        tenant: { include: { user: { select: { id: true, fullName: true } } } },
+      },
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
       const unit = await tx.unit.findUnique({
         where: { id: unitId },
         include: { property: true },
@@ -285,5 +302,31 @@ export class LeaseService {
         message: `Penyewa berhasil check-out. Status unit: ${nextStatus}. Password kamar telah di-reset.`,
       };
     });
+
+    // Broadcast SYSTEM_LEAVE message to Kost Group Chat
+    if (currentActiveLease) {
+      try {
+        const tenantName =
+          currentActiveLease.tenant?.fullName ||
+          currentActiveLease.tenant?.user?.fullName ||
+          "Penghuni";
+        const unitNumber = currentActiveLease.unit?.unitNumber || "";
+        const propertyId = currentActiveLease.unit?.propertyId;
+
+        if (propertyId && tenantName && unitNumber) {
+          const { PropertyChatService } = await import("./property-chat.service");
+          PropertyChatService.sendSystemLeaveMessage({
+            propertyId,
+            tenantName,
+            unitNumber,
+            tenantUserId: currentActiveLease.tenant?.user?.id,
+          }).catch((e) => console.error("Auto chat leave event error:", e));
+        }
+      } catch (err) {
+        console.error("Failed to broadcast SYSTEM_LEAVE message in checkoutTenant:", err);
+      }
+    }
+
+    return result;
   }
 }
