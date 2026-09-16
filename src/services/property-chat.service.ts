@@ -15,6 +15,9 @@ export interface SendMessageParams {
   propertyId: string;
   content: string;
   mediaUrl?: string;
+  replyToId?: string;
+  replyToContent?: string;
+  replyToSenderName?: string;
 }
 
 export class PropertyChatService {
@@ -536,7 +539,7 @@ export class PropertyChatService {
         propertyId: m.propertyId,
         senderId: m.senderId,
         messageType: m.messageType,
-        content: m.content,
+        content: m.isDeleted ? "🚫 Pesan ini telah dihapus" : m.content,
         mediaUrl: m.mediaUrl,
         senderName: m.senderName || "Anonim",
         senderUnitNumber: m.senderUnitNumber,
@@ -545,6 +548,11 @@ export class PropertyChatService {
         isPinned: Boolean(m.isPinned),
         pinnedAt: m.pinnedAt ? (m.pinnedAt instanceof Date ? m.pinnedAt.toISOString() : m.pinnedAt) : null,
         pinnedById: m.pinnedById || null,
+        replyToId: m.replyToId || null,
+        replyToContent: m.replyToContent || null,
+        replyToSenderName: m.replyToSenderName || null,
+        isDeleted: Boolean(m.isDeleted),
+        deletedAt: m.deletedAt ? (m.deletedAt instanceof Date ? m.deletedAt.toISOString() : m.deletedAt) : null,
         readStatus,
         readCount,
         totalRecipients,
@@ -556,7 +564,7 @@ export class PropertyChatService {
    * Send a new regular chat message to the Kost Group Chat
    */
   static async sendMessage(params: SendMessageParams) {
-    const { userId, role, propertyId, content, mediaUrl } = params;
+    const { userId, role, propertyId, content, mediaUrl, replyToId, replyToContent, replyToSenderName } = params;
 
     if (!content || !content.trim()) {
       throw new Error("Pesan tidak boleh kosong.");
@@ -577,6 +585,9 @@ export class PropertyChatService {
         senderName: access.senderName,
         senderUnitNumber: access.senderUnitNumber || null,
         senderRole: access.senderRole,
+        replyToId: replyToId || null,
+        replyToContent: replyToContent || null,
+        replyToSenderName: replyToSenderName || null,
       },
     });
 
@@ -590,6 +601,10 @@ export class PropertyChatService {
       senderName: message.senderName,
       senderUnitNumber: message.senderUnitNumber,
       senderRole: message.senderRole,
+      replyToId: message.replyToId,
+      replyToContent: message.replyToContent,
+      replyToSenderName: message.replyToSenderName,
+      isDeleted: message.isDeleted,
       createdAt: message.createdAt.toISOString(),
     };
   }
@@ -703,14 +718,6 @@ export class PropertyChatService {
     userId: string,
     role: string
   ) {
-    if (
-      role !== UserRole.OWNER &&
-      role !== UserRole.HOUSEKEEPING &&
-      role !== UserRole.PLATFORM_ADMIN
-    ) {
-      throw new Error("Hanya pengelola kost yang dapat menyematkan pesan.");
-    }
-
     const access = await this.verifyPropertyAccess(userId, role, propertyId);
     if (!access.allowed) {
       throw new Error(access.reason || "Akses ditolak.");
@@ -729,7 +736,7 @@ export class PropertyChatService {
   }
 
   /**
-   * Unpin a message (Owner / Housekeeping only)
+   * Unpin a message
    */
   static async unpinMessage(
     propertyId: string,
@@ -737,14 +744,6 @@ export class PropertyChatService {
     userId: string,
     role: string
   ) {
-    if (
-      role !== UserRole.OWNER &&
-      role !== UserRole.HOUSEKEEPING &&
-      role !== UserRole.PLATFORM_ADMIN
-    ) {
-      throw new Error("Hanya pengelola kost yang dapat melepas sematan pesan.");
-    }
-
     const access = await this.verifyPropertyAccess(userId, role, propertyId);
     if (!access.allowed) {
       throw new Error(access.reason || "Akses ditolak.");
@@ -756,6 +755,53 @@ export class PropertyChatService {
         isPinned: false,
         pinnedAt: null,
         pinnedById: null,
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Delete a chat message (soft delete: "🚫 Pesan ini telah dihapus")
+   * Senders can delete their own message; Admins (Owner/Housekeeping) can delete any message.
+   */
+  static async deleteMessage(
+    propertyId: string,
+    messageId: string,
+    userId: string,
+    role: string
+  ) {
+    const access = await this.verifyPropertyAccess(userId, role, propertyId);
+    if (!access.allowed) {
+      throw new Error(access.reason || "Akses ditolak.");
+    }
+
+    const message = await prisma.propertyChatMessage.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message || message.propertyId !== propertyId) {
+      throw new Error("Pesan tidak ditemukan.");
+    }
+
+    const isAdmin =
+      role === UserRole.OWNER ||
+      role === UserRole.HOUSEKEEPING ||
+      role === UserRole.PLATFORM_ADMIN;
+
+    const isSender = message.senderId === userId;
+
+    if (!isSender && !isAdmin) {
+      throw new Error("Anda hanya dapat menghapus pesan yang Anda kirim sendiri.");
+    }
+
+    const updated = await prisma.propertyChatMessage.update({
+      where: { id: messageId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        content: "🚫 Pesan ini telah dihapus",
+        isPinned: false, // Automatically unpin if deleted
       },
     });
 
@@ -875,7 +921,7 @@ export class PropertyChatService {
             : {}),
         },
         include: {
-          creator: {
+          createdBy: {
             select: {
               fullName: true,
               role: true,
@@ -927,15 +973,15 @@ export class PropertyChatService {
         timestamp: l.createdAt.toISOString(),
       })),
       announcements: [
-        ...officialAnnouncements.map((a) => ({
+        ...officialAnnouncements.map((a: any) => ({
           id: a.id,
           source: "OFFICIAL",
           title: a.title,
           content: a.content,
-          authorName: a.creator?.fullName || "Pengelola",
-          authorRole: a.creator?.role || "MANAGEMENT",
+          authorName: a.createdBy?.fullName || "Pengelola",
+          authorRole: a.createdBy?.role || "MANAGEMENT",
           isPinned: a.isPinned || false,
-          category: a.category,
+          category: "OFFICIAL",
           createdAt: a.createdAt.toISOString(),
         })),
         ...chatAnnouncements.map((c) => ({

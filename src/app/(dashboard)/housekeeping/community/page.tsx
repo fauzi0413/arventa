@@ -36,12 +36,18 @@ export default function HousekeepingCommunityPage() {
     sendMessage,
     pinMessage,
     unpinMessage,
+    deleteMessage,
     switchProperty,
     refresh,
   } = usePropertyChat();
 
   const [isResidentsDrawerOpen, setIsResidentsDrawerOpen] = useState(false);
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<{
+    id: string;
+    content: string;
+    senderName: string;
+  } | null>(null);
   const [toast, setToast] = useState<{
     type: "success" | "error" | "info";
     message: string;
@@ -59,12 +65,16 @@ export default function HousekeepingCommunityPage() {
     }, 4000);
   };
 
-  const handleSendMessage = async (content: string) => {
-    const success = await sendMessage(content);
+  const handleSendMessage = async (
+    content: string,
+    replyTo?: { id: string; content: string; senderName: string }
+  ) => {
+    const success = await sendMessage(content, replyTo);
     if (success === false) {
       showToast("error", "Gagal mengirim pesan. Silakan coba lagi.");
       return false;
     }
+    setReplyingTo(null);
     return true;
   };
 
@@ -201,6 +211,19 @@ export default function HousekeepingCommunityPage() {
               const ok = await unpinMessage(id);
               if (ok) showToast("info", "Sematan pesan dilepas.");
             }}
+            onDeleteMessage={async (id) => {
+              const ok = await deleteMessage(id);
+              if (ok) showToast("info", "Pesan telah dihapus.");
+              else showToast("error", "Gagal menghapus pesan.");
+            }}
+            onReplyMessage={(msg) => {
+              setReplyingTo({
+                id: msg.id,
+                content: msg.content,
+                senderName: msg.senderName,
+              });
+            }}
+            onJumpToMessage={handleJumpToMessage}
           />
 
           {/* Bottom Chat Input Bar */}
@@ -208,6 +231,8 @@ export default function HousekeepingCommunityPage() {
             onSendMessage={handleSendMessage}
             sending={sending}
             disabled={loading || !property}
+            replyingTo={replyingTo}
+            onCancelReply={() => setReplyingTo(null)}
           />
         </div>
       )}

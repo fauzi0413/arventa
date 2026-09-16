@@ -12,6 +12,9 @@ interface ChatMessageListProps {
   loading: boolean;
   onPinMessage?: (messageId: string) => void;
   onUnpinMessage?: (messageId: string) => void;
+  onDeleteMessage?: (messageId: string) => void;
+  onReplyMessage?: (message: PropertyChatMessageItem) => void;
+  onJumpToMessage?: (messageId: string) => void;
 }
 
 // Group messages by date string (e.g. "Hari Ini", "Kemarin", or "16 September 2026")
@@ -56,6 +59,9 @@ export function ChatMessageList({
   loading,
   onPinMessage,
   onUnpinMessage,
+  onDeleteMessage,
+  onReplyMessage,
+  onJumpToMessage,
 }: ChatMessageListProps) {
   const scrollBottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -172,6 +178,9 @@ export function ChatMessageList({
                     currentUserRole={currentUserRole}
                     onPinMessage={onPinMessage}
                     onUnpinMessage={onUnpinMessage}
+                    onDeleteMessage={onDeleteMessage}
+                    onReplyMessage={onReplyMessage}
+                    onJumpToMessage={onJumpToMessage}
                   />
                 ))}
               </div>

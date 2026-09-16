@@ -22,11 +22,6 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-// Auto-refresh stale HMR singleton in development if new schema models or fields are generated
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = undefined;
-}
-
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {

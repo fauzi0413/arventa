@@ -236,7 +236,10 @@ export function usePropertyChat(initialPropertyId?: string) {
 
   // Send Message with Optimistic UI
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (
+      content: string,
+      replyTo?: { id: string; content: string; senderName: string }
+    ) => {
       if (!propertyId || !content.trim() || sending) return false;
 
       const trimmed = content.trim();
@@ -258,6 +261,9 @@ export function usePropertyChat(initialPropertyId?: string) {
         senderName: currentUser?.name || "Saya",
         senderUnitNumber: currentUser?.unitNumber || null,
         senderRole: currentUser?.role || "WARGA",
+        replyToId: replyTo?.id || null,
+        replyToContent: replyTo?.content || null,
+        replyToSenderName: replyTo?.senderName || null,
         createdAt: nowIso,
         readStatus: "SENT",
         readCount: 0,
@@ -277,6 +283,9 @@ export function usePropertyChat(initialPropertyId?: string) {
             propertyId,
             content: trimmed,
             messageType: "CHAT",
+            replyToId: replyTo?.id,
+            replyToContent: replyTo?.content,
+            replyToSenderName: replyTo?.senderName,
           }),
         });
 
@@ -388,6 +397,41 @@ export function usePropertyChat(initialPropertyId?: string) {
     [propertyId]
   );
 
+  // Delete Message (Sender or Admin)
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      if (!propertyId) return false;
+      try {
+        const res = await fetch("/api/community/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ propertyId, action: "delete_message", messageId }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === messageId
+                ? {
+                    ...m,
+                    isDeleted: true,
+                    content: "🚫 Pesan ini telah dihapus",
+                    isPinned: false,
+                  }
+                : m
+            )
+          );
+          setPinnedMessages((prev) => prev.filter((p) => p.id !== messageId));
+          return true;
+        }
+      } catch (e) {
+        console.error("deleteMessage error:", e);
+      }
+      return false;
+    },
+    [propertyId]
+  );
+
   // Manual Refresh
   const refresh = useCallback(() => {
     return loadRoomData(propertyId, true);
@@ -411,6 +455,7 @@ export function usePropertyChat(initialPropertyId?: string) {
     sendMessage,
     pinMessage,
     unpinMessage,
+    deleteMessage,
     switchProperty,
     refresh,
   };

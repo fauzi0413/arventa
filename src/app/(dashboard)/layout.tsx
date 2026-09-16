@@ -18,10 +18,11 @@ export default async function DashboardLayout({
   const headerList = await headers();
   const pathname = headerList.get("x-pathname") || "";
 
-  const authUser = await getAuthenticatedUser();
-
-  // 1. Check live Maintenance Mode status directly from database
-  const isMaintenance = await isMaintenanceModeActive();
+  // Run user auth and maintenance mode checks in parallel
+  const [authUser, isMaintenance] = await Promise.all([
+    getAuthenticatedUser(),
+    isMaintenanceModeActive(),
+  ]);
 
   if (isMaintenance) {
     const isPlatformAdmin = authUser?.role === "PLATFORM_ADMIN";

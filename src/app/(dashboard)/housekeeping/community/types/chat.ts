@@ -15,6 +15,11 @@ export interface PropertyChatMessageItem {
   isPinned?: boolean;
   pinnedAt?: string | null;
   pinnedById?: string | null;
+  replyToId?: string | null;
+  replyToContent?: string | null;
+  replyToSenderName?: string | null;
+  isDeleted?: boolean;
+  deletedAt?: string | null;
   readStatus?: MessageReadStatus; // SENT (Ceklis 1), DELIVERED (Ceklis 2 ga biru), READ_ALL (Ceklis 2 biru)
   readCount?: number;
   totalRecipients?: number;

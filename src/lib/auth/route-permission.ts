@@ -19,6 +19,33 @@ export function getDefaultHomeRoute(role?: string | null): string {
   return DEFAULT_HOME_ROUTES[normalizedRole] || DEFAULT_HOME_ROUTES[role] || "/login";
 }
 
+// ---------------------------------------------------------------------------
+// In-memory cache for dynamic menu permissions (60s TTL)
+// Avoids executing heavy MenuItem findMany queries on every page transition
+// ---------------------------------------------------------------------------
+let cachedMenuItems: any = null;
+let lastCacheTime = 0;
+const CACHE_TTL_MS = 60_000;
+
+async function getCachedMenuItems() {
+  const now = Date.now();
+  if (cachedMenuItems && now - lastCacheTime < CACHE_TTL_MS) {
+    return cachedMenuItems;
+  }
+  const items = await prisma.menuItem.findMany({
+    include: {
+      roleMenus: {
+        include: {
+          role: { select: { code: true } },
+        },
+      },
+    },
+  });
+  cachedMenuItems = items;
+  lastCacheTime = now;
+  return items;
+}
+
 /**
  * Validates whether a given userRole is authorized to access a target pathname
  * based on dynamic MenuItem & RoleMenu database mappings.
@@ -71,17 +98,9 @@ export async function validateRouteAccess(
     return { allowed: false, redirectUrl: defaultHome };
   }
 
-  // 3. Fetch all dynamic menu items with their assigned roles from database
+  // 3. Fetch all dynamic menu items with their assigned roles from database (cached)
   try {
-    const menuItems = await prisma.menuItem.findMany({
-      include: {
-        roleMenus: {
-          include: {
-            role: { select: { code: true } },
-          },
-        },
-      },
-    });
+    const menuItems = await getCachedMenuItems();
 
     // Find dynamic menu items matching requested path
     const matchingMenus = menuItems.filter((item) => {

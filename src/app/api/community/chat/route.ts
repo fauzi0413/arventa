@@ -203,6 +203,16 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Action: Delete Message (Sender or Owner/Housekeeping)
+    if (action === "delete_message") {
+      const { messageId } = body;
+      if (!messageId) {
+        return ApiResponse.error({ message: "messageId wajib disertakan.", status: 400 });
+      }
+      const updated = await PropertyChatService.deleteMessage(propertyId, messageId, user.id, user.role);
+      return ApiResponse.success({ message: "Pesan berhasil dihapus", data: updated });
+    }
+
     if (!content || !content.trim()) {
       return ApiResponse.error({
         message: "Pesan tidak boleh kosong.",
@@ -216,6 +226,9 @@ export async function POST(req: NextRequest) {
       propertyId,
       content: content.trim(),
       mediaUrl: mediaUrl || undefined,
+      replyToId: body.replyToId || undefined,
+      replyToContent: body.replyToContent || undefined,
+      replyToSenderName: body.replyToSenderName || undefined,
     });
 
     return ApiResponse.success({
