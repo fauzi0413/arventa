@@ -330,19 +330,19 @@ export default function TenantContractPortalPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] flex-col items-center justify-center space-y-4 bg-[#F7F4ED] rounded-2xl p-8 border border-[#C7D3C0]/40">
+      <div className="flex h-[80vh] flex-col items-center justify-center space-y-4 bg-card rounded-2xl p-8 border border-border text-card-foreground">
         <Loader2 className="h-8 w-8 animate-spin text-[#8FA28A]" />
-        <p className="text-xs font-bold text-gray-600">Memuat Dokumen Kontrak Sewa Digital Anda...</p>
+        <p className="text-xs font-bold text-muted-foreground">Memuat Dokumen Kontrak Sewa Digital Anda...</p>
       </div>
     );
   }
 
   if (!contractDetails) {
     return (
-      <div className="flex h-[80vh] flex-col items-center justify-center rounded-2xl border border-[#C7D3C0]/40 bg-[#F7F4ED] p-8 text-center space-y-4">
+      <div className="flex h-[80vh] flex-col items-center justify-center rounded-2xl border border-border bg-card p-8 text-center space-y-4 text-card-foreground">
         <AlertCircle className="h-12 w-12 text-amber-500 animate-bounce" />
-        <h2 className="text-lg font-bold text-gray-800">Kontrak Sewa Belum Ditemukan</h2>
-        <p className="text-xs text-gray-500 max-w-sm leading-relaxed">
+        <h2 className="text-lg font-bold text-foreground">Kontrak Sewa Belum Ditemukan</h2>
+        <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
           Sistem belum menemukan dokumen perjanjian sewa aktif untuk akun Anda. Silakan hubungi pengelola properti.
         </p>
       </div>
@@ -352,7 +352,7 @@ export default function TenantContractPortalPage() {
   const daysLeft = calculateDaysRemaining(contractDetails.endDate);
 
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40 text-[#2F332E]">
+    <div className="space-y-6 bg-background min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-border text-foreground">
       
       {/* 1. Header Banner & Status Badge */}
       <div className="relative overflow-hidden rounded-2xl bg-[#242823] p-6 sm:p-8 text-white shadow-lg border border-[#383E36]">
@@ -394,11 +394,11 @@ export default function TenantContractPortalPage() {
       <div className="grid gap-6 md:grid-cols-3">
         
         {/* Card 1: Nomor Kontrak & Identitas Penyewa */}
-        <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <User className="h-5 w-5 text-[#8FA28A]" />
-              <h3 className="text-xs font-black uppercase tracking-wider text-gray-800">Identitas Penyewa</h3>
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Identitas Penyewa</h3>
             </div>
             <span className="text-[10px] font-bold text-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-full">
               Pihak II (Penyewa)
@@ -406,48 +406,48 @@ export default function TenantContractPortalPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-              <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-wider block">Nomor Kontrak Digital</span>
+            <div className="p-3.5 rounded-xl bg-muted/40 border border-border space-y-1">
+              <span className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-wider block">Nomor Kontrak Digital</span>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-black text-gray-800">{contractDetails.contractNumber}</span>
+                <span className="font-mono text-xs font-black text-foreground">{contractDetails.contractNumber}</span>
                 <button
                   type="button"
                   onClick={handleCopyContractNumber}
-                  className="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors"
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground transition-colors"
                   title="Salin Nomor Kontrak"
                 >
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500 font-medium">Nama Lengkap</span>
-                <strong className="text-gray-900 font-extrabold">{contractDetails.tenantName}</strong>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <span className="text-muted-foreground font-medium">Nama Lengkap</span>
+                <strong className="text-foreground font-extrabold">{contractDetails.tenantName}</strong>
               </div>
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500 font-medium">NIK KTP</span>
-                <strong className="text-gray-800 font-mono">{contractDetails.tenantNik}</strong>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <span className="text-muted-foreground font-medium">NIK KTP</span>
+                <strong className="text-foreground font-mono">{contractDetails.tenantNik}</strong>
               </div>
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500 font-medium">No. WhatsApp</span>
-                <strong className="text-gray-800">{contractDetails.tenantPhone}</strong>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <span className="text-muted-foreground font-medium">No. WhatsApp</span>
+                <strong className="text-foreground">{contractDetails.tenantPhone}</strong>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 font-medium">Email Akun</span>
-                <strong className="text-gray-800">{contractDetails.tenantEmail}</strong>
+                <span className="text-muted-foreground font-medium">Email Akun</span>
+                <strong className="text-foreground">{contractDetails.tenantEmail}</strong>
               </div>
             </div>
           </div>
         </div>
 
         {/* Card 2: Objek Sewa & Lokasi Unit */}
-        <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <Building2 className="h-5 w-5 text-[#8FA28A]" />
-              <h3 className="text-xs font-black uppercase tracking-wider text-gray-800">Objek & Unit Sewa</h3>
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Objek & Unit Sewa</h3>
             </div>
             <span className="text-[10px] font-bold text-[#C8A96B] bg-[#C8A96B]/10 px-2 py-0.5 rounded-full">
               Pihak I (Pengelola)
@@ -455,66 +455,66 @@ export default function TenantContractPortalPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="p-3.5 rounded-xl bg-[#8FA28A]/5 border border-[#8FA28A]/20 space-y-1">
+            <div className="p-3.5 rounded-xl bg-[#8FA28A]/10 border border-[#8FA28A]/20 space-y-1">
               <span className="text-[10px] font-extrabold text-[#8FA28A] uppercase tracking-wider block">Unit Kamar Sewa</span>
-              <h4 className="text-lg font-black text-gray-900">{contractDetails.unitName}</h4>
-              <p className="text-xs text-gray-600 font-medium">{contractDetails.propertyName}</p>
+              <h4 className="text-lg font-black text-foreground">{contractDetails.unitName}</h4>
+              <p className="text-xs text-muted-foreground font-medium">{contractDetails.propertyName}</p>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div className="flex items-start justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500 font-medium shrink-0">Alamat Properti</span>
-                <span className="text-gray-800 text-right font-medium leading-tight max-w-[180px]">{contractDetails.propertyAddress}</span>
+              <div className="flex items-start justify-between border-b border-border/50 pb-2">
+                <span className="text-muted-foreground font-medium shrink-0">Alamat Properti</span>
+                <span className="text-foreground text-right font-medium leading-tight max-w-[180px]">{contractDetails.propertyAddress}</span>
               </div>
-              <div className="flex items-center justify-between border-b border-gray-50 pb-2">
-                <span className="text-gray-500 font-medium">Tarif Sewa Pokok</span>
-                <strong className="text-gray-900 font-extrabold">{formatIDR(contractDetails.monthlyPrice)} / bln</strong>
+              <div className="flex items-center justify-between border-b border-border/50 pb-2">
+                <span className="text-muted-foreground font-medium">Tarif Sewa Pokok</span>
+                <strong className="text-foreground font-extrabold">{formatIDR(contractDetails.monthlyPrice)} / bln</strong>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-gray-500 font-medium">Uang Jaminan / Deposit</span>
-                <strong className="text-emerald-600 font-bold">{formatIDR(contractDetails.depositPrice)} (Lunas)</strong>
+                <span className="text-muted-foreground font-medium">Uang Jaminan / Deposit</span>
+                <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{formatIDR(contractDetails.depositPrice)} (Lunas)</strong>
               </div>
             </div>
           </div>
         </div>
 
         {/* Card 3: Detail Masa Sewa & Tanggal Berlaku */}
-        <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-5">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-5">
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-[#8FA28A]" />
-              <h3 className="text-xs font-black uppercase tracking-wider text-gray-800">Detail Masa Sewa</h3>
+              <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Detail Masa Sewa</h3>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
               Sisa {daysLeft} Hari
             </span>
           </div>
 
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tanggal Masuk</span>
-                <strong className="text-gray-900 block font-bold">{contractDetails.startDate}</strong>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Tanggal Masuk</span>
+                <strong className="text-foreground block font-bold">{contractDetails.startDate}</strong>
               </div>
-              <div className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Tanggal Berakhir</span>
-                <strong className="text-gray-900 block font-bold">{contractDetails.endDate}</strong>
+              <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Tanggal Berakhir</span>
+                <strong className="text-foreground block font-bold">{contractDetails.endDate}</strong>
               </div>
             </div>
 
             {/* Progress Bar for Lease Duration */}
             <div className="space-y-1.5 pt-1">
               <div className="flex items-center justify-between text-[11px]">
-                <span className="text-gray-500 font-semibold">Progres Masa Berlaku Kontrak</span>
+                <span className="text-muted-foreground font-semibold">Progres Masa Berlaku Kontrak</span>
                 <span className="font-extrabold text-[#8FA28A]">Aktif (12 Bulan)</span>
               </div>
-              <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+              <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
                 <div className="h-full bg-[#8FA28A] rounded-full w-[95%]" />
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 flex items-start gap-2">
-              <Clock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+              <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
               <p className="text-[11px] leading-relaxed">
                 Pemberitahuan perpanjangan sewa otomatis akan dikirimkan 30 hari sebelum tanggal kontrak berakhir ({contractDetails.endDate}).
               </p>
@@ -524,59 +524,59 @@ export default function TenantContractPortalPage() {
       </div>
 
       {/* 3. Section: Riwayat Kontrak & Log Addendum (Contract History) */}
-      <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-5">
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+      <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-5">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-[#8FA28A]" />
-            <h3 className="text-sm font-black uppercase tracking-wider text-gray-800">Riwayat Kontrak & Addendum</h3>
+            <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Riwayat Kontrak & Addendum</h3>
           </div>
-          <span className="text-xs text-gray-400 font-medium">3 Aktivitas Teratat</span>
+          <span className="text-xs text-muted-foreground font-medium">3 Aktivitas Tercatat</span>
         </div>
 
         <div className="space-y-4 text-xs">
           {/* Item 1 */}
-          <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-gray-50 border border-gray-100">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-500/20">
+          <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
               <CheckCircle2 className="h-4 w-4" />
             </div>
             <div className="flex-1 space-y-1">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-gray-900">Penandatanganan & Pengaktifan Kontrak Sewa Digital</h4>
-                <span className="text-[10px] text-gray-400 font-medium">23 Agustus 2026, 10:00 WIB</span>
+                <h4 className="font-bold text-foreground">Penandatanganan & Pengaktifan Kontrak Sewa Digital</h4>
+                <span className="text-[10px] text-muted-foreground font-medium">23 Agustus 2026, 10:00 WIB</span>
               </div>
-              <p className="text-gray-600 text-[11px]">
-                Surat perjanjian sewa digital nomor <strong className="font-mono text-gray-800">{contractDetails.contractNumber}</strong> telah disetujui secara digital oleh Penyewa ({contractDetails.tenantName}) dan Pengelola.
+              <p className="text-muted-foreground text-[11px]">
+                Surat perjanjian sewa digital nomor <strong className="font-mono text-foreground">{contractDetails.contractNumber}</strong> telah disetujui secara digital oleh Penyewa ({contractDetails.tenantName}) dan Pengelola.
               </p>
             </div>
           </div>
 
           {/* Item 2 */}
-          <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-gray-50 border border-gray-100">
-            <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 border border-blue-500/20">
+          <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
               <ShieldCheck className="h-4 w-4" />
             </div>
             <div className="flex-1 space-y-1">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-gray-900">Verifikasi Dokumen KTP & Data Penyewa</h4>
-                <span className="text-[10px] text-gray-400 font-medium">23 Agustus 2026, 09:45 WIB</span>
+                <h4 className="font-bold text-foreground">Verifikasi Dokumen KTP & Data Penyewa</h4>
+                <span className="text-[10px] text-muted-foreground font-medium">23 Agustus 2026, 09:45 WIB</span>
               </div>
-              <p className="text-gray-600 text-[11px]">
+              <p className="text-muted-foreground text-[11px]">
                 Dokumen identitas (NIK: {contractDetails.tenantNik}) dan kontak darurat telah diverifikasi dan dinyatakan valid.
               </p>
             </div>
           </div>
 
           {/* Item 3 */}
-          <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-gray-50 border border-gray-100">
-            <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 border border-amber-500/20">
+          <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="h-9 w-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/20">
               <Sparkles className="h-4 w-4" />
             </div>
             <div className="flex-1 space-y-1">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-gray-900">Penempatan & Serah Terima Akses Unit {contractDetails.unitName}</h4>
-                <span className="text-[10px] text-gray-400 font-medium">23 Agustus 2026, 09:30 WIB</span>
+                <h4 className="font-bold text-foreground">Penempatan & Serah Terima Akses Unit {contractDetails.unitName}</h4>
+                <span className="text-[10px] text-muted-foreground font-medium">23 Agustus 2026, 09:30 WIB</span>
               </div>
-              <p className="text-gray-600 text-[11px]">
+              <p className="text-muted-foreground text-[11px]">
                 Kredensial login kamar dan password akses unit otomatis di-generate dan diserahkan kepada penyewa.
               </p>
             </div>
@@ -585,23 +585,23 @@ export default function TenantContractPortalPage() {
       </div>
 
       {/* 4. Section: Ketentuan & Pasal Kesepakatan Utama */}
-      <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-gray-100 pb-4">
+      <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-border pb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <FileText className="h-5 w-5 text-[#8FA28A]" />
-              <h3 className="text-sm font-black uppercase tracking-wider text-gray-800">
+              <h3 className="text-sm font-black uppercase tracking-wider text-foreground">
                 Ketentuan & Struktur Pasal Kesepakatan
               </h3>
             </div>
-            <p className="text-xs text-gray-500 font-medium">
-              Surat perjanjian sewa digital Anda terdiri dari <strong className="text-gray-900 font-bold">{contractDetails.articles.length} Pasal Utama</strong> dengan total <strong className="text-emerald-700 font-bold">{contractDetails.articles.reduce((acc, a) => acc + a.items.length, 0)} Ayat Kesepakatan</strong>.
+            <p className="text-xs text-muted-foreground font-medium">
+              Surat perjanjian sewa digital Anda terdiri dari <strong className="text-foreground font-bold">{contractDetails.articles.length} Pasal Utama</strong> dengan total <strong className="text-emerald-600 dark:text-emerald-400 font-bold">{contractDetails.articles.reduce((acc, a) => acc + a.items.length, 0)} Ayat Kesepakatan</strong>.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-black text-emerald-700 flex items-center gap-1.5 whitespace-nowrap">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> {contractDetails.articles.length} Pasal ({contractDetails.articles.reduce((acc, a) => acc + a.items.length, 0)} Ayat)
+            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 text-xs font-black text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5 whitespace-nowrap">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" /> {contractDetails.articles.length} Pasal ({contractDetails.articles.reduce((acc, a) => acc + a.items.length, 0)} Ayat)
             </span>
             <button
               type="button"
@@ -617,23 +617,23 @@ export default function TenantContractPortalPage() {
         {/* Dynamic Articles Grid */}
         <div className="grid gap-4 md:grid-cols-2 text-xs">
           {contractDetails.articles.map((art) => (
-            <div key={art.id} className="p-4 rounded-xl bg-gray-50 border border-gray-100 space-y-2.5 flex flex-col justify-between">
+            <div key={art.id} className="p-4 rounded-xl bg-muted/40 border border-border space-y-2.5 flex flex-col justify-between">
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="font-extrabold text-[#8FA28A] text-xs uppercase tracking-wide">PASAL {art.pasalNumber}</span>
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[10px] font-extrabold border border-emerald-500/20">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold border border-emerald-500/20">
                     {art.items.length} Ayat Kesepakatan
                   </span>
                 </div>
-                <h4 className="font-black text-sm text-gray-900">{art.title.replace(/^PASAL\s+\d+:\s*/i, '')}</h4>
-                <p className="text-gray-600 text-[11px] leading-relaxed font-medium">
+                <h4 className="font-black text-sm text-foreground">{art.title.replace(/^PASAL\s+\d+:\s*/i, '')}</h4>
+                <p className="text-muted-foreground text-[11px] leading-relaxed font-medium">
                   {art.summary}
                 </p>
               </div>
 
-              <div className="pt-2 border-t border-gray-200/60 space-y-1 text-[11px] text-gray-700">
-                <span className="font-bold text-gray-800 block mb-1">Rincian Ayat ({art.items.length} Ayat):</span>
-                <ul className="list-disc pl-4 space-y-1 text-gray-600">
+              <div className="pt-2 border-t border-border/60 space-y-1 text-[11px] text-muted-foreground">
+                <span className="font-bold text-foreground block mb-1">Rincian Ayat ({art.items.length} Ayat):</span>
+                <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
                   {art.items.map((item, idx) => (
                     <li key={idx} className="leading-relaxed">
                       <strong>Ayat {idx + 1}:</strong> {item}

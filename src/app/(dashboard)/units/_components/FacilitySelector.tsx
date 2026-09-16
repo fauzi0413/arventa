@@ -6,7 +6,12 @@ import { Check, Plus, Info, Loader2, Package, Sparkles, ExternalLink, AlertCircl
 export interface PropertyMasterItem {
   id: string;
   name: string;
+  locationType?: 'UNIT' | 'COMMON_AREA';
   quantity: number;
+  allocatedQuantity?: number;
+  availableQuantity?: number;
+  isOverallocated?: boolean;
+  installedUnits?: any[];
   condition: string;
   notes?: string | null;
 }
@@ -59,6 +64,7 @@ export default function FacilitySelector({
   const [isAddMasterOpen, setIsAddMasterOpen] = useState(false);
   const [newMasterName, setNewMasterName] = useState('');
   const [newMasterQty, setNewMasterQty] = useState('1');
+  const [newMasterLocationType, setNewMasterLocationType] = useState<'UNIT' | 'COMMON_AREA'>('UNIT');
   const [newMasterCondition, setNewMasterCondition] = useState('Baik');
   const [newMasterNotes, setNewMasterNotes] = useState('');
   const [isSubmittingMaster, setIsSubmittingMaster] = useState(false);
@@ -69,20 +75,27 @@ export default function FacilitySelector({
     setLoading(true);
 
     try {
-      // 1. Fetch live master inventory from DB API
-      const res = await fetch(`/api/inventory?propertyId=${propertyId}`);
+      // 1. Fetch live master inventory from DB API strictly filtered for UNIT items
+      const res = await fetch(`/api/inventory?propertyId=${propertyId}&locationType=UNIT`);
       if (res.ok) {
         const json = await res.json();
         const propItems = json.data?.propertyInventories || [];
         if (Array.isArray(propItems) && propItems.length > 0) {
           setMasterItems(
-            propItems.map((p: any) => ({
-              id: p.id,
-              name: p.itemName,
-              quantity: Number(p.quantity) || 1,
-              condition: p.condition || 'Baik',
-              notes: p.notes,
-            }))
+            propItems
+              .filter((p: any) => !p.locationType || p.locationType === 'UNIT')
+              .map((p: any) => ({
+                id: p.id,
+                name: p.itemName,
+                locationType: p.locationType || 'UNIT',
+                quantity: Number(p.quantity) || 1,
+                allocatedQuantity: Number(p.allocatedQuantity) || 0,
+                availableQuantity: p.availableQuantity !== undefined ? Number(p.availableQuantity) : Math.max(0, (Number(p.quantity) || 1) - (Number(p.allocatedQuantity) || 0)),
+                isOverallocated: Boolean(p.isOverallocated),
+                installedUnits: p.installedUnits || [],
+                condition: p.condition || 'Baik',
+                notes: p.notes,
+              }))
           );
           setLoading(false);
           return;
@@ -97,13 +110,20 @@ export default function FacilitySelector({
         const pInventories = p?.inventories || p?.propertyInventories || [];
         if (Array.isArray(pInventories) && pInventories.length > 0) {
           setMasterItems(
-            pInventories.map((inv: any) => ({
-              id: inv.id,
-              name: inv.itemName,
-              quantity: Number(inv.quantity) || 1,
-              condition: inv.condition || 'Baik',
-              notes: inv.notes,
-            }))
+            pInventories
+              .filter((inv: any) => !inv.locationType || inv.locationType === 'UNIT')
+              .map((inv: any) => ({
+                id: inv.id,
+                name: inv.itemName,
+                locationType: inv.locationType || 'UNIT',
+                quantity: Number(inv.quantity) || 1,
+                allocatedQuantity: Number(inv.allocatedQuantity) || 0,
+                availableQuantity: inv.availableQuantity !== undefined ? Number(inv.availableQuantity) : Math.max(0, (Number(inv.quantity) || 1) - (Number(inv.allocatedQuantity) || 0)),
+                isOverallocated: Boolean(inv.isOverallocated),
+                installedUnits: inv.installedUnits || [],
+                condition: inv.condition || 'Baik',
+                notes: inv.notes,
+              }))
           );
           setLoading(false);
           return;
@@ -119,12 +139,15 @@ export default function FacilitySelector({
       if (stored) {
         try {
           const all = JSON.parse(stored);
-          const propItems = all.filter((i: any) => i.propertyId === propertyId);
+          const propItems = all.filter((i: any) => i.propertyId === propertyId && (!i.locationType || i.locationType === 'UNIT'));
           if (propItems.length > 0) {
             const mapped = propItems.map((i: any) => ({
               id: i.id,
               name: i.name || i.itemName,
+              locationType: 'UNIT' as const,
               quantity: 1,
+              allocatedQuantity: 0,
+              availableQuantity: 1,
               condition: i.condition || 'Baik',
             }));
             setMasterItems(mapped);
@@ -137,13 +160,13 @@ export default function FacilitySelector({
 
     // Default Seed Master Data for Property if completely empty
     const seedMasters: PropertyMasterItem[] = [
-      { id: `seed-ac-${propertyId}`, name: 'Air Conditioner (AC) 1 PK', quantity: 10, condition: 'Baik' },
-      { id: `seed-bed-${propertyId}`, name: 'Kasur Springbed Queen Size', quantity: 10, condition: 'Baik' },
-      { id: `seed-wardrobe-${propertyId}`, name: 'Lemari Pakaian 2 Pintu', quantity: 10, condition: 'Baik' },
-      { id: `seed-desk-${propertyId}`, name: 'Meja Kerja & Kursi Ergonomis', quantity: 10, condition: 'Baik' },
-      { id: `seed-tv-${propertyId}`, name: 'Smart TV 32 Inch', quantity: 5, condition: 'Baik' },
-      { id: `seed-heater-${propertyId}`, name: 'Water Heater Kamar Mandi', quantity: 10, condition: 'Baik' },
-      { id: `seed-wifi-${propertyId}`, name: 'Router WiFi dedicated', quantity: 10, condition: 'Baik' },
+      { id: `seed-ac-${propertyId}`, name: 'Air Conditioner (AC) 1 PK', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
+      { id: `seed-bed-${propertyId}`, name: 'Kasur Springbed Queen Size', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
+      { id: `seed-wardrobe-${propertyId}`, name: 'Lemari Pakaian 2 Pintu', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
+      { id: `seed-desk-${propertyId}`, name: 'Meja Kerja & Kursi Ergonomis', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
+      { id: `seed-tv-${propertyId}`, name: 'Smart TV 32 Inch', locationType: 'UNIT', quantity: 5, allocatedQuantity: 0, availableQuantity: 5, condition: 'Baik' },
+      { id: `seed-heater-${propertyId}`, name: 'Water Heater Kamar Mandi', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
+      { id: `seed-wifi-${propertyId}`, name: 'Router WiFi dedicated', locationType: 'UNIT', quantity: 10, allocatedQuantity: 0, availableQuantity: 10, condition: 'Baik' },
     ];
     setMasterItems(seedMasters);
     setLoading(false);
@@ -223,6 +246,7 @@ export default function FacilitySelector({
           propertyId,
           itemName,
           quantity: qty,
+          locationType: newMasterLocationType,
           condition: newMasterCondition,
           notes: newMasterNotes.trim() || undefined,
         }),
@@ -235,20 +259,27 @@ export default function FacilitySelector({
         const newMaster: PropertyMasterItem = {
           id: createdItem?.id || `master-${Date.now()}`,
           name: itemName,
+          locationType: newMasterLocationType,
           quantity: qty,
+          allocatedQuantity: 0,
+          availableQuantity: qty,
+          isOverallocated: false,
           condition: newMasterCondition,
           notes: newMasterNotes.trim() || undefined,
         };
 
-        // Add to state and auto-select in unit
-        setMasterItems((prev) => [newMaster, ...prev]);
-        if (!selectedFacilities.includes(itemName)) {
-          onChange([...selectedFacilities, itemName]);
+        // Add to state and auto-select in unit if it's a UNIT item
+        if (newMasterLocationType === 'UNIT') {
+          setMasterItems((prev) => [newMaster, ...prev]);
+          if (!selectedFacilities.includes(itemName)) {
+            onChange([...selectedFacilities, itemName]);
+          }
         }
 
         // Reset form & close
         setNewMasterName('');
         setNewMasterQty('1');
+        setNewMasterLocationType('UNIT');
         setNewMasterCondition('Baik');
         setNewMasterNotes('');
         setIsAddMasterOpen(false);
@@ -262,12 +293,18 @@ export default function FacilitySelector({
       const localMaster: PropertyMasterItem = {
         id: `local-master-${Date.now()}`,
         name: itemName,
+        locationType: newMasterLocationType,
         quantity: qty,
+        allocatedQuantity: 0,
+        availableQuantity: qty,
+        isOverallocated: false,
         condition: newMasterCondition,
       };
-      setMasterItems((prev) => [localMaster, ...prev]);
-      if (!selectedFacilities.includes(itemName)) {
-        onChange([...selectedFacilities, itemName]);
+      if (newMasterLocationType === 'UNIT') {
+        setMasterItems((prev) => [localMaster, ...prev]);
+        if (!selectedFacilities.includes(itemName)) {
+          onChange([...selectedFacilities, itemName]);
+        }
       }
       setIsAddMasterOpen(false);
     } finally {
@@ -285,7 +322,7 @@ export default function FacilitySelector({
             Inventaris & Fasilitas Unit
           </label>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Pilih barang yang tersedia di unit ini dari <strong>Master Inventaris Properti</strong>.
+            Pilih barang yang tersedia di unit ini dari <strong>Master Inventaris Properti (Kategori Kamar)</strong>.
           </p>
         </div>
 
@@ -313,10 +350,10 @@ export default function FacilitySelector({
         <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300 text-xs space-y-2">
           <div className="flex items-center gap-2 font-bold">
             <Info className="h-4 w-4 shrink-0 text-amber-600" />
-            <span>Belum Ada Master Inventaris pada Properti Ini</span>
+            <span>Belum Ada Master Inventaris Kamar pada Properti Ini</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Master Inventaris adalah single source of truth untuk seluruh perabot kamar. Klik tombol di bawah untuk mendaftarkan barang pertama.
+            Master Inventaris Kamar adalah single source of truth untuk seluruh perabot unit. Klik tombol di bawah untuk mendaftarkan barang kamar pertama.
           </p>
           <button
             type="button"
@@ -327,12 +364,13 @@ export default function FacilitySelector({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[260px] overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
           {masterItems.map((master) => {
             const isSelected = selectedFacilities.some(
               (f) => f.toLowerCase() === master.name.toLowerCase()
             );
             const icon = getFacilityIcon(master.name);
+            const isFullyAllocated = (master.allocatedQuantity || 0) >= master.quantity;
 
             return (
               <button
@@ -348,11 +386,29 @@ export default function FacilitySelector({
                 <div className="flex items-center gap-2.5 truncate pr-2">
                   <span className="text-base shrink-0">{icon}</span>
                   <div className="truncate">
-                    <span className="block truncate font-bold text-foreground">{master.name}</span>
-                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-                      <span>Kondisi Master: {master.condition}</span>
-                      {master.quantity > 1 && <span>• Stok: {master.quantity} unit</span>}
-                    </span>
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="truncate font-bold text-foreground">{master.name}</span>
+                      {master.isOverallocated ? (
+                        <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-black bg-rose-500/15 text-rose-600 border border-rose-500/30">
+                          Melebihi Stok
+                        </span>
+                      ) : isFullyAllocated ? (
+                        <span className="shrink-0 px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                          Stok Penuh
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium mt-0.5 truncate">
+                      <span>Kondisi: {master.condition}</span>
+                      <span>•</span>
+                      <span>Stok: {master.quantity}</span>
+                      <span>•</span>
+                      <span className={isFullyAllocated ? 'text-amber-600 font-bold' : ''}>
+                        Terpakai: {master.allocatedQuantity || 0}
+                      </span>
+                      <span>•</span>
+                      <span>Sisa: {master.availableQuantity ?? Math.max(0, master.quantity - (master.allocatedQuantity || 0))}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -412,6 +468,21 @@ export default function FacilitySelector({
             )}
 
             <form onSubmit={handleCreateMasterItem} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-foreground mb-1">Kategori Penempatan Aset *</label>
+                <select
+                  value={newMasterLocationType}
+                  onChange={(e) => setNewMasterLocationType(e.target.value as 'UNIT' | 'COMMON_AREA')}
+                  className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
+                >
+                  <option value="UNIT">Barang Kamar Unit (Bisa dipilih unit kos)</option>
+                  <option value="COMMON_AREA">Fasilitas Umum Kos (Dapur, ruang tamu, parkiran - Tidak masuk kamar)</option>
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Pilih "Barang Kamar Unit" agar barang ini muncul pada checklist fasilitas kamar.
+                </p>
+              </div>
+
               <div>
                 <label className="block font-bold text-foreground mb-1">Nama Barang Master *</label>
                 <input

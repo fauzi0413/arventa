@@ -550,18 +550,18 @@ export default function TenantFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-      <div className="relative w-full max-w-3xl my-auto overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]">
+      <div className="relative w-full max-w-3xl my-auto overflow-hidden rounded-3xl bg-card text-card-foreground shadow-2xl border border-border flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-[#F7F4ED]">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/40">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#8FA28A] text-white shadow-md">
               <UserCheck className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">
+              <h2 className="text-lg font-bold text-foreground">
                 {tenantToEdit ? 'Edit Data Penyewa' : 'Tambah Penyewa Baru'}
               </h2>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 {tenantToEdit
                   ? 'Perbarui informasi biodata, KTP & kontak penyewa master'
                   : 'Isi formulir biodata lengkap penyewa/calon penyewa baru'}
@@ -570,7 +570,7 @@ export default function TenantFormModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-2 text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition-all"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
             <X className="h-5 w-5" />
           </button>
@@ -580,7 +580,7 @@ export default function TenantFormModal({
         <form ref={formRef} onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-6 flex-1">
           {/* Status Penyewa */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">
               Status Penyewa <span className="text-red-500">*</span>
             </label>
             <div className={`grid ${tenantToEdit && (tenantToEdit.status === 'AKTIF' || tenantToEdit.status === 'NONAKTIF' || tenantToEdit.currentPropertyName || tenantToEdit.currentUnitName) ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
@@ -590,7 +590,7 @@ export default function TenantFormModal({
                   onClick={() => handleStatusChange('CALON')}
                   className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-semibold transition-all border ${status === 'CALON'
                     ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
                     }`}
                 >
                   <div className={`h-2 w-2 rounded-full ${status === 'CALON' ? 'bg-white' : 'bg-amber-500'}`} />
@@ -603,7 +603,7 @@ export default function TenantFormModal({
                 onClick={() => handleStatusChange('AKTIF')}
                 className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-semibold transition-all border ${status === 'AKTIF'
                   ? 'bg-[#8FA28A] text-white border-[#8FA28A] shadow-sm'
-                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                  : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
                   }`}
               >
                 <div className={`h-2 w-2 rounded-full ${status === 'AKTIF' ? 'bg-white' : 'bg-[#8FA28A]'}`} />
@@ -615,7 +615,7 @@ export default function TenantFormModal({
                 onClick={() => handleStatusChange('NONAKTIF')}
                 className={`flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 text-xs font-semibold transition-all border ${status === 'NONAKTIF'
                   ? 'bg-gray-700 text-white border-gray-700 shadow-sm'
-                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                  : 'bg-muted/50 text-muted-foreground border-border hover:bg-muted'
                   }`}
               >
                 <div className={`h-2 w-2 rounded-full ${status === 'NONAKTIF' ? 'bg-white' : 'bg-gray-400'}`} />
@@ -626,28 +626,28 @@ export default function TenantFormModal({
 
           {/* Section 0: Upload KTP & Instant AI OCR (Gated by ocr_ktp_enabled Feature Flag) */}
           {isOcrEnabled && (
-            <div className="rounded-2xl border border-[#8FA28A]/30 bg-[#8FA28A]/5 p-4 space-y-3">
+            <div className="rounded-2xl border border-[#8FA28A]/30 bg-[#8FA28A]/5 dark:bg-[#8FA28A]/10 p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-[#8FA28A]" />
-                  <h3 className="text-xs font-black uppercase tracking-wider text-gray-800">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
                     Foto KTP Untuk Otomatis Mengisi Data
                   </h3>
                 </div>
-                <span className="text-[10px] font-bold text-[#8FA28A] bg-white px-2 py-0.5 rounded-full border border-[#8FA28A]/30 shadow-2xs">
+                <span className="text-[10px] font-bold text-[#8FA28A] bg-card px-2 py-0.5 rounded-full border border-border shadow-xs">
                   Gemini Vision Powered
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
                 {/* Preview KTP */}
-                <div className="relative h-32 w-full rounded-xl border border-dashed border-gray-300 bg-white overflow-hidden flex flex-col items-center justify-center text-center shadow-2xs">
+                <div className="relative h-32 w-full rounded-xl border border-dashed border-border bg-muted/40 overflow-hidden flex flex-col items-center justify-center text-center shadow-xs">
                   {ktpImageUrl ? (
                     <img src={ktpImageUrl} alt="KTP Preview" className="h-full w-full object-cover" />
                   ) : (
                     <div className="space-y-1 p-2">
-                      <Camera className="h-6 w-6 text-gray-400 mx-auto" />
-                      <p className="text-[10px] font-semibold text-gray-500">Belum Ada Foto KTP</p>
+                      <Camera className="h-6 w-6 text-muted-foreground mx-auto" />
+                      <p className="text-[10px] font-semibold text-muted-foreground">Belum Ada Foto KTP</p>
                     </div>
                   )}
                 </div>
@@ -674,7 +674,7 @@ export default function TenantFormModal({
                     </label>
 
                     {/* Button 2: Upload File */}
-                    <label className="relative flex min-h-[42px] cursor-pointer items-center justify-center gap-2 rounded-xl bg-white border border-[#8FA28A] px-3 py-2 text-xs font-bold text-[#8FA28A] shadow-2xs hover:bg-[#8FA28A]/10 transition-all">
+                    <label className="relative flex min-h-[42px] cursor-pointer items-center justify-center gap-2 rounded-xl bg-card border border-[#8FA28A] px-3 py-2 text-xs font-bold text-[#8FA28A] shadow-xs hover:bg-[#8FA28A]/10 transition-all">
                       {isOcrScanning ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
@@ -691,18 +691,18 @@ export default function TenantFormModal({
                     </label>
                   </div>
 
-                  <p className="text-[11px] text-gray-500 leading-tight">
-                    Upload foto KTP penyewa untuk mengekstrak Nama, NIK, Tempat/Tgl Lahir, Jenis Kelamin, Agama, Pekerjaan & Alamat secara otomatis.
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    Upload foto KTP penyewa untuk mengekstrak Nama, NIK, Tempat/Tgl Lahir, Jenis Kelamin, Agama, Pekerjaan &amp; Alamat secara otomatis.
                   </p>
 
                   {/* Info Format & Ukuran File */}
-                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-gray-600 bg-white/80 p-2 rounded-xl border border-gray-200/80">
-                    <span className="font-bold text-gray-700">Format diizinkan:</span>
-                    <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-semibold border border-gray-200">JPG</span>
-                    <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-semibold border border-gray-200">JPEG</span>
-                    <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-semibold border border-gray-200">PNG</span>
-                    <span className="bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 font-semibold border border-gray-200">WEBP</span>
-                    <span className="text-gray-400 font-medium ml-auto">Maks. 10 MB</span>
+                  <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/30 p-2 rounded-xl border border-border">
+                    <span className="font-bold text-foreground">Format diizinkan:</span>
+                    <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-semibold border border-border">JPG</span>
+                    <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-semibold border border-border">JPEG</span>
+                    <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-semibold border border-border">PNG</span>
+                    <span className="bg-muted px-1.5 py-0.5 rounded text-foreground font-semibold border border-border">WEBP</span>
+                    <span className="text-muted-foreground font-medium ml-auto">Maks. 10 MB</span>
                   </div>
                 </div>
               </div>
@@ -711,10 +711,10 @@ export default function TenantFormModal({
               {ocrStatusMessage && (
                 <div
                   className={`p-3 rounded-xl text-xs font-semibold flex items-start gap-2 border ${ocrStatusMessage.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
                     : ocrStatusMessage.type === 'warning'
-                      ? 'bg-amber-50 text-amber-800 border-amber-200'
-                      : 'bg-red-50 text-red-800 border-red-200'
+                      ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20'
+                      : 'bg-destructive/10 text-destructive border-destructive/20'
                     }`}
                 >
                   {ocrStatusMessage.type === 'success' ? (
@@ -1190,24 +1190,24 @@ export default function TenantFormModal({
           </div>
 
           {/* Section 5: Catatan */}
-          <div className="border-t border-gray-100 pt-4">
-            <label className="block text-xs font-medium text-gray-700 mb-1">Catatan Internal / Keterangan</label>
+          <div className="border-t border-border pt-4">
+            <label className="block text-xs font-medium text-foreground mb-1">Catatan Internal / Keterangan</label>
             <textarea
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Catatan tambahan mengenai penyewa (misal: bayar via transfer bulanan, permintaan kasur ekstra, dll)"
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-xs focus:border-[#8FA28A] focus:outline-none"
+              className="w-full rounded-xl border border-input bg-background text-foreground px-3 py-2 text-xs focus:border-[#8FA28A] focus:outline-none"
             />
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-all disabled:opacity-50"
+              className="rounded-xl border border-border px-4 py-2.5 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-50"
             >
               Batal
             </button>

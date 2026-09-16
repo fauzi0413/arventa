@@ -206,14 +206,14 @@ export default function PropertyFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-[#C7D3C0]/50 my-auto flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-lg overflow-hidden rounded-3xl bg-card text-card-foreground shadow-2xl border border-border my-auto flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#C7D3C0]/30 px-6 py-4 bg-[#8FA28A]/5 shrink-0">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-[#8FA28A]/10 shrink-0">
           <div>
-            <h3 className="text-lg font-bold text-gray-800">
+            <h3 className="text-lg font-bold text-foreground">
               {initialData ? 'Ubah Informasi Properti' : 'Tambah Properti Baru'}
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {initialData
                 ? 'Perbarui data properti yang tersambung di database'
                 : 'Lengkapi informasi properti untuk ditambahkan ke sistem'}
@@ -221,7 +221,7 @@ export default function PropertyFormModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -230,7 +230,7 @@ export default function PropertyFormModal({
         {/* Modal Body / Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           {errorMessage && (
-            <div className="flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-600 font-medium">
+            <div className="flex items-center gap-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-xs text-red-600 dark:text-red-400 font-medium">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
@@ -238,7 +238,7 @@ export default function PropertyFormModal({
 
           {/* Nama Properti */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
               Nama Properti <span className="text-red-500">*</span>
             </label>
             <input
@@ -247,13 +247,13 @@ export default function PropertyFormModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Contoh: Kos Graha Asri Dago"
-              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2.5 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
             />
           </div>
 
           {/* Alamat Lengkap */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
               Alamat Lengkap <span className="text-red-500">*</span>
             </label>
             <input
@@ -262,20 +262,20 @@ export default function PropertyFormModal({
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Contoh: Jl. Diponegoro No. 45, Bandung"
-              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs"
             />
           </div>
 
           {/* Kategori & Status */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                 Kategori <span className="text-red-500">*</span>
               </label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                className="w-full rounded-xl border border-border bg-background text-foreground px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
               >
                 {effectiveCategories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
@@ -286,13 +286,13 @@ export default function PropertyFormModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                 Status <span className="text-red-500">*</span>
               </label>
               <select
                 value={statusId}
                 onChange={(e) => setStatusId(e.target.value)}
-                className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                className="w-full rounded-xl border border-border bg-background text-foreground px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
               >
                 {effectiveStatuses.map((st) => (
                   <option key={st.id} value={st.id}>
@@ -306,11 +306,11 @@ export default function PropertyFormModal({
           {/* Financial Defaults Grid: Denda & Deposit */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                 Denda Keterlambatan Default (Rp)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-xs text-gray-500 font-bold">Rp</span>
+                <span className="absolute left-3.5 top-2.5 text-xs text-muted-foreground font-bold">Rp</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -320,20 +320,20 @@ export default function PropertyFormModal({
                     setDefaultLateFee(clean ? Number(clean) : 0);
                   }}
                   placeholder="50.000"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
                 />
               </div>
-              <p className="text-[10px] text-gray-500 mt-1">
+              <p className="text-[10px] text-muted-foreground mt-1">
                 Nominal denda default saat membuat Kontrak Sewa baru.
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                 Uang Jaminan / Deposit Default (Rp)
               </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-xs text-gray-500 font-bold">Rp</span>
+                <span className="absolute left-3.5 top-2.5 text-xs text-muted-foreground font-bold">Rp</span>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -343,10 +343,10 @@ export default function PropertyFormModal({
                     setDefaultDeposit(clean ? Number(clean) : 0);
                   }}
                   placeholder="500.000"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-gray-300 bg-white text-gray-800 text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
                 />
               </div>
-              <p className="text-[10px] text-gray-500 mt-1">
+              <p className="text-[10px] text-muted-foreground mt-1">
                 Nominal deposit default saat membuat Unit atau Kontrak Sewa baru.
               </p>
             </div>
@@ -354,7 +354,7 @@ export default function PropertyFormModal({
 
           {/* Upload Foto / Gambar Properti (File Upload instead of URL input) */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
               Foto Properti (Upload File)
             </label>
 
@@ -373,8 +373,8 @@ export default function PropertyFormModal({
 
             {previewUrl ? (
               /* Image Preview Box */
-              <div className="relative rounded-2xl border-2 border-dashed border-[#8FA28A] bg-white p-3 shadow-2xs space-y-2">
-                <div className="relative h-40 w-full overflow-hidden rounded-xl bg-gray-100 flex items-center justify-center">
+              <div className="relative rounded-2xl border-2 border-dashed border-[#8FA28A] bg-card p-3 shadow-2xs space-y-2">
+                <div className="relative h-40 w-full overflow-hidden rounded-xl bg-muted flex items-center justify-center">
                   <img
                     src={previewUrl}
                     alt="Preview Properti"
@@ -400,7 +400,7 @@ export default function PropertyFormModal({
                   </div>
                 </div>
                 {selectedFile && (
-                  <div className="flex items-center justify-between text-[11px] text-gray-500 font-medium px-1">
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium px-1">
                     <span className="truncate max-w-[250px]">{selectedFile.name}</span>
                     <span>{(selectedFile.size / 1024).toFixed(0)} KB</span>
                   </div>
@@ -413,10 +413,10 @@ export default function PropertyFormModal({
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all bg-white hover:bg-gray-50/80 ${
+                className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all bg-card hover:bg-muted/50 ${
                   isDragOver
                     ? 'border-[#8FA28A] bg-[#8FA28A]/10 scale-[1.01]'
-                    : 'border-gray-300 hover:border-[#8FA28A]'
+                    : 'border-border hover:border-[#8FA28A]'
                 }`}
               >
                 <div className="flex flex-col items-center justify-center space-y-2">
@@ -424,10 +424,10 @@ export default function PropertyFormModal({
                     <UploadCloud className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-gray-800">
+                    <p className="text-xs font-bold text-foreground">
                       Klik untuk memilih file foto atau seret ke sini
                     </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       Mendukung format JPG, PNG, WEBP (Maksimal 10 MB)
                     </p>
                   </div>
@@ -444,7 +444,7 @@ export default function PropertyFormModal({
 
           {/* Deskripsi Properti */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
               Deskripsi Properti
             </label>
             <textarea
@@ -452,12 +452,12 @@ export default function PropertyFormModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Berikan keterangan detail mengenai properti, fasilitas umum, tata tertib, dll..."
-              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none resize-none shadow-2xs"
+              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none resize-none shadow-2xs"
             />
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex items-center justify-between pt-3 border-t border-[#C7D3C0]/40">
+          <div className="flex items-center justify-between pt-3 border-t border-border">
             {uploadStatus ? (
               <div className="flex items-center gap-2 text-xs font-semibold text-[#8FA28A]">
                 <Loader2 className="h-4 w-4 animate-spin text-[#8FA28A]" />
@@ -472,7 +472,7 @@ export default function PropertyFormModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 shadow-2xs"
+                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50 shadow-2xs"
               >
                 Batal
               </button>

@@ -3,10 +3,12 @@ import { ApiResponse } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
 import { UserRole } from "@/types/roles";
+import { InventoryLocationType } from "@/generated/prisma/client";
+import { InventoryService } from "@/services/inventory.service";
 
 /**
  * GET /api/inventory
- * Fetch inventory master items by propertyId and/or unitId.
+ * Fetch inventory master items by propertyId and/or unitId with live allocation metrics and optional locationType filter.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -18,6 +20,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const propertyId = searchParams.get("propertyId");
     const unitId = searchParams.get("unitId");
+    const locationType = searchParams.get("locationType") as InventoryLocationType | null;
 
     // Fetch accessible properties for role
     let accessiblePropertyIds: string[] = [];
@@ -44,10 +47,31 @@ export async function GET(request: NextRequest) {
       targetPropIds = accessiblePropertyIds.filter((id) => id === propertyId);
     }
 
+    const propWhere: any = { propertyId: { in: targetPropIds } };
+    if (locationType && (locationType === "UNIT" || locationType === "COMMON_AREA")) {
+      propWhere.locationType = locationType;
+    }
+
     const [propInvs, unitInvs] = await Promise.all([
       prisma.propertyInventory.findMany({
-        where: { propertyId: { in: targetPropIds } },
-        include: { property: { select: { name: true } } },
+        where: propWhere,
+        include: {
+          property: { select: { name: true } },
+          unitInventories: {
+            select: {
+              id: true,
+              unitId: true,
+              quantity: true,
+              condition: true,
+              unit: {
+                select: {
+                  id: true,
+                  unitNumber: true,
+                },
+              },
+            },
+          },
+        },
         orderBy: { itemName: "asc" },
       }),
       prisma.unitInventory.findMany({
@@ -67,19 +91,36 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const formattedPropItems = propInvs.map((p) => ({
-      id: p.id,
-      propertyId: p.propertyId,
-      propertyName: p.property.name,
-      unitId: undefined,
-      unitName: "Area Umum",
-      itemName: p.itemName,
-      quantity: p.quantity,
-      condition: p.condition,
-      notes: p.notes,
-      isUnitInventory: false,
-      updatedAt: p.updatedAt.toISOString(),
-    }));
+    const formattedPropItems = propInvs.map((p) => {
+      const allocatedQuantity = p.unitInventories.reduce((sum, u) => sum + (u.quantity || 1), 0);
+      const availableQuantity = Math.max(0, p.quantity - allocatedQuantity);
+      const isOverallocated = allocatedQuantity > p.quantity;
+
+      return {
+        id: p.id,
+        propertyId: p.propertyId,
+        propertyName: p.property.name,
+        unitId: undefined,
+        unitName: p.locationType === "COMMON_AREA" ? "Area Fasilitas Umum" : "Master Kamar",
+        itemName: p.itemName,
+        locationType: p.locationType,
+        quantity: p.quantity,
+        condition: p.condition,
+        notes: p.notes,
+        isUnitInventory: false,
+        allocatedQuantity,
+        availableQuantity,
+        isOverallocated,
+        installedUnits: p.unitInventories
+          .filter((u) => u.unit?.unitNumber)
+          .map((u) => ({
+            unitId: u.unitId,
+            unitNumber: u.unit.unitNumber,
+            quantity: u.quantity || 1,
+          })),
+        updatedAt: p.updatedAt.toISOString(),
+      };
+    });
 
     const formattedUnitItems = unitInvs.map((u) => ({
       id: u.id,
@@ -106,6 +147,8 @@ export async function GET(request: NextRequest) {
         unitInventories: formattedUnitItems,
         meta: {
           totalItems: allInventory.length,
+          totalMasterItems: formattedPropItems.length,
+          totalUnitInstalled: formattedUnitItems.length,
           needRepairCount: allInventory.filter(
             (i) => i.condition === "Perlu Perbaikan" || i.condition === "Rusak Berat"
           ).length,
@@ -132,75 +175,46 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, propertyId, unitId, propertyInventoryId, itemName, condition, quantity = 1, notes, items } = body;
+    const {
+      action,
+      propertyId,
+      unitId,
+      propertyInventoryId,
+      itemName,
+      condition,
+      quantity = 1,
+      notes,
+      locationType,
+      items,
+      inventory_ids,
+      inventoryIds,
+    } = body;
 
     // Handle Bulk Sync of Unit Inventory with Master Inventory
     if (action === "SYNC_UNIT" && unitId) {
-      const unit = await prisma.unit.findUnique({
-        where: { id: unitId },
-        include: { property: true },
-      });
+      // Normalize items from various formats (array of objects or array of IDs)
+      let normalizedItems: Array<{ propertyInventoryId: string; quantity?: number; condition?: string; notes?: string }> = [];
 
-      if (!unit) {
-        return ApiResponse.notFound("Unit tidak ditemukan");
+      if (Array.isArray(items) && items.length > 0) {
+        normalizedItems = items.map((i: any) => ({
+          propertyInventoryId: i.propertyInventoryId || i.inventory_id || i.id,
+          quantity: Number(i.quantity) || 1,
+          condition: i.condition,
+          notes: i.notes,
+        }));
+      } else {
+        const idList = Array.isArray(inventory_ids)
+          ? inventory_ids
+          : Array.isArray(inventoryIds)
+          ? inventoryIds
+          : [];
+        normalizedItems = idList.map((id: string) => ({
+          propertyInventoryId: id,
+          quantity: 1,
+        }));
       }
 
-      const inputItems: Array<{ inventory_id: string; quantity?: number; condition?: string }> = Array.isArray(items) ? items : [];
-
-      // Fetch all referenced master items to ensure they belong to this property
-      const masterIds = inputItems.map((i) => i.inventory_id).filter(Boolean);
-      const masterItems = await prisma.propertyInventory.findMany({
-        where: {
-          id: { in: masterIds },
-          propertyId: unit.propertyId,
-        },
-      });
-
-      const masterMap = new Map(masterItems.map((m) => [m.id, m]));
-
-      // Replace unit inventories in a transaction
-      await prisma.$transaction(async (tx) => {
-        await tx.unitInventory.deleteMany({
-          where: { unitId },
-        });
-
-        const createdRows = [];
-        const facilityNames: string[] = [];
-
-        for (const item of inputItems) {
-          const master = masterMap.get(item.inventory_id);
-          if (master) {
-            facilityNames.push(master.itemName);
-            createdRows.push({
-              unitId,
-              propertyInventoryId: master.id,
-              itemName: master.itemName,
-              condition: item.condition || master.condition || "Baik",
-              quantity: Number(item.quantity) || 1,
-              notes: master.notes || null,
-            });
-          }
-        }
-
-        if (createdRows.length > 0) {
-          await tx.unitInventory.createMany({
-            data: createdRows,
-          });
-        }
-
-        // Keep unit facilities string array in sync for legacy compatibility
-        await tx.unit.update({
-          where: { id: unitId },
-          data: {
-            facilities: Array.from(new Set(facilityNames)),
-          },
-        });
-      });
-
-      const updatedUnitInvs = await prisma.unitInventory.findMany({
-        where: { unitId },
-        include: { propertyInventory: true },
-      });
+      const updatedUnitInvs = await InventoryService.syncUnitInventory(unitId, normalizedItems);
 
       return ApiResponse.success({
         message: "Inventaris unit berhasil disinkronkan dengan Master Inventaris",
@@ -214,10 +228,14 @@ export async function POST(request: NextRequest) {
         return ApiResponse.badRequest("Nama barang master wajib diisi");
       }
 
+      const resolvedLocType: InventoryLocationType =
+        locationType === "COMMON_AREA" ? "COMMON_AREA" : "UNIT";
+
       const item = await prisma.propertyInventory.create({
         data: {
           propertyId,
           itemName: itemName.trim(),
+          locationType: resolvedLocType,
           condition: condition || "Baik",
           quantity: Number(quantity) || 1,
           notes: notes || null,
@@ -254,6 +272,7 @@ export async function POST(request: NextRequest) {
               data: {
                 propertyId: unit.propertyId,
                 itemName: itemName.trim(),
+                locationType: "UNIT",
                 condition: condition || "Baik",
                 quantity: 1,
               },
@@ -277,23 +296,64 @@ export async function POST(request: NextRequest) {
         return ApiResponse.badRequest("Barang harus dipilih dari Master Inventaris Properti");
       }
 
-      const item = await prisma.unitInventory.create({
-        data: {
-          unitId,
-          propertyInventoryId: resolvedMasterId || null,
-          itemName: finalItemName,
-          condition: condition || "Baik",
-          quantity: Number(quantity) || 1,
-          notes: notes || null,
-        },
-        include: {
-          propertyInventory: true,
-        },
-      });
+      // Upsert to handle @@unique([unitId, propertyInventoryId])
+      const item = resolvedMasterId
+        ? await prisma.unitInventory.upsert({
+            where: {
+              unitId_propertyInventoryId: {
+                unitId,
+                propertyInventoryId: resolvedMasterId,
+              },
+            },
+            create: {
+              unitId,
+              propertyInventoryId: resolvedMasterId,
+              itemName: finalItemName,
+              condition: condition || "Baik",
+              quantity: Number(quantity) || 1,
+              notes: notes || null,
+            },
+            update: {
+              quantity: Number(quantity) || 1,
+              condition: condition || undefined,
+              notes: notes || undefined,
+            },
+            include: {
+              propertyInventory: true,
+            },
+          })
+        : await prisma.unitInventory.create({
+            data: {
+              unitId,
+              propertyInventoryId: null,
+              itemName: finalItemName,
+              condition: condition || "Baik",
+              quantity: Number(quantity) || 1,
+              notes: notes || null,
+            },
+            include: {
+              propertyInventory: true,
+            },
+          });
+
+      // Check allocation warning if bound to master item
+      let allocationWarning: string | null = null;
+      let stockSummary = null;
+
+      if (resolvedMasterId) {
+        stockSummary = await InventoryService.checkStockAllocation(resolvedMasterId);
+        if (stockSummary?.isOverallocated) {
+          allocationWarning = `Peringatan: Alokasi barang '${finalItemName}' di kamar (${stockSummary.totalAllocated} unit) melebihi stok master yang tercatat (${stockSummary.totalStock} unit).`;
+        }
+      }
 
       return ApiResponse.success({
-        message: "Barang berhasil dialokasikan ke unit dari Master Inventaris",
-        data: item,
+        message: allocationWarning || "Barang berhasil dialokasikan ke unit dari Master Inventaris",
+        data: {
+          ...item,
+          stockAllocation: stockSummary,
+          allocationWarning,
+        },
       });
     }
 

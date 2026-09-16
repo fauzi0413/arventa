@@ -340,33 +340,33 @@ export default function HousekeepingRoomGridPage() {
       case 'Need Cleaning':
         return 'border-[#C8A96B] shadow-[#C8A96B]/10';
       case 'Maintenance':
-        return 'border-red-200 shadow-red-50';
+        return 'border-destructive/40 shadow-destructive/10';
       default:
-        return 'border-gray-200';
+        return 'border-border';
     }
   };
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
+      <div className="flex h-[80vh] items-center justify-center bg-background">
         <div className="text-center space-y-2">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
-          <p className="text-sm font-semibold text-gray-500">Memuat dashboard housekeeping...</p>
+          <p className="text-sm font-semibold text-muted-foreground">Memuat dashboard housekeeping...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-background min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-border">
       {/* Dashboard Visual Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#C7D3C0]/30 pb-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
             <LayoutGrid className="h-6 w-6 text-[#8FA28A]" />
             Dashboard Housekeeping & Status Kamar
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Visualisasi status kebersihan kamar, check-out sewa cepat, dan pindah kamar (Room Transfer).
           </p>
         </div>
@@ -382,16 +382,16 @@ export default function HousekeepingRoomGridPage() {
       </div>
 
       {/* Search & Filter bar for Room Grid */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:flex-row md:items-center">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card text-card-foreground p-4 shadow-sm md:flex-row md:items-center">
         {/* Search */}
         <div className="relative flex-1">
-          <Search className="absolute top-2.5 left-3.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute top-2.5 left-3.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Cari nama kamar atau penyewa..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2 text-sm focus:border-[#8FA28A] focus:bg-white focus:outline-none transition-all"
+            className="w-full rounded-xl border border-border bg-muted/40 text-foreground pl-10 pr-4 py-2 text-sm focus:border-[#8FA28A] focus:bg-background focus:outline-none transition-all"
           />
         </div>
 
@@ -401,7 +401,7 @@ export default function HousekeepingRoomGridPage() {
           <select
             value={selectedPropertyId}
             onChange={(e) => setSelectedPropertyId(e.target.value)}
-            className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-600 focus:border-[#8FA28A] focus:outline-none"
+            className="rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground focus:border-[#8FA28A] focus:outline-none"
           >
             <option value="all">Semua Properti</option>
             {properties.map((prop) => (
@@ -415,7 +415,7 @@ export default function HousekeepingRoomGridPage() {
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-semibold text-gray-600 focus:border-[#8FA28A] focus:outline-none"
+            className="rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground focus:border-[#8FA28A] focus:outline-none"
           >
             <option value="all">Semua Status</option>
             <option value="Available">Tersedia (Available)</option>
@@ -428,16 +428,16 @@ export default function HousekeepingRoomGridPage() {
 
       {/* Grid Content */}
       {properties.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm space-y-3">
+        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center shadow-sm space-y-3">
           <ShieldAlert className="h-10 w-10 text-[#C8A96B] mx-auto" />
-          <h3 className="text-sm font-bold text-gray-700">Tidak Ada Properti Ditemukan</h3>
-          <p className="text-xs text-gray-400 max-w-sm mx-auto">
+          <h3 className="text-sm font-bold text-foreground">Tidak Ada Properti Ditemukan</h3>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             Anda harus mendaftarkan properti terlebih dahulu sebelum bisa memantau status housekeeping unit.
           </p>
         </div>
       ) : filteredUnits.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm">
-          <p className="text-xs font-bold text-gray-400">Tidak ada unit kamar ditemukan. Coba reset filter atau kata kunci pencarian.</p>
+        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center shadow-sm">
+          <p className="text-xs font-bold text-muted-foreground">Tidak ada unit kamar ditemukan. Coba reset filter atau kata kunci pencarian.</p>
         </div>
       ) : (
         /* ROOM CARD GRID */
@@ -450,7 +450,7 @@ export default function HousekeepingRoomGridPage() {
             return (
               <div
                 key={unit.id}
-                className={`overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm hover:shadow transition-all duration-250 flex flex-col justify-between ${
+                className={`overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm hover:shadow transition-all duration-250 flex flex-col justify-between ${
                   getCardBorderStyle(unit.status)
                 }`}
               >
@@ -458,8 +458,8 @@ export default function HousekeepingRoomGridPage() {
                 <div className="p-4 space-y-3.5">
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="text-sm font-black text-gray-800">{unit.name}</h4>
-                      <p className="text-[10px] text-gray-400 mt-0.5">{getPropName(unit.propertyId)}</p>
+                      <h4 className="text-sm font-black text-foreground">{unit.name}</h4>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{getPropName(unit.propertyId)}</p>
                     </div>
 
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${statusStyle.bg}`}>
@@ -469,8 +469,8 @@ export default function HousekeepingRoomGridPage() {
 
                   {/* Tenant Tag */}
                   {isOccupied && unit.tenantName && (
-                    <div className="rounded-xl border border-blue-100 bg-blue-50/50 p-2.5 text-xs text-blue-800 space-y-0.5">
-                      <span className="text-[9px] font-bold text-blue-500 uppercase tracking-wider block">Penyewa Terdaftar</span>
+                    <div className="rounded-xl border border-blue-200/50 bg-blue-50/50 dark:border-blue-900/50 dark:bg-blue-950/30 p-2.5 text-xs text-blue-800 dark:text-blue-300 space-y-0.5">
+                      <span className="text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Penyewa Terdaftar</span>
                       <p className="font-bold">{unit.tenantName}</p>
                     </div>
                   )}
@@ -485,7 +485,7 @@ export default function HousekeepingRoomGridPage() {
                 </div>
 
                 {/* Footer Controls */}
-                <div className="p-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-1">
+                <div className="p-3 bg-muted/40 border-t border-border flex items-center justify-between gap-1">
                   {isNeedCleaning ? (
                     <button
                       onClick={() => handleFastClean(unit.id)}
@@ -501,7 +501,7 @@ export default function HousekeepingRoomGridPage() {
                           setSelectedUnit(unit);
                           setIsUpdateOpen(true);
                         }}
-                        className="flex-1 min-h-[36px] flex items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-xs font-bold text-gray-700 transition-colors"
+                        className="flex-1 min-h-[36px] flex items-center justify-center gap-1 rounded-xl border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-colors"
                       >
                         <Edit3 className="h-3.5 w-3.5 text-[#8FA28A]" />
                         Status
@@ -513,7 +513,7 @@ export default function HousekeepingRoomGridPage() {
                             setSelectedUnit(unit);
                             setIsTransferOpen(true);
                           }}
-                          className="min-h-[36px] px-2.5 flex items-center justify-center gap-1 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-xs font-bold text-blue-700 transition-colors"
+                          className="min-h-[36px] px-2.5 flex items-center justify-center gap-1 rounded-xl border border-blue-200/60 bg-blue-50/60 hover:bg-blue-100/80 dark:border-blue-900/60 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-xs font-bold text-blue-700 dark:text-blue-300 transition-colors"
                           title="Pindah Kamar"
                         >
                           <ArrowLeftRight className="h-3.5 w-3.5" />

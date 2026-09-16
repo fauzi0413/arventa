@@ -33,20 +33,20 @@ export default function TenantBillingCard({ billing, monthlyRent }: TenantBillin
     switch (status) {
       case 'Lunas':
         return {
-          bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />,
+          bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+          icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />,
           label: 'Lunas',
         };
       case 'Jatuh Tempo':
         return {
-          bg: 'bg-red-50 text-red-700 border-red-200',
-          icon: <AlertCircle className="h-3.5 w-3.5 text-red-600" />,
+          bg: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+          icon: <AlertCircle className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />,
           label: 'Jatuh Tempo',
         };
       default:
         return {
-          bg: 'bg-amber-50 text-amber-700 border-amber-200',
-          icon: <Clock className="h-3.5 w-3.5 text-amber-600" />,
+          bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+          icon: <Clock className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />,
           label: 'Menunggu Pembayaran',
         };
     }
@@ -55,13 +55,13 @@ export default function TenantBillingCard({ billing, monthlyRent }: TenantBillin
   const statusBadge = getStatusBadge(activeBilling.paymentStatus);
 
   return (
-    <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-6 flex flex-col justify-between">
+    <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-6 flex flex-col justify-between">
       <div className="space-y-5">
         {/* Card Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <CreditCard className="h-5 w-5 text-[#8FA28A]" />
-            <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Status Tagihan Bulanan</h3>
+            <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Status Tagihan Bulanan</h3>
           </div>
           <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 ${statusBadge.bg}`}>
             {statusBadge.icon}
@@ -70,47 +70,47 @@ export default function TenantBillingCard({ billing, monthlyRent }: TenantBillin
         </div>
 
         {/* Invoice Period Banner */}
-        <div className="bg-[#F7F4ED] rounded-xl p-4 border border-[#C7D3C0]/30 space-y-1">
+        <div className="bg-muted/40 rounded-xl p-4 border border-border space-y-1">
           <div className="flex justify-between items-center text-xs">
-            <span className="text-gray-400 font-bold uppercase text-[10px] tracking-wider">Periode Tagihan</span>
-            <span className="font-mono text-[10px] text-gray-400 font-bold">{activeBilling.invoiceNumber}</span>
+            <span className="text-muted-foreground font-bold uppercase text-[10px] tracking-wider">Periode Tagihan</span>
+            <span className="font-mono text-[10px] text-muted-foreground font-bold">{activeBilling.invoiceNumber}</span>
           </div>
-          <p className="text-base font-black text-gray-800">{activeBilling.billingMonth}</p>
+          <p className="text-base font-black text-foreground">{activeBilling.billingMonth}</p>
         </div>
 
         {/* Amount & Due Date */}
         <div className="space-y-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-xs text-gray-500 font-bold">Total Tagihan:</span>
+            <span className="text-xs text-muted-foreground font-bold">Total Tagihan:</span>
             <span className="text-xl font-black text-[#8FA28A]">{formatRupiah(activeBilling.totalAmount)}</span>
           </div>
 
-          <div className="flex items-center justify-between text-xs text-gray-600 bg-gray-50 p-2.5 rounded-xl border border-gray-100">
-            <span className="flex items-center gap-1.5 text-gray-500 font-medium">
-              <Calendar className="h-3.5 w-3.5 text-gray-400" /> Jatuh Tempo Pembayaran
+          <div className="flex items-center justify-between text-xs text-muted-foreground bg-muted/30 p-2.5 rounded-xl border border-border">
+            <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+              <Calendar className="h-3.5 w-3.5 text-muted-foreground/70" /> Jatuh Tempo Pembayaran
             </span>
-            <span className="font-black text-gray-800">{activeBilling.dueDate}</span>
+            <span className="font-black text-foreground">{activeBilling.dueDate}</span>
           </div>
         </div>
 
         {/* Breakdown */}
-        <div className="space-y-2 pt-2 border-t border-gray-50 text-xs">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Rincian Komponen Biaya</span>
+        <div className="space-y-2 pt-2 border-t border-border/50 text-xs">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Rincian Komponen Biaya</span>
           <div className="space-y-1.5">
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between text-muted-foreground">
               <span>• Sewa Pokok Kamar</span>
-              <span className="font-bold text-gray-800">{formatRupiah(activeBilling.monthlyRent)}</span>
+              <span className="font-bold text-foreground">{formatRupiah(activeBilling.monthlyRent)}</span>
             </div>
             {activeBilling.utilitiesCost ? (
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-muted-foreground">
                 <span>• Air, Kebersihan & Utilitas</span>
-                <span className="font-bold text-gray-800">{formatRupiah(activeBilling.utilitiesCost)}</span>
+                <span className="font-bold text-foreground">{formatRupiah(activeBilling.utilitiesCost)}</span>
               </div>
             ) : null}
             {activeBilling.depositAmount ? (
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-muted-foreground">
                 <span>• Deposit Jaminan</span>
-                <span className="font-bold text-gray-800">{formatRupiah(activeBilling.depositAmount)}</span>
+                <span className="font-bold text-foreground">{formatRupiah(activeBilling.depositAmount)}</span>
               </div>
             ) : null}
           </div>
@@ -118,10 +118,10 @@ export default function TenantBillingCard({ billing, monthlyRent }: TenantBillin
       </div>
 
       {/* Action Footer */}
-      <div className="pt-4 border-t border-gray-100">
+      <div className="pt-4 border-t border-border">
         <a
           href="/portal/invoices"
-          className="min-h-[44px] w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#8FA28A]/10 hover:bg-[#8FA28A] hover:text-white text-[#8FA28A] px-4 py-2.5 text-xs font-black transition-all shadow-sm"
+          className="min-h-[44px] w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#8FA28A]/10 hover:bg-[#8FA28A] hover:text-white text-[#8FA28A] dark:text-[#A3B89E] dark:hover:text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
         >
           <FileText className="h-4 w-4" />
           Lihat Riwayat & Instruksi Bayar

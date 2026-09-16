@@ -47,46 +47,46 @@ export default function TenantReportDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-lg rounded-2xl bg-[#F7F4ED] border border-[#C7D3C0] p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg rounded-2xl bg-card text-card-foreground border border-border p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#C7D3C0]/60 pb-3">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-black text-gray-500 uppercase">
+              <span className="font-mono text-[10px] font-black text-muted-foreground uppercase">
                 {isComplaint ? 'Komplain & Perbaikan' : 'Layanan Kebersihan'}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#8FA28A]/10 text-[#6A7866] border border-[#8FA28A]/30">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#8FA28A]/10 text-[#6A7866] dark:text-[#A3B89E] border border-[#8FA28A]/30">
                 {statusStr}
               </span>
             </div>
-            <h3 className="text-base font-black text-gray-800 mt-1">{title}</h3>
-            <p className="text-xs text-gray-500">Unit: {item.unitName}</p>
+            <h3 className="text-base font-black text-foreground mt-1">{title}</h3>
+            <p className="text-xs text-muted-foreground">Unit: {item.unitName}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-gray-500 hover:bg-gray-200 transition-colors"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Progress Stepper Timeline */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
-          <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1.5 border-b border-gray-100 pb-2">
+        <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-3">
+          <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1.5 border-b border-border pb-2">
             <ShieldCheck className="h-4 w-4 text-[#8FA28A]" />
             Status Progress Pengerjaan Tim
           </h4>
 
-          <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+          <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
             {/* Step 1: Diajukan */}
             <div className="relative">
               <div className="absolute -left-6 top-0.5 h-4 w-4 rounded-full border-2 border-emerald-600 bg-emerald-600 flex items-center justify-center text-white text-[8px]">
                 ✓
               </div>
               <div className="text-xs">
-                <span className="font-bold text-gray-800">Laporan Berhasil Diajukan</span>
-                <p className="text-[10px] text-gray-400">
+                <span className="font-bold text-foreground">Laporan Berhasil Diajukan</span>
+                <p className="text-[10px] text-muted-foreground">
                   {new Date(item.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
@@ -95,31 +95,31 @@ export default function TenantReportDetailModal({
             {/* Step 2: Dikerjakan Staf */}
             <div className="relative">
               <div className={`absolute -left-6 top-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center text-[8px] ${
-                isInProgress || isCompleted ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white'
+                isInProgress || isCompleted ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-border bg-card'
               }`}>
                 {isInProgress || isCompleted ? '✓' : ''}
               </div>
               <div className="text-xs">
-                <span className={`font-bold ${isInProgress || isCompleted ? 'text-gray-800' : 'text-gray-400'}`}>
+                <span className={`font-bold ${isInProgress || isCompleted ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Sedang Ditangani Tim Operasional
                 </span>
-                <p className="text-[10px] text-gray-400">Teknisi / Housekeeper berada di lapangan.</p>
+                <p className="text-[10px] text-muted-foreground">Teknisi / Housekeeper berada di lapangan.</p>
               </div>
             </div>
 
             {/* Step 3: Selesai */}
             <div className="relative">
               <div className={`absolute -left-6 top-0.5 h-4 w-4 rounded-full border-2 flex items-center justify-center text-[8px] ${
-                isCompleted ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white'
+                isCompleted ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-border bg-card'
               }`}>
                 {isCompleted ? '✓' : ''}
               </div>
               <div className="text-xs">
-                <span className={`font-bold ${isCompleted ? 'text-emerald-800' : 'text-gray-400'}`}>
+                <span className={`font-bold ${isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
                   Pekerjaan Selesai
                 </span>
                 {existingNotes && (
-                  <p className="text-[11px] text-emerald-900 bg-emerald-50 p-2 rounded-lg border border-emerald-200 mt-1 italic">
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-300 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20 mt-1 italic">
                     "{existingNotes}"
                   </p>
                 )}
@@ -130,35 +130,35 @@ export default function TenantReportDetailModal({
 
         {/* Description Box */}
         {description && (
-          <div className="bg-white p-4 rounded-xl border border-gray-200 text-xs space-y-1">
-            <span className="font-bold text-gray-400 uppercase text-[10px]">Deskripsi Laporan:</span>
-            <p className="text-gray-700 font-medium leading-relaxed">{description}</p>
+          <div className="bg-muted/40 p-4 rounded-xl border border-border text-xs space-y-1">
+            <span className="font-bold text-muted-foreground uppercase text-[10px]">Deskripsi Laporan:</span>
+            <p className="text-foreground font-medium leading-relaxed">{description}</p>
           </div>
         )}
 
         {/* CSAT Rating Section */}
         {isCompleted && (
-          <div className="bg-white p-4 rounded-xl border border-gray-200 space-y-3">
+          <div className="bg-muted/40 p-4 rounded-xl border border-border space-y-3">
             {hasAlreadyRated ? (
               /* Read-Only Rating Badge Card */
-              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 space-y-2">
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-amber-900 flex items-center gap-1">
+                  <span className="text-xs font-black text-amber-800 dark:text-amber-300 flex items-center gap-1">
                     <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                     Rating Diberikan (Ter-lock)
                   </span>
-                  <span className="text-xs font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded">
+                  <span className="text-xs font-black text-amber-800 dark:text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded">
                     ★ 5 / 5.0
                   </span>
                 </div>
-                <p className="text-[11px] text-amber-800 italic">
+                <p className="text-[11px] text-amber-700 dark:text-amber-300 italic">
                   Terima kasih! Anda telah memberikan rating ulasan kepuasan untuk penanganan tiket ini.
                 </p>
               </div>
             ) : (
               /* Active Rating Submission Form */
               <form onSubmit={handleSubmitRating} className="space-y-3">
-                <h4 className="text-xs font-black text-gray-800 uppercase tracking-wider flex items-center gap-1">
+                <h4 className="text-xs font-black text-foreground uppercase tracking-wider flex items-center gap-1">
                   <Star className="h-4 w-4 text-amber-500 fill-amber-400" />
                   Beri Rating & Ulasan Kepuasan
                 </h4>
@@ -173,7 +173,7 @@ export default function TenantReportDetailModal({
                     >
                       <Star
                         className={`h-7 w-7 ${
-                          star <= ratingScore ? 'fill-amber-400 text-amber-400' : 'text-gray-300'
+                          star <= ratingScore ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/40'
                         }`}
                       />
                     </button>
@@ -185,7 +185,7 @@ export default function TenantReportDetailModal({
                   value={feedbackNotes}
                   onChange={(e) => setFeedbackNotes(e.target.value)}
                   placeholder="Tulis ulasan kepuasan Anda..."
-                  className="w-full rounded-xl border border-gray-200 p-2.5 text-xs text-gray-800 focus:border-amber-400 focus:outline-none"
+                  className="w-full rounded-xl border border-border bg-background p-2.5 text-xs text-foreground focus:border-amber-400 focus:outline-none"
                 />
 
                 <button

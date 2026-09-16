@@ -105,6 +105,11 @@ enum CostLiability {
   SPLIT
 }
 
+enum InventoryLocationType {
+  UNIT
+  COMMON_AREA
+}
+
 // ============================================================================
 // MODEL DEFINITIONS
 // ============================================================================
@@ -566,16 +571,18 @@ model PropertyInventory {
   propertyId String   @map("property_id")
   property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-  itemName  String  @map("item_name")
-  quantity  Int     @default(1)
-  condition String  @default("Baik")
-  notes     String? @db.Text
+  itemName     String                @map("item_name")
+  locationType InventoryLocationType @default(UNIT) @map("location_type")
+  quantity     Int                   @default(1)
+  condition    String                @default("Baik")
+  notes        String?               @db.Text
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   unitInventories UnitInventory[]
 
+  @@index([propertyId])
   @@map("property_inventories")
 }
 
@@ -595,6 +602,9 @@ model UnitInventory {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  @@unique([unitId, propertyInventoryId])
+  @@index([unitId])
+  @@index([propertyInventoryId])
   @@map("unit_inventories")
 }
 
@@ -826,6 +836,7 @@ model ForumPost {
 
   comments ForumComment[]
 
+  @@index([propertyId, createdAt])
   @@map("forum_posts")
 }
 

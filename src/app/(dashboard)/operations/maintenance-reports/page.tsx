@@ -113,22 +113,22 @@ function OwnerMaintenanceReportsContent() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
+      <div className="flex h-[80vh] items-center justify-center bg-background">
         <div className="text-center space-y-3">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
-          <p className="text-xs font-bold text-gray-500">Memuat pusat laporan & pemeliharaan properti...</p>
+          <p className="text-xs font-bold text-muted-foreground">Memuat pusat laporan & pemeliharaan...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-background min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-border">
       {/* Header with Owner Controls */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#C7D3C0]/30 pb-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-gray-800 flex items-center gap-2">
+            <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
               <ClipboardList className="h-6 w-6 text-[#8FA28A]" />
               Pusat Laporan & Pemeliharaan Properti
             </h1>
@@ -136,7 +136,7 @@ function OwnerMaintenanceReportsContent() {
               <ShieldCheck className="h-3 w-3" /> Mode Owner
             </span>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Pengawasan menyeluruh laporan kebersihan lapangan, perbaikan unit, alokasi beban biaya (Owner/Tenant), dan audit trail.
           </p>
         </div>
@@ -164,13 +164,13 @@ function OwnerMaintenanceReportsContent() {
       </div>
 
       {/* Main Tab Navigation Bar */}
-      <div className="flex items-center gap-2 border-b border-gray-200 pb-1 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-border pb-1 overflow-x-auto">
         <button
           onClick={() => handleTabChange('MAINTENANCE')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'MAINTENANCE'
               ? 'bg-amber-500 text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <Wrench className="h-4 w-4" />
@@ -185,7 +185,7 @@ function OwnerMaintenanceReportsContent() {
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'HOUSEKEEPING'
               ? 'bg-[#8FA28A] text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <Sparkles className="h-4 w-4" />
@@ -199,8 +199,8 @@ function OwnerMaintenanceReportsContent() {
           onClick={() => handleTabChange('HISTORY')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'HISTORY'
-              ? 'bg-gray-800 text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              ? 'bg-[#2F332E] dark:bg-[#3D443C] text-white shadow-sm'
+              : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <History className="h-4 w-4" />
@@ -352,18 +352,19 @@ function OwnerMaintenanceReportsContent() {
       </Suspense>
 
       {/* Owner Create Ticket Modal */}
+      {/* Owner Create Ticket Modal */}
       {isCreateTicketOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+          <div className="w-full max-w-lg rounded-2xl bg-card text-card-foreground border border-border p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-black text-foreground flex items-center gap-2">
                 <Plus className="h-5 w-5 text-[#8FA28A]" />
                 Buat Laporan / Tiket Baru
               </h3>
               <button
                 type="button"
                 onClick={() => setIsCreateTicketOpen(false)}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold"
+                className="text-muted-foreground hover:text-foreground text-lg font-bold"
               >
                 ✕
               </button>
@@ -372,7 +373,7 @@ function OwnerMaintenanceReportsContent() {
             <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
               {/* Type selector */}
               <div>
-                <label className="font-bold text-gray-700 block mb-1">Tipe Laporan</label>
+                <label className="font-bold text-foreground block mb-1">Tipe Laporan</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -380,7 +381,7 @@ function OwnerMaintenanceReportsContent() {
                     className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${
                       newTicketType === 'REPAIR'
                         ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border-gray-200'
+                        : 'bg-muted/40 text-foreground border-border'
                     }`}
                   >
                     <Wrench className="h-4 w-4" /> Perbaikan Unit
@@ -391,7 +392,7 @@ function OwnerMaintenanceReportsContent() {
                     className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${
                       newTicketType === 'HOUSEKEEPING'
                         ? 'bg-[#8FA28A] text-white border-[#8FA28A] shadow-sm'
-                        : 'bg-gray-50 text-gray-700 border-gray-200'
+                        : 'bg-muted/40 text-foreground border-border'
                     }`}
                   >
                     <Sparkles className="h-4 w-4" /> Housekeeping
@@ -402,7 +403,7 @@ function OwnerMaintenanceReportsContent() {
               {/* Property & Unit */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-gray-700 block mb-1">Properti *</label>
+                  <label className="font-bold text-foreground block mb-1">Properti *</label>
                   <select
                     value={newTicketPropId}
                     onChange={(e) => {
@@ -410,7 +411,7 @@ function OwnerMaintenanceReportsContent() {
                       setNewTicketUnitId('');
                     }}
                     required
-                    className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                    className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
                   >
                     {properties.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -421,22 +422,20 @@ function OwnerMaintenanceReportsContent() {
                 </div>
 
                 <div>
-                  <label className="font-bold text-gray-700 block mb-1">Kamar / Lokasi</label>
+                  <label className="font-bold text-foreground block mb-1">Kamar / Lokasi</label>
                   <select
                     value={newTicketUnitId}
                     onChange={(e) => setNewTicketUnitId(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                    className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
                   >
                     <option value="">Area Umum / Gedung</option>
-                    {/* Filter units of chosen property */}
-                    {/* We can use the units from hook */}
                   </select>
                 </div>
               </div>
 
               {/* Title */}
               <div>
-                <label className="font-bold text-gray-700 block mb-1">
+                <label className="font-bold text-foreground block mb-1">
                   {newTicketType === 'REPAIR' ? 'Judul Kerusakan *' : 'Nama Tugas Kebersihan'}
                 </label>
                 <input
@@ -445,30 +444,30 @@ function OwnerMaintenanceReportsContent() {
                   onChange={(e) => setNewTicketTitle(e.target.value)}
                   placeholder={newTicketType === 'REPAIR' ? 'Contoh: AC Bocor di Kamar 101' : 'Contoh: Deep cleaning kamar mandi'}
                   required={newTicketType === 'REPAIR'}
-                  className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                  className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="font-bold text-gray-700 block mb-1">Keterangan / Rincian Kerusakan</label>
+                <label className="font-bold text-foreground block mb-1">Keterangan / Rincian Kerusakan</label>
                 <textarea
                   value={newTicketDesc}
                   onChange={(e) => setNewTicketDesc(e.target.value)}
                   rows={3}
                   placeholder="Jelaskan detail kondisi barang atau instruksi pengerjaan..."
-                  className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none resize-none"
+                  className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none resize-none"
                 />
               </div>
 
               {/* Priority & Cost Liability (Owner special) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="font-bold text-gray-700 block mb-1">Prioritas</label>
+                  <label className="font-bold text-foreground block mb-1">Prioritas</label>
                   <select
                     value={newTicketPriority}
                     onChange={(e) => setNewTicketPriority(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                    className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
                   >
                     <option value="LOW">Rendah (Biasa)</option>
                     <option value="MEDIUM">Sedang</option>
@@ -479,13 +478,13 @@ function OwnerMaintenanceReportsContent() {
 
                 {newTicketType === 'REPAIR' && (
                   <div>
-                    <label className="font-bold text-gray-700 block mb-1 flex items-center gap-1">
+                    <label className="font-bold text-foreground block mb-1 flex items-center gap-1">
                       <DollarSign className="h-3.5 w-3.5 text-[#8FA28A]" /> Beban Biaya
                     </label>
                     <select
                       value={newTicketCostLiability}
                       onChange={(e) => setNewTicketCostLiability(e.target.value)}
-                      className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                      className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
                     >
                       <option value="OWNER">Ditanggung Owner</option>
                       <option value="TENANT">Ditanggung Penyewa</option>
@@ -497,13 +496,13 @@ function OwnerMaintenanceReportsContent() {
 
               {newTicketType === 'REPAIR' && (
                 <div>
-                  <label className="font-bold text-gray-700 block mb-1">Estimasi Biaya (Rp)</label>
+                  <label className="font-bold text-foreground block mb-1">Estimasi Biaya (Rp)</label>
                   <input
                     type="number"
                     value={newTicketEstCost}
                     onChange={(e) => setNewTicketEstCost(e.target.value)}
                     placeholder="0"
-                    className="w-full rounded-xl border border-gray-200 p-2.5 bg-gray-50 font-medium focus:bg-white focus:outline-none"
+                    className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
                   />
                 </div>
               )}
@@ -516,11 +515,11 @@ function OwnerMaintenanceReportsContent() {
                 maxFiles={4}
               />
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
                 <button
                   type="button"
                   onClick={() => setIsCreateTicketOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 font-bold hover:bg-gray-50"
+                  className="px-4 py-2 rounded-xl border border-border text-muted-foreground font-bold hover:bg-muted hover:text-foreground"
                 >
                   Batal
                 </button>
@@ -544,10 +543,10 @@ export default function OwnerMaintenanceReportsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
+        <div className="flex h-[80vh] items-center justify-center bg-background">
           <div className="text-center space-y-3">
             <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
-            <p className="text-xs font-bold text-gray-500">Memuat pusat laporan & pemeliharaan...</p>
+            <p className="text-xs font-bold text-muted-foreground">Memuat pusat laporan & pemeliharaan...</p>
           </div>
         </div>
       }

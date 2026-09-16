@@ -200,6 +200,17 @@ const ownerNavItems: NavItem[] = [
   { id: "owner-2", href: "/properties", label: "Properti & Manajemen Unit", icon: IconBuilding, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-3", href: "/operations/housekeeping-team", label: "Tim Operasional & Housekeeping", icon: IconSparkles, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-4", href: "/operations/maintenance-reports", label: "Pusat Laporan & Maintenance", icon: IconTools, group: "PROPERTI & OPERASIONAL" },
+  {
+    id: "owner-community",
+    href: "/community",
+    label: "Komunitas Properti",
+    icon: IconMessages,
+    group: "KOMUNITAS",
+    children: [
+      { id: "owner-comm-forum", href: "/community", label: "Forum Komunitas", icon: IconMessages, group: "KOMUNITAS" },
+      { id: "owner-comm-history", href: "/portal/community", label: "History Komunitas", icon: IconHistory, group: "KOMUNITAS" },
+    ],
+  },
   { id: "owner-5", href: "/tenants", label: "Penyewa & Kontrak", icon: IconUsers, group: "PENYEWA & KEUANGAN" },
   {
     id: "owner-6",
@@ -214,7 +225,6 @@ const ownerNavItems: NavItem[] = [
       { id: "owner-6-4", href: "/reports", label: "Laporan & Analytics", icon: IconChartBar, group: "PENYEWA & KEUANGAN" },
     ],
   },
-  { id: "owner-community", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "PENYEWA & KEUANGAN" },
   { id: "owner-7", href: "/owner/faq", label: "FAQ & Bantuan", icon: IconHelpCircle, group: "BANTUAN" },
 ];
 
@@ -231,7 +241,17 @@ const userNavItems: NavItem[] = [
   { id: "usr-1", href: "/portal/room", label: "Info Kamar Saya", icon: IconBed, group: "PORTAL KAMAR" },
   { id: "usr-2", href: "/portal/contract", label: "Kontrak & Dokumen", icon: IconFileText, group: "PORTAL KAMAR" },
   { id: "usr-3", href: "/portal/invoices", label: "Tagihan & Pembayaran", icon: IconReceipt, group: "PORTAL KAMAR" },
-  { id: "usr-4", href: "/portal/community", label: "Komunitas Properti", icon: IconMessages, group: "KOMUNITAS" },
+  {
+    id: "usr-4",
+    href: "/community",
+    label: "Komunitas Properti",
+    icon: IconMessages,
+    group: "KOMUNITAS",
+    children: [
+      { id: "usr-comm-forum", href: "/community", label: "Forum Komunitas", icon: IconMessages, group: "KOMUNITAS" },
+      { id: "usr-comm-history", href: "/portal/community", label: "History Komunitas", icon: IconHistory, group: "KOMUNITAS" },
+    ],
+  },
 ];
 
 const ROUTE_FEATURE_MAP: Record<string, { code: string; label: string }> = {
@@ -325,6 +345,10 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
           const resolveGroup = (path: string, itemGroup?: string) => {
             const matched = templateList.find((t) => t.href === path);
             if (matched?.group) return matched.group;
+            for (const t of templateList) {
+              const childMatch = t.children?.find((c) => c.href === path);
+              if (childMatch?.group) return childMatch.group;
+            }
             if (itemGroup && itemGroup !== "UTAMA") return itemGroup;
             return "UTAMA";
           };

@@ -294,8 +294,9 @@ export class UnitService {
 
       // 3. If master inventoryIds provided, sync UnitInventory records
       if (data.inventoryIds && Array.isArray(data.inventoryIds) && data.inventoryIds.length > 0) {
+        const uniqueIds = Array.from(new Set(data.inventoryIds));
         const masterItems = await tx.propertyInventory.findMany({
-          where: { id: { in: data.inventoryIds } },
+          where: { id: { in: uniqueIds } },
         });
         for (const master of masterItems) {
           await tx.unitInventory.create({
@@ -303,7 +304,7 @@ export class UnitService {
               unitId: unit.id,
               propertyInventoryId: master.id,
               itemName: master.itemName,
-              condition: master.condition || "GOOD",
+              condition: master.condition || "Baik",
               quantity: 1,
             },
           });
@@ -413,9 +414,10 @@ export class UnitService {
         await tx.unitInventory.deleteMany({
           where: { unitId: id },
         });
-        if (data.inventoryIds.length > 0) {
+        const uniqueIds = Array.from(new Set(data.inventoryIds));
+        if (uniqueIds.length > 0) {
           const masterItems = await tx.propertyInventory.findMany({
-            where: { id: { in: data.inventoryIds } },
+            where: { id: { in: uniqueIds } },
           });
           for (const master of masterItems) {
             await tx.unitInventory.create({
@@ -423,7 +425,7 @@ export class UnitService {
                 unitId: id,
                 propertyInventoryId: master.id,
                 itemName: master.itemName,
-                condition: master.condition || "GOOD",
+                condition: master.condition || "Baik",
                 quantity: 1,
               },
             });

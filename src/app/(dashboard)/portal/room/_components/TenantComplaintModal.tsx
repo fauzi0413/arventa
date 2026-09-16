@@ -116,22 +116,22 @@ export default function TenantComplaintModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm transition-opacity">
-      <div className="relative w-full max-w-lg bg-[#F7F4ED] border border-[#C7D3C0] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg bg-card text-card-foreground border border-border rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#C7D3C0]/60 pb-3 mb-4">
+        <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
           <div>
-            <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+            <h3 className="text-base font-black text-foreground flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-[#C8A96B]" />
               Ajukan Komplain & Lapor Kerusakan
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Laporkan masalah fasilitas atau perbaikan kamar ({unitName}) ke tim pengelola.
             </p>
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-500 hover:bg-[#C7D3C0]/40 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -141,7 +141,7 @@ export default function TenantComplaintModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Dropdown Pilihan Barang Rusak (Relasi Master Inventory) */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1 flex items-center justify-between">
+            <label className="block text-xs font-bold text-foreground mb-1 flex items-center justify-between">
               <span>Pilih Barang / Inventaris yang Rusak *</span>
               <span className="text-[10px] text-[#8FA28A] font-bold">✓ Master Data Unit</span>
             </label>
@@ -149,7 +149,7 @@ export default function TenantComplaintModal({
               value={selectedInventoryId}
               required
               onChange={(e) => handleInventorySelect(e.target.value)}
-              className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+              className="w-full min-h-[44px] rounded-xl border border-border bg-background text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
             >
               <option value="">-- Pilih Barang dari Inventaris Kamar --</option>
               {inventoryItems.map((item) => (
@@ -162,11 +162,11 @@ export default function TenantComplaintModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Kategori Masalah *</label>
+            <label className="block text-xs font-bold text-foreground mb-1">Kategori Masalah *</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as ComplaintCategory)}
-              className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+              className="w-full min-h-[44px] rounded-xl border border-border bg-background text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
             >
               {CATEGORY_OPTIONS.map((cat) => (
                 <option key={cat} value={cat}>
@@ -177,24 +177,24 @@ export default function TenantComplaintModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Judul / Subjek Komplain *</label>
+            <label className="block text-xs font-bold text-foreground mb-1">Judul / Subjek Komplain *</label>
             <input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Contoh: AC bocor menetes air, Kran kamar mandi mampet"
-              className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+              className="w-full min-h-[44px] rounded-xl border border-border bg-background text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Tingkat Urgensi / Prioritas *</label>
+            <label className="block text-xs font-bold text-foreground mb-1">Tingkat Urgensi / Prioritas *</label>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { value: 'Biasa', label: 'Biasa (Low)', color: 'border-gray-300 text-gray-700 bg-white' },
-                { value: 'Sedang', label: 'Sedang (Medium)', color: 'border-amber-300 text-amber-800 bg-amber-50' },
-                { value: 'Mendesak', label: 'Mendesak (High)', color: 'border-red-300 text-red-800 bg-red-50' },
+                { value: 'Biasa', label: 'Biasa (Low)', color: 'border-border text-foreground bg-card hover:bg-muted' },
+                { value: 'Sedang', label: 'Sedang (Medium)', color: 'border-amber-500/30 text-amber-700 dark:text-amber-400 bg-amber-500/10' },
+                { value: 'Mendesak', label: 'Mendesak (High)', color: 'border-destructive/30 text-destructive bg-destructive/10' },
               ].map((p) => (
                 <button
                   key={p.value}
@@ -211,20 +211,20 @@ export default function TenantComplaintModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Deskripsi Detail Kerusakan *</label>
+            <label className="block text-xs font-bold text-foreground mb-1">Deskripsi Detail Kerusakan *</label>
             <textarea
               rows={3}
               required
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Jelaskan secara rinci letak masalah, kronologi, atau bagian mana yang perlu diperbaiki..."
-              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none resize-none"
+              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none resize-none"
             />
           </div>
 
           {/* Photo File Upload Section */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Upload Foto Kerusakan (JPG / PNG)</label>
+            <label className="block text-xs font-bold text-foreground mb-1">Upload Foto Kerusakan (JPG / PNG)</label>
             <input
               type="file"
               ref={fileInputRef}
@@ -235,22 +235,22 @@ export default function TenantComplaintModal({
             />
 
             {photoBase64 ? (
-              <div className="relative rounded-xl border border-gray-200 bg-white p-2 flex items-center justify-between gap-3">
+              <div className="relative rounded-xl border border-border bg-muted/40 p-2 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <img
                     src={photoBase64}
                     alt="Foto Kerusakan"
-                    className="h-16 w-16 object-cover rounded-lg border border-gray-200"
+                    className="h-16 w-16 object-cover rounded-lg border border-border"
                   />
                   <div>
-                    <span className="text-xs font-bold text-gray-800 block">Foto Berhasil Diunggah</span>
-                    <span className="text-[10px] text-emerald-600 font-semibold">Siap dikirim ke tim pengelola</span>
+                    <span className="text-xs font-bold text-foreground block">Foto Berhasil Diunggah</span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">Siap dikirim ke tim pengelola</span>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={removePhoto}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center text-destructive hover:bg-destructive/10 rounded-xl transition-colors"
                   title="Hapus Foto"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -259,7 +259,7 @@ export default function TenantComplaintModal({
             ) : (
               <label
                 htmlFor="complaint-photo-upload"
-                className="flex items-center justify-center gap-2 min-h-[48px] rounded-xl border border-dashed border-gray-300 bg-white px-4 py-3 text-xs font-bold text-gray-600 hover:border-[#8FA28A] hover:bg-[#8FA28A]/5 cursor-pointer transition-all"
+                className="flex items-center justify-center gap-2 min-h-[48px] rounded-xl border border-dashed border-border bg-card px-4 py-3 text-xs font-bold text-foreground hover:border-[#8FA28A] hover:bg-muted/60 cursor-pointer transition-all"
               >
                 <Upload className="h-4 w-4 text-[#8FA28A]" />
                 <span>Pilih Foto Kerusakan (JPG, PNG)</span>
@@ -267,12 +267,12 @@ export default function TenantComplaintModal({
             )}
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-[#C7D3C0]/40">
+          <div className="flex justify-end gap-3 pt-3 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="min-h-[44px] rounded-xl border border-border bg-card px-5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
             >
               Batal
             </button>

@@ -260,23 +260,23 @@ export default function TransferUnitModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-      <div className="relative w-full max-w-lg my-auto overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[85vh]">
+      <div className="relative w-full max-w-lg my-auto overflow-hidden rounded-3xl bg-card text-card-foreground shadow-2xl border border-border flex flex-col max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-[#F7F4ED] shrink-0">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/40 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#8FA28A] text-white shadow-md">
               <ArrowRightLeft className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-800">Pindah / Atur Penempatan Unit</h2>
-              <p className="text-xs text-gray-500">
-                Pindahkan penyewa <span className="font-bold text-gray-800">{tenant.fullName}</span> ke unit milik Owner
+              <h2 className="text-base font-bold text-foreground">Pindah / Atur Penempatan Unit</h2>
+              <p className="text-xs text-muted-foreground">
+                Pindahkan penyewa <span className="font-bold text-foreground">{tenant.fullName}</span> ke unit milik Owner
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-2 text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition-all"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
             <X className="h-5 w-5" />
           </button>
@@ -285,10 +285,10 @@ export default function TransferUnitModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto flex-1 max-h-[calc(85vh-80px)]">
           {/* Unit Saat Ini */}
-          <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 space-y-1">
-            <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">Unit Terdaftar Saat Ini</span>
+          <div className="rounded-2xl border border-border bg-muted/40 p-4 space-y-1">
+            <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-wider">Unit Terdaftar Saat Ini</span>
             <div className="flex items-center justify-between">
-              <p className="text-sm font-black text-gray-800">
+              <p className="text-sm font-black text-foreground">
                 {tenant.currentPropertyName || 'Belum Ada Properti'} —{' '}
                 <span className="text-[#8FA28A]">{tenant.currentUnitName || 'Belum Ada Kamar'}</span>
               </p>
@@ -300,7 +300,7 @@ export default function TransferUnitModal({
             {/* Pilih Properti */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
                   Pilih Properti Tujuan <span className="text-red-500">*</span>
                 </label>
                 {loadingProps && (
@@ -310,12 +310,12 @@ export default function TransferUnitModal({
                 )}
               </div>
               <div className="relative">
-                <Building className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Building className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <select
                   value={selectedProperty}
                   onChange={(e) => handlePropertyChange(e.target.value)}
                   disabled={loadingProps || propertiesList.length === 0 || isSubmitting}
-                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-xs font-semibold text-foreground focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
                 >
                   {loadingProps ? (
                     <option value="">-- Memuat database properti... --</option>
@@ -334,16 +334,16 @@ export default function TransferUnitModal({
 
             {/* Pilih Kamar / Unit */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                 Pilih Kamar / Unit Tujuan <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Home className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Home className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <select
                   value={selectedUnit}
                   onChange={(e) => setSelectedUnit(e.target.value)}
                   disabled={loadingProps || currentPropData.units.length === 0 || isSubmitting}
-                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-xs font-semibold text-foreground focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
                 >
                   {loadingProps ? (
                     <option value="">-- Memuat unit kamar... --</option>
@@ -362,53 +362,53 @@ export default function TransferUnitModal({
 
             {/* Tanggal Mulai Penempatan */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                 Tanggal Mulai Penempatan Baru <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input
                   type="date"
                   value={effectiveDate}
                   onChange={(e) => setEffectiveDate(e.target.value)}
                   disabled={isSubmitting || loadingProps}
-                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-semibold text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
+                  className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-xs font-semibold text-foreground focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-muted disabled:text-muted-foreground"
                 />
               </div>
             </div>
 
             {/* Alasan / Catatan */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
                 Alasan Kepindahan / Catatan (Opsional)
               </label>
               <div className="relative">
-                <FileText className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <FileText className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <textarea
                   rows={2}
                   value={transferNotes}
                   onChange={(e) => setTransferNotes(e.target.value)}
                   disabled={isSubmitting || loadingProps}
                   placeholder="Contoh: Permintaan pindah kamar ke lantai 1, upgrade tipe kamar"
-                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-xs font-medium text-gray-800 focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-gray-100 disabled:text-gray-400"
+                  className="w-full rounded-xl border border-border bg-background pl-9 pr-3 py-2 text-xs font-medium text-foreground focus:border-[#8FA28A] focus:outline-none transition-all disabled:bg-muted disabled:text-muted-foreground"
                 />
               </div>
             </div>
 
             {/* Status Auto Aktif Badge */}
-            <div className="rounded-xl bg-emerald-50/80 p-2.5 border border-emerald-200/80 flex items-center gap-2 text-xs text-emerald-800 font-medium">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <div className="rounded-xl bg-emerald-500/10 p-2.5 border border-emerald-500/20 flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>Status penyewa otomatis menjadi <strong>Penyewa Aktif</strong> saat dikonfirmasi.</span>
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 transition-all disabled:opacity-50"
+              className="rounded-xl border border-border bg-card px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-muted transition-all disabled:opacity-50"
             >
               Batal
             </button>

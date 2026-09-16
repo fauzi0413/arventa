@@ -183,8 +183,8 @@ export default function UnitFormModal({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 action: 'SYNC_UNIT',
-                unit_id: initialData.id,
-                inventory_ids: selectedInventoryRefs.map((r) => r.inventory_id),
+                unitId: initialData.id,
+                inventoryIds: selectedInventoryRefs.map((r) => r.inventory_id),
               }),
             });
           } catch (syncErr) {

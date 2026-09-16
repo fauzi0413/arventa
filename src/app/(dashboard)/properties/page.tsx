@@ -310,15 +310,15 @@ export default function PropertiesPage() {
   });
 
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-background min-h-[85vh] p-6 rounded-2xl border border-border">
       {/* Top Bar Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-black text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
             <LayoutGrid className="h-6 w-6 text-[#8FA28A]" />
             Daftar Properti Anda
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Kelola properti kos, apartemen, kontrakan, dan ruko dengan satu dashboard premium.
           </p>
         </div>
@@ -327,14 +327,14 @@ export default function PropertiesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setIsCategoryOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-xs hover:bg-muted transition-all"
           >
             <Layers className="h-3.5 w-3.5 text-[#8FA28A]" />
             Kategori
           </button>
           <button
             onClick={() => setIsStatusOpen(true)}
-            className="flex items-center gap-1.5 rounded-xl border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700 shadow-xs hover:bg-gray-50 transition-all"
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-xs hover:bg-muted transition-all"
           >
             <CheckSquare className="h-3.5 w-3.5 text-[#8FA28A]" />
             Status
@@ -353,26 +353,26 @@ export default function PropertiesPage() {
       </div>
 
       {/* Search & Filter Toolbar */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-xs md:flex-row md:items-center">
+      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-xs md:flex-row md:items-center text-card-foreground">
         {/* Search */}
         <div className="relative flex-1">
-          <Search className="absolute top-2.5 left-3.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute top-2.5 left-3.5 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Cari nama properti atau alamat..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50/50 pl-10 pr-4 py-2 text-xs focus:border-[#8FA28A] focus:bg-white focus:outline-none transition-all"
+            className="w-full rounded-xl border border-input bg-background pl-10 pr-4 py-2 text-xs text-foreground focus:border-[#8FA28A] focus:outline-none transition-all"
           />
         </div>
 
         {/* Filter Category */}
         <div className="flex items-center gap-1.5">
-          <Filter className="h-3.5 w-3.5 text-gray-400" />
+          <Filter className="h-3.5 w-3.5 text-muted-foreground" />
           <select
             value={selectedCategoryId}
             onChange={(e) => setSelectedCategoryId(e.target.value)}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 focus:border-[#8FA28A] focus:outline-none"
+            className="rounded-xl border border-input bg-background px-3 py-2 text-xs font-semibold text-foreground focus:border-[#8FA28A] focus:outline-none"
           >
             <option value="all">Semua Kategori</option>
             {categories.map((cat) => (
@@ -388,7 +388,7 @@ export default function PropertiesPage() {
           <select
             value={selectedStatusId}
             onChange={(e) => setSelectedStatusId(e.target.value)}
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 focus:border-[#8FA28A] focus:outline-none"
+            className="rounded-xl border border-input bg-background px-3 py-2 text-xs font-semibold text-foreground focus:border-[#8FA28A] focus:outline-none"
           >
             <option value="all">Semua Status</option>
             {statuses.map((st) => (
@@ -405,13 +405,13 @@ export default function PropertiesPage() {
         <div className="flex h-60 items-center justify-center">
           <div className="text-center space-y-2">
             <div className="h-7 w-7 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
-            <p className="text-xs text-gray-500 font-medium">Memuat data properti dari database...</p>
+            <p className="text-xs text-muted-foreground font-medium">Memuat data properti dari database...</p>
           </div>
         </div>
       ) : filteredProperties.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-xs space-y-2">
-          <p className="text-sm font-bold text-gray-600">Tidak ada properti ditemukan.</p>
-          <p className="text-xs text-gray-400">Coba ubah kata kunci pencarian atau filter kategori/status.</p>
+        <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center shadow-xs space-y-2">
+          <p className="text-sm font-bold text-foreground">Tidak ada properti ditemukan.</p>
+          <p className="text-xs text-muted-foreground">Coba ubah kata kunci pencarian atau filter kategori/status.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

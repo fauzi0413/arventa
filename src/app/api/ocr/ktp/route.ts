@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     // Securely retrieve API Key from SystemSettings DB or process.env (GEMINI_API_KEY / GOOGLE_GENERATIVE_AI_API_KEY)
     const settings = await getSystemSettings();
     const apiKey = settings.gemini_api_key || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "";
-    const primaryModel = settings.gemini_model || process.env.GEMINI_MODEL || "gemini-3.6-flash";
+    const primaryModel = settings.gemini_model || process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
     // Format base64 image data
     let base64Data = image;
@@ -57,9 +57,10 @@ Kembalikan HANYA format JSON murni dengan struktur persis seperti berikut:
 Jika ada bidang yang tidak terbaca, kosongkan nilainya dengan "". Jangan tambahkan teks lain selain JSON.
 `;
 
-    // Force gemini-3.6-flash model for fast & accurate Indonesian KTP Vision OCR
-    const targetModel = "gemini-3.5-flash";
-    const modelsToTry = [targetModel];
+    // Dynamic model selection with official Google Generative AI fallbacks
+    const modelsToTry = Array.from(
+      new Set([primaryModel, "gemini-2.0-flash", "gemini-1.5-flash"].filter(Boolean))
+    );
 
     let response: Response | null = null;
     let lastErrorText = "";

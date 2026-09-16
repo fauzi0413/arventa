@@ -20,21 +20,21 @@ export default function TenantComplaintCard({ complaints, onOpenModal }: TenantC
       case 'Closed':
       case 'CLOSED':
         return {
-          bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          icon: <CheckCircle2 className="h-3 w-3 text-emerald-600" />,
+          bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+          icon: <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />,
           label: 'Selesai Staf',
         };
       case 'In Progress':
       case 'IN_PROGRESS':
         return {
-          bg: 'bg-blue-50 text-blue-700 border-blue-200',
-          icon: <Wrench className="h-3 w-3 text-blue-600" />,
+          bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+          icon: <Wrench className="h-3 w-3 text-blue-600 dark:text-blue-400" />,
           label: 'Dalam Penanganan',
         };
       default:
         return {
-          bg: 'bg-amber-50 text-amber-700 border-amber-200',
-          icon: <Clock className="h-3 w-3 text-amber-600" />,
+          bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+          icon: <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />,
           label: 'Menunggu Respons',
         };
     }
@@ -62,24 +62,24 @@ export default function TenantComplaintCard({ complaints, onOpenModal }: TenantC
   };
 
   return (
-    <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-5 flex flex-col justify-between">
+    <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-5 flex flex-col justify-between">
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-[#C8A96B]" />
-            <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Layanan Perbaikan & Komplain</h3>
+            <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Layanan Perbaikan & Komplain</h3>
           </div>
-          <span className="text-xs font-bold text-gray-400">
+          <span className="text-xs font-bold text-muted-foreground">
             {complaints.length} Laporan
           </span>
         </div>
 
         {/* Complaints Clean List View */}
         {complaints.length === 0 ? (
-          <div className="bg-gray-50/80 rounded-xl p-4 text-center space-y-1 border border-gray-100">
-            <p className="text-xs text-gray-500 font-semibold">Tidak ada laporan kerusakan aktif.</p>
-            <p className="text-[11px] text-gray-400">Jika ada fasilitas kamar yang rusak atau bermasalah, silakan laporkan ke pengelola.</p>
+          <div className="bg-muted/40 rounded-xl p-4 text-center space-y-1 border border-border">
+            <p className="text-xs text-muted-foreground font-semibold">Tidak ada laporan kerusakan aktif.</p>
+            <p className="text-[11px] text-muted-foreground/80">Jika ada fasilitas kamar yang rusak atau bermasalah, silakan laporkan ke pengelola.</p>
           </div>
         ) : (
           <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
@@ -90,7 +90,7 @@ export default function TenantComplaintCard({ complaints, onOpenModal }: TenantC
               return (
                 <div
                   key={item.id}
-                  className="p-3 rounded-xl border border-gray-200 bg-gray-50/40 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 text-xs"
+                  className="p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex items-center justify-between gap-2 text-xs"
                 >
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -102,18 +102,18 @@ export default function TenantComplaintCard({ complaints, onOpenModal }: TenantC
                         {statusBadge.label}
                       </span>
                       {hasRated && (
-                        <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
+                        <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-0.5">
                           <Star className="h-2.5 w-2.5 fill-amber-400" /> Rated
                         </span>
                       )}
                     </div>
-                    <h4 className="font-bold text-gray-800 truncate">{item.title}</h4>
+                    <h4 className="font-bold text-foreground truncate">{item.title}</h4>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setSelectedItem(item)}
-                    className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-[#8FA28A] flex items-center justify-center shrink-0 transition-all shadow-sm"
+                    className="p-2 rounded-xl border border-border bg-card hover:bg-muted text-[#8FA28A] flex items-center justify-center shrink-0 transition-all shadow-sm"
                     title="Lihat Detail & Progress Stepper"
                   >
                     <Eye className="h-4 w-4 text-[#8FA28A]" />

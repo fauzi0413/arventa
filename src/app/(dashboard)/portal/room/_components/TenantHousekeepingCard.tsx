@@ -21,22 +21,22 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
       case 'CLOSED':
       case 'Closed':
         return {
-          bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-          icon: <CheckCircle2 className="h-3 w-3 text-emerald-600" />,
+          bg: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+          icon: <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />,
           label: 'Selesai Dibersihkan',
         };
       case 'Terjadwal':
       case 'In Progress':
       case 'IN_PROGRESS':
         return {
-          bg: 'bg-blue-50 text-blue-700 border-blue-200',
-          icon: <Calendar className="h-3 w-3 text-blue-600" />,
+          bg: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+          icon: <Calendar className="h-3 w-3 text-blue-600 dark:text-blue-400" />,
           label: 'Sedang Dikerjakan',
         };
       default:
         return {
-          bg: 'bg-amber-50 text-amber-700 border-amber-200',
-          icon: <Clock className="h-3 w-3 text-amber-600" />,
+          bg: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+          icon: <Clock className="h-3 w-3 text-amber-600 dark:text-amber-400" />,
           label: 'Menunggu Respons',
         };
     }
@@ -64,20 +64,20 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
   };
 
   return (
-    <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-5 flex flex-col justify-between">
+    <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-5 flex flex-col justify-between">
       <div className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="flex items-center justify-between border-b border-border pb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-[#8FA28A]" />
-            <h3 className="text-sm font-black text-gray-800 uppercase tracking-wider">Layanan Kebersihan Kamar</h3>
+            <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Layanan Kebersihan Kamar</h3>
           </div>
           {hasCleaningService ? (
-            <span className="text-xs font-bold text-gray-400">
+            <span className="text-xs font-bold text-muted-foreground">
               {requests.length} Pemanggilan
             </span>
           ) : (
-            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
               Nonaktif oleh Owner
             </span>
           )}
@@ -85,9 +85,9 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
 
         {/* Notice when service is turned OFF by owner */}
         {!hasCleaningService && (
-          <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3.5 text-center space-y-1">
-            <p className="text-xs font-bold text-rose-800">Layanan Kebersihan Dinonaktifkan</p>
-            <p className="text-[11px] text-rose-600 leading-relaxed">
+          <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3.5 text-center space-y-1">
+            <p className="text-xs font-bold text-rose-600 dark:text-rose-400">Layanan Kebersihan Dinonaktifkan</p>
+            <p className="text-[11px] text-rose-600/90 dark:text-rose-400/90 leading-relaxed">
               Pemilik properti sedang menonaktifkan fitur panggilan kebersihan untuk unit ini.
             </p>
           </div>
@@ -95,9 +95,9 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
 
         {/* Housekeeping Clean List View */}
         {requests.length === 0 ? (
-          <div className="bg-gray-50/80 rounded-xl p-4 text-center space-y-1 border border-gray-100">
-            <p className="text-xs text-gray-500 font-semibold">Belum ada riwayat panggilan kebersihan.</p>
-            <p className="text-[11px] text-gray-400">
+          <div className="bg-muted/40 rounded-xl p-4 text-center space-y-1 border border-border">
+            <p className="text-xs text-muted-foreground font-semibold">Belum ada riwayat panggilan kebersihan.</p>
+            <p className="text-[11px] text-muted-foreground/80">
               {hasCleaningService
                 ? 'Anda dapat memanggil tim housekeeping untuk menyapu, ngepel, atau mengganti sprei kamar.'
                 : 'Fitur panggilan kebersihan saat ini tidak aktif.'}
@@ -112,7 +112,7 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
               return (
                 <div
                   key={item.id}
-                  className="p-3 rounded-xl border border-gray-200 bg-gray-50/40 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2 text-xs"
+                  className="p-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex items-center justify-between gap-2 text-xs"
                 >
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -122,18 +122,18 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
                         {statusBadge.label}
                       </span>
                       {hasRated && (
-                        <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
+                        <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 flex items-center gap-0.5">
                           <Star className="h-2.5 w-2.5 fill-amber-400" /> Rated
                         </span>
                       )}
                     </div>
-                    <h4 className="font-bold text-gray-800 truncate">{item.serviceType}</h4>
+                    <h4 className="font-bold text-foreground truncate">{item.serviceType}</h4>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => setSelectedItem(item)}
-                    className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-100 text-[#8FA28A] flex items-center justify-center shrink-0 transition-all shadow-sm"
+                    className="p-2 rounded-xl border border-border bg-card hover:bg-muted text-[#8FA28A] flex items-center justify-center shrink-0 transition-all shadow-sm"
                     title="Lihat Detail & Progress Stepper"
                   >
                     <Eye className="h-4 w-4 text-[#8FA28A]" />
@@ -160,9 +160,9 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
           <button
             type="button"
             disabled
-            className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-gray-100 border border-gray-200 text-gray-400 px-4 py-2.5 text-xs font-bold cursor-not-allowed opacity-80"
+            className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-muted border border-border text-muted-foreground px-4 py-2.5 text-xs font-bold cursor-not-allowed opacity-80"
           >
-            <Sparkles className="h-4 w-4 text-gray-400" />
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
             Layanan Dinonaktifkan oleh Owner
           </button>
         )}

@@ -25,6 +25,121 @@ export interface TemplateArticle {
   items: string[];
 }
 
+export interface PresetContractTemplate {
+  id: string;
+  name: string;
+  categoryName: string;
+  description: string;
+  articles: Array<{ title: string; items: string[] }>;
+}
+
+export const PRESET_CONTRACT_TEMPLATES: PresetContractTemplate[] = [
+  {
+    id: 'kost-standar',
+    name: 'Kost Mahasiswa & Karyawan Standar',
+    categoryName: 'Kost Mahasiswa / Karyawan',
+    description: 'Tata tertib jam bertamu, kebersihan fasilitas bersama, larangan modifikasi kamar, dan ketentuan deposit.',
+    articles: [
+      {
+        title: 'PASAL 3: TATA TERTIB & KETENTUAN BERTAMU',
+        items: [
+          'Jam bertamu maksimal pukul 22.00 WIB demi menjaga ketenangan dan kenyamanan seluruh penghuni kost.',
+          'Tamu lawan jenis dilarang menginap atau memasuki kamar pribadi tanpa izin tertulis dari pengelola kost.',
+          'Penyewa wajib mematuhi norma kesusilaan dan menjaga ketenteraman lingkungan hunian bersama.',
+        ],
+      },
+      {
+        title: 'PASAL 4: KEBERSIHAN & FASILITAS BERSAMA',
+        items: [
+          'Penyewa wajib menjaga kebersihan kamar masing-masing serta area komunal (dapur bersama, lorong, dan area jemur).',
+          'Sampah wajib dikemas dalam kantong plastik tertutup sebelum dibuang ke bak sampah utama.',
+          'Peralatan masak dan makan bersama wajib langsung dicuci dan dirapikan kembali setelah digunakan.',
+        ],
+      },
+      {
+        title: 'PASAL 5: LARANGAN PERUBAHAN & MODIFIKASI KAMAR',
+        items: [
+          'Dilarang memaku dinding, mengecat ulang, atau merombak instalasi listrik kamar tanpa persetujuan tertulis pengelola.',
+          'Dilarang memelihara hewan peliharaan (kucing, anjing, dan sejenisnya) di dalam lingkungan kost.',
+          'Dilarang menggunakan perabot listrik berdaya besar (>500 Watt) tanpa izin dan penyesuaian biaya listrik.',
+        ],
+      },
+      {
+        title: 'PASAL 6: KETENTUAN DEPOSIT & CHECK-OUT',
+        items: [
+          'Uang jaminan (deposit) dikembalikan penuh paling lambat 3 hari kerja setelah masa sewa berakhir jika kamar dalam kondisi baik.',
+          'Deposit dapat dipotong untuk biaya perbaikan kerusakan unit, kehilangan kunci, atau tunggakan tagihan.',
+          'Pemberitahuan rencana check-out wajib disampaikan kepada pengelola minimal 30 hari sebelum sewa berakhir.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'apartemen-eksklusif',
+    name: 'Apartemen / Studio Eksklusif',
+    categoryName: 'Apartemen / Studio',
+    description: 'Inventaris elektronik (AC, TV, Smart Lock), servis AC berkala, utilitas & IPL, serta tata tertib gedung.',
+    articles: [
+      {
+        title: 'PASAL 3: FASILITAS ELEKTRONIK & INVENTARIS UNIT',
+        items: [
+          'Unit disewakan dalam kondisi fully/semi-furnished beserta kelengkapan elektronik (AC, Water Heater, TV, Kulkas, Smart Door Lock).',
+          'Penyewa wajib memeriksa dan menandatangani Berita Acara Serah Terima (BAST) inventaris saat mulai serah terima kunci.',
+          'Kerusakan inventaris akibat kelalaian operasional penyewa menjadi tanggung jawab dan beban biaya perbaikan penyewa.',
+        ],
+      },
+      {
+        title: 'PASAL 4: PEMELIHARAAN AC & UTILITAS MANDIRI',
+        items: [
+          'Pengelola memfasilitasi servis dan pencucian AC berkala setiap 3 bulan sekali atas koordinasi dengan penyewa.',
+          'Biaya konsumsi listrik (token/pascabayar) dan air bersih menjadi kewajiban mandiri penyewa setiap bulannya.',
+          'Iuran Pengelolaan Lingkungan (IPL/Maintenance Fee) diselesaikan sesuai klausul kesepakatan tertulis di awal perjanjian.',
+        ],
+      },
+      {
+        title: 'PASAL 5: TATA TERTIB GEDUNG APARTEMEN & AKSES KARTU',
+        items: [
+          'Penyewa wajib mematuhi seluruh House Rules dan Regulasi Pengelola Perhimpunan Penghuni Apartemen (PPPSRS).',
+          'Access card dan kode pintu digital (Smart Lock) hanya boleh digunakan oleh penyewa sah yang terdaftar di sistem pengelola.',
+          'Kehilangan access card dikenakan denda penggantian kartu fisik sesuai tarif resmi manajemen pengelola gedung.',
+        ],
+      },
+    ],
+  },
+  {
+    id: 'kontrakan-ruko',
+    name: 'Kontrakan Rumah / Ruko Komersial',
+    categoryName: 'Kontrakan Rumah / Ruko',
+    description: 'Tanggung jawab perbaikan struktural vs minor, PBB & tagihan utilitas mandiri, serta serah terima kunci.',
+    articles: [
+      {
+        title: 'PASAL 3: TANGGUNG JAWAB STRUKTUR & PERBAIKAN BANGUNAN',
+        items: [
+          'Kerusakan struktural utama (kebocoran atap berat, keretakan pondasi, kebocoran pipa tanam) menjadi tanggung jawab Pemilik.',
+          'Kerusakan minor operasional harian (penggantian bohlam, keran air lepas, sekring listrik) ditanggung mandiri oleh Penyewa.',
+          'Penyewa dilarang mengubah bentuk fisik atau struktur arsitektur permanen bangunan tanpa izin tertulis dari Pemilik.',
+        ],
+      },
+      {
+        title: 'PASAL 4: PAJAK BUMI & BANGUNAN (PBB) SERTA UTILITAS MANDIRI',
+        items: [
+          'Pajak Bumi dan Bangunan (PBB) tahunan tetap menjadi tanggung jawab penuh Pihak Pertama (Pemilik).',
+          'Tagihan rutin bulanan (PLN, PDAM, Indihome/Internet, Retribusi Sampah Lingkungan) dibayar mandiri tepat waktu oleh Penyewa.',
+          'Bukti pelunasan rekening utilitas bulan terakhir wajib diserahkan kepada Pemilik saat serah terima pengembalian kunci.',
+        ],
+      },
+      {
+        title: 'PASAL 5: PENGGUNAAN PROPERTI & PENGEMBALIAN KUNCI',
+        items: [
+          'Objek sewa digunakan khusus sesuai peruntukan yang disepakati (tempat tinggal keluarga / ruang usaha legal).',
+          'Dilarang menyimpan barang berbahaya, bahan peledak, atau zat terlarang yang bertentangan dengan hukum Republik Indonesia.',
+          'Pada hari berakhirnya masa sewa, Penyewa menyerahkan kembali seluruh anak kunci dan bangunan dalam keadaan bersih dan terawat.',
+        ],
+      },
+    ],
+  },
+];
+
 interface PropertyContractTemplateModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -58,6 +173,7 @@ export default function PropertyContractTemplateModal({
   const [activeTab, setActiveTab] = useState<'FORM' | 'PREVIEW'>('FORM');
   const [templateName, setTemplateName] = useState('Template Standar Properti');
   const [articles, setArticles] = useState<TemplateArticle[]>([]);
+  const [showPresetSelector, setShowPresetSelector] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -125,6 +241,19 @@ export default function PropertyContractTemplateModal({
 
     setArticles((prev) => [...prev, newArt]);
     setNewArticleTitleInput('');
+  };
+
+  const handleApplyPreset = (preset: PresetContractTemplate) => {
+    setTemplateName(`${preset.name} - ${propertyName}`);
+    const mappedArticles: TemplateArticle[] = preset.articles.map((art, idx) => ({
+      id: `art-preset-${Date.now()}-${idx}`,
+      title: art.title,
+      items: [...art.items],
+    }));
+    setArticles(mappedArticles);
+    setShowPresetSelector(false);
+    setSuccessMessage(`✨ Template standar AI "${preset.name}" berhasil dimuat ke daftar pasal.`);
+    setTimeout(() => setSuccessMessage(''), 4500);
   };
 
   const handleRemoveArticle = (id: string) => {
@@ -417,29 +546,94 @@ export default function PropertyContractTemplateModal({
                   </div>
                 ))}
 
-                {/* Add New Article Button */}
-                <div className="p-4 rounded-xl border-2 border-dashed border-border bg-card/60 flex items-center gap-3">
-                  <input
-                    type="text"
-                    value={newArticleTitleInput}
-                    onChange={(e) => setNewArticleTitleInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddArticle();
-                      }
-                    }}
-                    placeholder="Judul Pasal Baru (Contoh: SANKSI DAN DENDA KETERLAMBATAN)"
-                    className="flex-1 px-3 py-2.5 rounded-xl border border-input bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none font-bold text-xs"
-                  />
+                {/* Add New Article & AI Preset Action Bar */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="flex-1 p-3 sm:p-4 rounded-xl border-2 border-dashed border-border bg-card/60 flex items-center gap-2 sm:gap-3">
+                    <input
+                      type="text"
+                      value={newArticleTitleInput}
+                      onChange={(e) => setNewArticleTitleInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddArticle();
+                        }
+                      }}
+                      placeholder="Judul Pasal Baru (Contoh: SANKSI DAN DENDA KETERLAMBATAN)"
+                      className="flex-1 px-3 py-2 rounded-xl border border-input bg-background text-foreground focus:ring-2 focus:ring-primary focus:outline-none font-bold text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddArticle}
+                      className="px-3.5 py-2 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-all flex items-center gap-1.5 shrink-0 shadow-sm text-xs"
+                    >
+                      <Plus className="w-4 h-4" /> Tambah Pasal
+                    </button>
+                  </div>
+
                   <button
                     type="button"
-                    onClick={handleAddArticle}
-                    className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold hover:bg-primary/90 transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                    onClick={() => setShowPresetSelector((prev) => !prev)}
+                    className="px-4 py-3 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-900 dark:text-amber-300 font-bold transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm text-xs"
                   >
-                    <Plus className="w-4 h-4" /> Tambah Pasal Baru
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>✨ Muat Template Standar AI / Rekomendasi</span>
                   </button>
                 </div>
+
+                {/* Preset Recommendation Drawer / Picker */}
+                {showPresetSelector && (
+                  <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        <span className="font-bold text-xs text-foreground uppercase tracking-wider">
+                          Pilihan Preset Template Klausul &amp; Tata Tertib AI
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPresetSelector(false)}
+                        className="text-muted-foreground hover:text-foreground text-xs font-semibold px-2 py-1 rounded-md hover:bg-muted/50 transition-colors"
+                      >
+                        Tutup
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      Pilih preset di bawah untuk memuat paket pasal dan tata tertib umum secara instan. Anda dapat menyesuaikan atau menambah poin klausul setelah template dimuat.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                      {PRESET_CONTRACT_TEMPLATES.map((preset) => (
+                        <div
+                          key={preset.id}
+                          className="p-3.5 rounded-xl border border-border bg-card hover:border-primary/60 hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+                        >
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10 inline-block">
+                              {preset.categoryName}
+                            </span>
+                            <h4 className="font-bold text-xs text-foreground">{preset.name}</h4>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                              {preset.description}
+                            </p>
+                          </div>
+                          <div className="pt-2 border-t border-border flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground font-semibold">
+                              {preset.articles.length} Pasal Siap Pakai
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyPreset(preset)}
+                              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-[11px] hover:bg-primary/90 transition-all shadow-xs"
+                            >
+                              Gunakan Preset
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </form>
           ) : (

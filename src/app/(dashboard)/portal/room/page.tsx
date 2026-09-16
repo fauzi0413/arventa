@@ -215,22 +215,22 @@ export default function PortalRoomPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
+      <div className="space-y-6 bg-background min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-border">
         {/* Header Skeleton */}
         <div className="space-y-2 animate-pulse">
-          <div className="h-6 w-48 bg-gray-200 rounded-lg" />
-          <div className="h-3 w-80 bg-gray-200 rounded-lg" />
+          <div className="h-6 w-48 bg-muted rounded-lg" />
+          <div className="h-3 w-80 bg-muted/60 rounded-lg" />
         </div>
 
         {/* Card Grid Skeleton */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-80 bg-white rounded-2xl border border-gray-200 animate-pulse p-6 space-y-4">
-              <div className="h-5 w-24 bg-gray-200 rounded-lg" />
-              <hr className="border-gray-100" />
-              <div className="h-10 w-full bg-gray-200 rounded-xl" />
-              <div className="h-4 w-40 bg-gray-200 rounded-lg" />
-              <div className="h-4 w-52 bg-gray-200 rounded-lg" />
+            <div key={i} className="h-80 bg-card rounded-2xl border border-border animate-pulse p-6 space-y-4">
+              <div className="h-5 w-24 bg-muted rounded-lg" />
+              <hr className="border-border" />
+              <div className="h-10 w-full bg-muted/60 rounded-xl" />
+              <div className="h-4 w-40 bg-muted rounded-lg" />
+              <div className="h-4 w-52 bg-muted rounded-lg" />
             </div>
           ))}
         </div>
@@ -240,14 +240,14 @@ export default function PortalRoomPage() {
 
   if (!details) {
     return (
-      <div className="flex h-[80vh] flex-col items-center justify-center rounded-2xl border border-[#C7D3C0]/40 bg-[#F7F4ED] p-8 text-center space-y-4">
+      <div className="flex h-[80vh] flex-col items-center justify-center rounded-2xl border border-border bg-card text-card-foreground p-8 text-center space-y-4">
         <ShieldAlert className="h-12 w-12 text-[#C8A96B] animate-bounce" />
-        <h2 className="text-lg font-bold text-gray-800">Akun Anda Belum Terhubung</h2>
-        <p className="text-xs text-gray-500 max-w-sm leading-relaxed">
+        <h2 className="text-lg font-bold text-foreground">Akun Anda Belum Terhubung</h2>
+        <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
           Sistem mendeteksi bahwa profil Anda saat ini belum terdaftar di unit kamar manapun.
           Silakan hubungi Owner/Pengelola properti untuk melakukan check-in dan mengaktifkan akses kamar sewa Anda.
         </p>
-        <div className="rounded-xl border border-gray-100 bg-white p-3 text-xs text-gray-600 flex items-center gap-2">
+        <div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-foreground flex items-center gap-2">
           <Phone className="h-4 w-4 text-[#8FA28A]" />
           <span>Demo Hubungi Pengelola: <strong>+62 813-8354-4440</strong></span>
         </div>
@@ -256,16 +256,16 @@ export default function PortalRoomPage() {
   }
 
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-background min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-border">
       
       {/* Title Header with Quick Action Buttons */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#C7D3C0]/30 pb-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
             <Home className="h-6 w-6 text-[#8FA28A]" />
             Informasi Kamar & Layanan Penghuni
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Pantau status huni unit sewa Anda, PIN smart lock, WiFi, rincian tagihan, serta layanan komplain & panggil housekeeping.
           </p>
         </div>

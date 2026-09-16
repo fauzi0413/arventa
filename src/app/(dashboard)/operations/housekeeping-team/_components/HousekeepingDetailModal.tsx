@@ -94,21 +94,21 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 md:p-8 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="relative w-full max-w-xl md:max-w-2xl my-auto overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] sm:max-h-[88vh]">
+      <div className="relative w-full max-w-xl md:max-w-2xl my-auto overflow-hidden rounded-3xl bg-card text-card-foreground shadow-2xl border border-border flex flex-col max-h-[85vh] sm:max-h-[88vh]">
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-[#F7F4ED]">
+        <div className="shrink-0 flex items-center justify-between border-b border-border px-6 py-4 bg-muted/40">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-[#8FA28A] text-white flex items-center justify-center font-bold text-sm shadow-md">
               {staff.fullName.charAt(0)}
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-800">{staff.fullName}</h2>
-              <p className="text-[11px] text-gray-500">Detail Profil & Penugasan Tim</p>
+              <h2 className="text-base font-bold text-foreground">{staff.fullName}</h2>
+              <p className="text-[11px] text-muted-foreground">Detail Profil & Penugasan Tim</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-2 text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition-all"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
             <X className="h-5 w-5" />
           </button>
@@ -117,26 +117,26 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
         {/* Body Content */}
         <div className="overflow-y-auto p-6 space-y-5 flex-1">
           {/* Status & Role Banner */}
-          <div className="flex items-center justify-between rounded-2xl border border-gray-100 bg-gray-50 p-4">
+          <div className="flex items-center justify-between rounded-2xl border border-border bg-muted/40 p-4">
             <div className="space-y-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Status Akun
               </span>
               <div className="flex items-center gap-2">
                 <span
                   className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${staff.isActive
-                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                    : 'bg-gray-200 text-gray-700 border border-gray-300'
+                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                    : 'bg-muted text-muted-foreground border border-border'
                     }`}
                 >
                   {staff.isActive ? (
                     <>
-                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                       Aktif Bertugas
                     </>
                   ) : (
                     <>
-                      <ShieldAlert className="h-3.5 w-3.5 text-gray-500" />
+                      <ShieldAlert className="h-3.5 w-3.5 text-muted-foreground" />
                       Nonaktif
                     </>
                   )}
@@ -145,7 +145,7 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
             </div>
 
             <div className="text-right space-y-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Akses Peran
               </span>
               <p className="text-xs font-bold text-[#8FA28A]">Housekeeping</p>
@@ -154,38 +154,38 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
 
           {/* Contact Details */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
               Informasi Kontak
             </h4>
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white">
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <Mail className="h-4 w-4 text-[#8FA28A] shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] text-gray-400 block">Email Login</span>
-                    <p className="font-semibold text-gray-800 truncate">{staff.email}</p>
+                    <span className="text-[10px] text-muted-foreground block">Email Login</span>
+                    <p className="font-semibold text-foreground truncate">{staff.email}</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={handleCopyEmail}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all shrink-0 ml-2"
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all shrink-0 ml-2"
                   title="Salin Email"
                 >
                   {isEmailCopied ? (
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   ) : (
                     <Copy className="h-4 w-4" />
                   )}
                 </button>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white">
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <KeyRound className="h-4 w-4 text-[#8FA28A] shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <span className="text-[10px] text-gray-400 block">Password Akun</span>
-                    <p className="font-semibold font-mono text-gray-800 truncate">
+                    <span className="text-[10px] text-muted-foreground block">Password Akun</span>
+                    <p className="font-semibold font-mono text-foreground truncate">
                       {showPassword ? (staff.password || '-') : '••••••••••••'}
                     </p>
                   </div>
@@ -194,7 +194,7 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                     title={showPassword ? 'Sembunyikan Password' : 'Lihat Password'}
                   >
                     {showPassword ? (
@@ -206,11 +206,11 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                   <button
                     type="button"
                     onClick={handleCopyPassword}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                    className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                     title="Salin Password"
                   >
                     {isPasswordCopied ? (
-                      <Check className="h-4 w-4 text-emerald-600" />
+                      <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
@@ -218,12 +218,12 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white">
+              <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-card">
                 <div className="flex items-center gap-3 min-w-0">
                   <Phone className="h-4 w-4 text-[#8FA28A] shrink-0" />
                   <div className="min-w-0">
-                    <span className="text-[10px] text-gray-400 block">Nomor WhatsApp/HP</span>
-                    <p className="font-semibold text-gray-800">{staff.phoneNumber || '-'}</p>
+                    <span className="text-[10px] text-muted-foreground block">Nomor WhatsApp/HP</span>
+                    <p className="font-semibold text-foreground">{staff.phoneNumber || '-'}</p>
                   </div>
                 </div>
 
@@ -251,11 +251,11 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                 )}
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-white">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
                 <Calendar className="h-4 w-4 text-[#8FA28A] shrink-0" />
                 <div>
-                  <span className="text-[10px] text-gray-400 block">Terdaftar Sejak</span>
-                  <p className="font-semibold text-gray-800">
+                  <span className="text-[10px] text-muted-foreground block">Terdaftar Sejak</span>
+                  <p className="font-semibold text-foreground">
                     {new Date(staff.createdAt).toLocaleDateString('id-ID', {
                       day: 'numeric',
                       month: 'long',
@@ -270,7 +270,7 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
           {/* Assigned Properties */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-700">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
                 Properti yang Ditangani
               </h4>
               <span className="text-[11px] font-bold text-[#8FA28A]">
@@ -279,7 +279,7 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
             </div>
 
             {(!staff.assignedProperties || staff.assignedProperties.length === 0) ? (
-              <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
+              <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
                 Belum ada penugasan properti untuk staf ini.
               </div>
             ) : (
@@ -287,15 +287,15 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                 {staff.assignedProperties.map((prop) => (
                   <div
                     key={prop.id}
-                    className="flex items-start gap-3 p-3 rounded-2xl border border-gray-200 bg-gray-50/50"
+                    className="flex items-start gap-3 p-3 rounded-2xl border border-border bg-muted/30"
                   >
-                    <div className="h-8 w-8 rounded-xl bg-white border border-gray-200 flex items-center justify-center shrink-0">
+                    <div className="h-8 w-8 rounded-xl bg-card border border-border flex items-center justify-center shrink-0">
                       <Building className="h-4 w-4 text-[#8FA28A]" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-gray-800 truncate">{prop.name}</p>
+                      <p className="text-xs font-bold text-foreground truncate">{prop.name}</p>
                       {prop.address && (
-                        <p className="text-[10px] text-gray-500 truncate mt-0.5">{prop.address}</p>
+                        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{prop.address}</p>
                       )}
                     </div>
                   </div>
@@ -305,7 +305,7 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
           </div>
 
           {/* Quick Action Footer */}
-          <div className="flex items-center gap-2 pt-4 border-t border-gray-100">
+          <div className="flex items-center gap-2 pt-4 border-t border-border">
             {onDelete && (
               <button
                 type="button"
@@ -313,7 +313,7 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                   onClose();
                   onDelete(staff);
                 }}
-                className="p-2.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold transition-colors cursor-pointer"
+                className="p-2.5 rounded-xl border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold transition-colors cursor-pointer"
                 title="Hapus Akun Permanen"
               >
                 <Trash2 className="h-4 w-4" />

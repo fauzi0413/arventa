@@ -148,17 +148,19 @@ export async function seedRolesAndMenus() {
       { title: "Unit Kamar", path: "/units", icon: "IconBed", group: "PROPERTI & OPERASIONAL", order: 3, roles: ["OWNER"] },
       { title: "Tim Operasional & Housekeeping", path: "/operations/housekeeping-team", icon: "IconSparkles", group: "PROPERTI & OPERASIONAL", order: 4, roles: ["OWNER"] },
       { title: "Pusat Laporan & Maintenance", path: "/operations/maintenance-reports", icon: "IconTools", group: "PROPERTI & OPERASIONAL", order: 5, roles: ["OWNER"] },
-      { title: "Penyewa & Kontrak", path: "/tenant-&-contract", icon: "IconUsers", group: "PENYEWA & KEUANGAN", order: 6, roles: ["OWNER"] },
-      { title: "Kontrak Penyewa", path: "/tenant-contract", icon: "IconFileText", group: "PENYEWA & KEUANGAN", order: 7, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
-      { title: "Manajemen Penyewa", path: "/tenants", icon: "IconId", group: "PENYEWA & KEUANGAN", order: 8, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
-      { title: "Keuangan & Penagihan", path: "/finance", icon: "IconCash", group: "PENYEWA & KEUANGAN", order: 9, roles: ["OWNER"] },
-      { title: "Manajemen Invoice", path: "/finance", icon: "IconReceipt", group: "PENYEWA & KEUANGAN", order: 10, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
-      { title: "Verifikasi Pembayaran & Rekening", path: "/finance/verification", icon: "IconUserCheck", group: "PENYEWA & KEUANGAN", order: 11, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
-      { title: "Pengeluaran Operasional (OpEx)", path: "/finance/expenses", icon: "IconTools", group: "PENYEWA & KEUANGAN", order: 12, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
-      { title: "Laporan & Analytics", path: "/reports", icon: "IconChartBar", group: "PENYEWA & KEUANGAN", order: 13, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
-      { title: "Komunitas Properti", path: "/community", icon: "IconMessages", group: "PENYEWA & KEUANGAN", order: 14, roles: ["OWNER"] },
-      { title: "Paket Berlangganan", path: "/owner/subscription", icon: "IconCreditCard", group: "BANTUAN", order: 15, roles: ["OWNER"] },
-      { title: "FAQ & Bantuan", path: "/owner/faq", icon: "IconHelpCircle", group: "BANTUAN", order: 16, roles: ["OWNER"] },
+      { title: "Komunitas Properti", path: "/community", icon: "IconMessages", group: "KOMUNITAS", order: 5, roles: ["OWNER", "TENANT"] },
+      { title: "Forum Komunitas", path: "/community", icon: "IconMessages", group: "KOMUNITAS", order: 6, roles: ["OWNER", "TENANT"], parentTitle: "Komunitas Properti" },
+      { title: "History Komunitas", path: "/portal/community", icon: "IconHistory", group: "KOMUNITAS", order: 7, roles: ["OWNER", "TENANT"], parentTitle: "Komunitas Properti" },
+      { title: "Penyewa & Kontrak", path: "/tenant-&-contract", icon: "IconUsers", group: "PENYEWA & KEUANGAN", order: 8, roles: ["OWNER"] },
+      { title: "Kontrak Penyewa", path: "/tenant-contract", icon: "IconFileText", group: "PENYEWA & KEUANGAN", order: 9, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
+      { title: "Manajemen Penyewa", path: "/tenants", icon: "IconId", group: "PENYEWA & KEUANGAN", order: 10, roles: ["OWNER"], parentTitle: "Penyewa & Kontrak" },
+      { title: "Keuangan & Penagihan", path: "/finance", icon: "IconCash", group: "PENYEWA & KEUANGAN", order: 11, roles: ["OWNER"] },
+      { title: "Manajemen Invoice", path: "/finance", icon: "IconReceipt", group: "PENYEWA & KEUANGAN", order: 12, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Verifikasi Pembayaran & Rekening", path: "/finance/verification", icon: "IconUserCheck", group: "PENYEWA & KEUANGAN", order: 13, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Pengeluaran Operasional (OpEx)", path: "/finance/expenses", icon: "IconTools", group: "PENYEWA & KEUANGAN", order: 14, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Laporan & Analytics", path: "/reports", icon: "IconChartBar", group: "PENYEWA & KEUANGAN", order: 15, roles: ["OWNER"], parentTitle: "Keuangan & Penagihan" },
+      { title: "Paket Berlangganan", path: "/owner/subscription", icon: "IconCreditCard", group: "BANTUAN", order: 16, roles: ["OWNER"] },
+      { title: "FAQ & Bantuan", path: "/owner/faq", icon: "IconHelpCircle", group: "BANTUAN", order: 17, roles: ["OWNER"] },
 
       // --- HOUSEKEEPING MENUS ---
       { title: "Status Kamar Grid", path: "/housekeeping/room-grid", icon: "IconClipboardCheck", group: "LAPANGAN & UNIT", order: 1, roles: ["HOUSEKEEPING"] },
@@ -172,7 +174,6 @@ export async function seedRolesAndMenus() {
       { title: "Info Kamar Saya", path: "/portal/room", icon: "IconBed", group: "PORTAL KAMAR", order: 1, roles: ["TENANT", "USER"] },
       { title: "Kontrak & Dokumen", path: "/portal/contract", icon: "IconFileText", group: "PORTAL KAMAR", order: 2, roles: ["TENANT", "USER"] },
       { title: "Tagihan & Pembayaran", path: "/portal/invoices", icon: "IconReceipt", group: "PORTAL KAMAR", order: 3, roles: ["TENANT", "USER"] },
-      { title: "Komunitas Properti", path: "/portal/community", icon: "IconMessages", group: "KOMUNITAS", order: 4, roles: ["TENANT", "USER"] },
     ];
 
   // 6. Safe Non-Destructive Upsert of Menu Items & Role Links (Preserves custom user-created menus)

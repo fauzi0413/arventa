@@ -123,18 +123,18 @@ export default function HousekeepingFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 md:p-8 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
-      <div className="relative w-full max-w-xl md:max-w-2xl my-auto overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col max-h-[85vh] sm:max-h-[88vh]">
+      <div className="relative w-full max-w-xl md:max-w-2xl my-auto overflow-hidden rounded-3xl bg-card text-card-foreground shadow-2xl border border-border flex flex-col max-h-[85vh] sm:max-h-[88vh]">
         {/* Modal Header */}
-        <div className="shrink-0 flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-[#F7F4ED]">
+        <div className="shrink-0 flex items-center justify-between border-b border-border px-6 py-4 bg-muted/40">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#8FA28A] text-white shadow-md">
               <UserCheck className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-800">
+              <h2 className="text-lg font-bold text-foreground">
                 {staffToEdit ? 'Edit Staf Housekeeping' : 'Tambah Staf Housekeeping Baru'}
               </h2>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 {staffToEdit
                   ? 'Perbarui informasi dan penugasan properti staf'
                   : 'Daftarkan akun staf dan tentukan cakupan properti yang ditangani'}
@@ -143,7 +143,7 @@ export default function HousekeepingFormModal({
           </div>
           <button
             onClick={onClose}
-            className="rounded-xl p-2 text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition-all"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
             <X className="h-5 w-5" />
           </button>
@@ -152,14 +152,14 @@ export default function HousekeepingFormModal({
         {/* Modal Body */}
         <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-5 flex-1">
           {errors.form && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700">
+            <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-600 dark:text-red-400">
               {errors.form}
             </div>
           )}
 
           {/* Nama Lengkap */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
               Nama Lengkap <span className="text-red-500">*</span>
             </label>
             <input
@@ -169,7 +169,7 @@ export default function HousekeepingFormModal({
               placeholder="Contoh: Agus Prasetyo"
               className={`w-full rounded-xl border px-3.5 py-2.5 text-xs focus:outline-none transition-all ${errors.fullName
                   ? 'border-red-400 bg-red-50/30'
-                  : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
+                  : 'border-border bg-background text-foreground focus:border-[#8FA28A]'
                 }`}
             />
             {errors.fullName && (
@@ -181,21 +181,21 @@ export default function HousekeepingFormModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Email */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
                 Email Login <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input
                   type="email"
                   disabled={Boolean(staffToEdit)}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="agus.hk@gmail.com"
-                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${staffToEdit ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200' :
+                  className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${staffToEdit ? 'bg-muted text-muted-foreground cursor-not-allowed border-border' :
                       errors.email
                         ? 'border-red-400 bg-red-50/30'
-                        : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
+                        : 'border-border bg-background text-foreground focus:border-[#8FA28A]'
                     }`}
                 />
               </div>
@@ -204,11 +204,11 @@ export default function HousekeepingFormModal({
 
             {/* Nomor Telepon */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
                 Nomor WhatsApp/HP <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input
                   type="tel"
                   value={phoneNumber}
@@ -216,7 +216,7 @@ export default function HousekeepingFormModal({
                   placeholder="Contoh: 08123456789"
                   className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${errors.phoneNumber
                       ? 'border-red-400 bg-red-50/30'
-                      : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
+                      : 'border-border bg-background text-foreground focus:border-[#8FA28A]'
                     }`}
                 />
               </div>
@@ -229,11 +229,11 @@ export default function HousekeepingFormModal({
           {/* Password Awal (Only on Add) */}
           {!staffToEdit && (
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
                 Password Awal Akun <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input
                   type="text"
                   value={password}
@@ -241,11 +241,11 @@ export default function HousekeepingFormModal({
                   placeholder="Password untuk staf"
                   className={`w-full rounded-xl border pl-9 pr-3.5 py-2.5 text-xs focus:outline-none transition-all ${errors.password
                       ? 'border-red-400 bg-red-50/30'
-                      : 'border-gray-200 focus:border-[#8FA28A] focus:bg-white'
+                      : 'border-border bg-background text-foreground focus:border-[#8FA28A]'
                     }`}
                 />
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">
+              <p className="text-[11px] text-muted-foreground mt-1">
                 Berikan password ini ke staf untuk login awal ke modul Housekeeping.
               </p>
               {errors.password && (
@@ -257,7 +257,7 @@ export default function HousekeepingFormModal({
           {/* Penugasan Properti (Multi-select) */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground">
                 Properti yang Ditangani <span className="text-red-500">*</span>
               </label>
               {propertiesList.length > 0 && (
@@ -274,7 +274,7 @@ export default function HousekeepingFormModal({
             </div>
 
             {propertiesList.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-200 p-4 text-center text-xs text-gray-400">
+              <div className="rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
                 Belum ada properti terdaftar. Buat properti terlebih dahulu.
               </div>
             ) : (
@@ -286,22 +286,22 @@ export default function HousekeepingFormModal({
                       key={prop.id}
                       onClick={() => toggleProperty(prop.id)}
                       className={`cursor-pointer rounded-2xl border p-3 flex items-start gap-3 transition-all ${isChecked
-                          ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-gray-800 shadow-2xs'
-                          : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600'
+                          ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-foreground shadow-2xs'
+                          : 'border-border bg-card hover:bg-muted/50 text-muted-foreground'
                         }`}
                     >
                       <div
                         className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border ${isChecked
                             ? 'border-[#8FA28A] bg-[#8FA28A] text-white'
-                            : 'border-gray-300 bg-white'
+                            : 'border-border bg-card'
                           }`}
                       >
                         {isChecked && <Check className="h-3 w-3" />}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate">{prop.name}</p>
+                        <p className="text-xs font-bold truncate text-foreground">{prop.name}</p>
                         {prop.address && (
-                          <p className="text-[10px] text-gray-400 truncate mt-0.5">
+                          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
                             {prop.address}
                           </p>
                         )}
@@ -318,7 +318,7 @@ export default function HousekeepingFormModal({
 
           {/* Status Akun */}
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
               Status Akun
             </label>
             <div className="flex items-center gap-3">
@@ -327,7 +327,7 @@ export default function HousekeepingFormModal({
                 onClick={() => setIsActive(true)}
                 className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${isActive
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
                   }`}
               >
                 <div className={`h-2 w-2 rounded-full ${isActive ? 'bg-white' : 'bg-emerald-500'}`} />
@@ -337,23 +337,23 @@ export default function HousekeepingFormModal({
                 type="button"
                 onClick={() => setIsActive(false)}
                 className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-2 ${!isActive
-                    ? 'bg-gray-700 text-white border-gray-700 shadow-xs'
-                    : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                    ? 'bg-slate-700 text-white border-slate-700 shadow-xs'
+                    : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
                   }`}
               >
-                <div className={`h-2 w-2 rounded-full ${!isActive ? 'bg-white' : 'bg-gray-400'}`} />
+                <div className={`h-2 w-2 rounded-full ${!isActive ? 'bg-white' : 'bg-muted-foreground'}`} />
                 Nonaktif
               </button>
             </div>
           </div>
 
           {/* Footer Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-all"
+              className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-all"
             >
               Batal
             </button>

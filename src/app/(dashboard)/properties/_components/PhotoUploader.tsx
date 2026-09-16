@@ -41,10 +41,10 @@ export default function PhotoUploader({ value, onChange }: PhotoUploaderProps) {
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-bold text-gray-600">Foto Kondisi / Barang</label>
+      <label className="block text-xs font-bold text-muted-foreground">Foto Kondisi / Barang</label>
       <div className="flex items-center gap-4">
         {preview ? (
-          <div className="relative group h-20 w-20 rounded-xl overflow-hidden border border-[#C7D3C0] shadow-sm">
+          <div className="relative group h-20 w-20 rounded-xl overflow-hidden border border-border shadow-sm">
             <img src={preview} alt="Pratinjau" className="h-full w-full object-cover" />
             <button
               type="button"
@@ -58,15 +58,15 @@ export default function PhotoUploader({ value, onChange }: PhotoUploaderProps) {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="h-20 w-20 flex flex-col items-center justify-center rounded-xl border border-dashed border-[#C7D3C0] bg-[#F7F4ED] hover:bg-[#C7D3C0]/10 text-gray-500 hover:text-gray-700 transition-colors"
+            className="h-20 w-20 flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
           >
             <Camera className="h-5 w-5 text-[#8FA28A]" />
             <span className="text-[10px] font-semibold mt-1">Pilih Foto</span>
           </button>
         )}
 
-        <div className="text-xs text-gray-400 space-y-0.5">
-          <p className="font-semibold text-gray-600 flex items-center gap-1">
+        <div className="text-xs text-muted-foreground space-y-0.5">
+          <p className="font-semibold text-foreground flex items-center gap-1">
             {preview ? (
               <>
                 <CheckCircle2 className="h-3.5 w-3.5 text-[#8FA28A]" />

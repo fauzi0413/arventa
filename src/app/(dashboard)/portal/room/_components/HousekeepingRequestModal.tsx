@@ -64,22 +64,22 @@ export default function HousekeepingRequestModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm transition-opacity">
-      <div className="relative w-full max-w-lg bg-[#F7F4ED] border border-[#C7D3C0] rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
+      <div className="relative w-full max-w-lg bg-card text-card-foreground border border-border rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#C7D3C0]/60 pb-3 mb-4">
+        <div className="flex items-center justify-between border-b border-border pb-3 mb-4">
           <div>
-            <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+            <h3 className="text-base font-black text-foreground flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-[#8FA28A]" />
               Panggil Tim Housekeeping / Bersih-Bersih
             </h3>
-            <p className="text-xs text-gray-500 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Jadwalkan pembersihan rutin dan penggantian sprei untuk kamar sewa Anda ({unitName}).
             </p>
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-gray-500 hover:bg-[#C7D3C0]/40 transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -88,7 +88,7 @@ export default function HousekeepingRequestModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Jenis Layanan Kebersihan *</label>
+            <label className="block text-xs font-bold text-foreground mb-1">Jenis Layanan Kebersihan *</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {SERVICE_TYPES.map((type) => (
                 <button
@@ -98,7 +98,7 @@ export default function HousekeepingRequestModal({
                   className={`min-h-[44px] p-2.5 rounded-xl border text-xs font-bold text-left transition-all flex items-center gap-1.5 ${
                     serviceType === type
                       ? 'bg-[#8FA28A] text-white border-[#8FA28A] shadow-sm font-black'
-                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                      : 'bg-card text-foreground border-border hover:bg-muted'
                   }`}
                 >
                   {serviceType === type && <Check className="h-3.5 w-3.5 text-white stroke-[3]" />}
@@ -110,28 +110,28 @@ export default function HousekeepingRequestModal({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Tanggal Kunjungan *</label>
+              <label className="block text-xs font-bold text-foreground mb-1">Tanggal Kunjungan *</label>
               <div className="relative">
-                <Calendar className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                <Calendar className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <input
                   type="date"
                   required
                   value={scheduledDate}
                   min={new Date().toISOString().split('T')[0]}
                   onChange={(e) => setScheduledDate(e.target.value)}
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 pl-10 pr-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-border bg-background text-foreground pl-10 pr-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Slot Waktu Kunjungan *</label>
+              <label className="block text-xs font-bold text-foreground mb-1">Slot Waktu Kunjungan *</label>
               <div className="relative">
-                <Clock className="absolute left-3.5 top-3.5 h-4 w-4 text-gray-400" />
+                <Clock className="absolute left-3.5 top-3.5 h-4 w-4 text-muted-foreground" />
                 <select
                   value={timeSlot}
                   onChange={(e) => setTimeSlot(e.target.value)}
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 pl-10 pr-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-border bg-background text-foreground pl-10 pr-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
                 >
                   {TIME_SLOTS.map((slot) => (
                     <option key={slot} value={slot}>
@@ -144,22 +144,22 @@ export default function HousekeepingRequestModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Catatan Khusus untuk Petugas (Opsional)</label>
+            <label className="block text-xs font-bold text-foreground mb-1">Catatan Khusus untuk Petugas (Opsional)</label>
             <textarea
               rows={3}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Contoh: Titip sarung bantal warna hijau, Kunci kamar ada di smartlock..."
-              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none resize-none"
+              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none resize-none"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-[#C7D3C0]/40">
+          <div className="flex justify-end gap-3 pt-3 border-t border-border">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="min-h-[44px] rounded-xl border border-gray-300 bg-white px-5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="min-h-[44px] rounded-xl border border-border bg-card px-5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
             >
               Batal
             </button>

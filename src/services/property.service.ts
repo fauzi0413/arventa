@@ -124,10 +124,10 @@ export class PropertyService {
   }
 
   /**
-   * Get property detail by ID
+   * Get property detail by ID with complete inventory allocations, payment methods & unit stats
    */
   static async getPropertyById(id: string) {
-    return prisma.property.findUnique({
+    const property = await prisma.property.findUnique({
       where: { id },
       include: {
         owner: {
@@ -136,13 +136,47 @@ export class PropertyService {
             fullName: true,
             email: true,
             phoneNumber: true,
+            ownerPaymentMethods: {
+              where: { isEnabled: true },
+            },
           },
         },
-        inventories: true,
+        paymentMethods: {
+          where: { isEnabled: true },
+        },
+        inventories: {
+          include: {
+            unitInventories: {
+              select: {
+                id: true,
+                quantity: true,
+                unit: {
+                  select: {
+                    id: true,
+                    unitNumber: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { itemName: "asc" },
+        },
         units: {
           orderBy: { unitNumber: "asc" },
           include: {
-            inventoryItems: true,
+            unitUser: {
+              select: {
+                id: true,
+                email: true,
+                fullName: true,
+              },
+            },
+            inventoryItems: {
+              include: {
+                propertyInventory: true,
+              },
+              orderBy: { createdAt: "desc" },
+            },
             leases: {
               where: { status: 'ACTIVE' },
               take: 1,
@@ -171,10 +205,120 @@ export class PropertyService {
         _count: {
           select: {
             expenses: true,
+            units: true,
           },
         },
       },
     });
+
+    if (!property) return null;
+
+    // Enrich inventory master items with allocation summaries (terpasang di kamar vs sisa stok)
+    const enrichedInventories = property.inventories.map((inv) => {
+      const allocatedQuantity = inv.unitInventories.reduce((sum, u) => sum + (u.quantity || 1), 0);
+      const availableQuantity = Math.max(0, inv.quantity - allocatedQuantity);
+      return {
+        ...inv,
+        allocatedQuantity,
+        availableQuantity,
+        isOverallocated: allocatedQuantity > inv.quantity,
+        installedUnits: inv.unitInventories
+          .map((u) => u.unit?.unitNumber)
+          .filter((num): num is string => Boolean(num)),
+      };
+    });
+
+    // Format units with tenant details & inventories fallback
+    const formattedUnits = property.units.map((u) => {
+      const activeLease = u.leases?.[0];
+      const isOccupiedUnit = u.status === 'OCCUPIED' || Boolean(activeLease);
+      const resolvedDeposit = Number(u.deposit || activeLease?.securityDeposit || property.defaultDeposit || 0);
+
+      return {
+        id: u.id,
+        propertyId: property.id,
+        propertyName: property.name,
+        name: u.unitNumber,
+        unitNumber: u.unitNumber,
+        rawStatus: isOccupiedUnit ? 'OCCUPIED' : u.status,
+        floor: u.floor,
+        status: isOccupiedUnit
+          ? 'Occupied'
+          : (u.status === 'CLEANING' ? 'Need Cleaning' : u.status === 'AVAILABLE' ? 'Available' : u.status === 'MAINTENANCE' ? 'Maintenance' : 'Reserved'),
+        pricing: {
+          monthly: Number(u.basePrice || 0),
+          daily: u.transitPrice ? Number(u.transitPrice) : undefined,
+          deposit: resolvedDeposit,
+        },
+        capacity: {
+          maxPersons: u.capacity || 1,
+          dimensions: u.dimensions || '3x4 m',
+        },
+        facilities: u.facilities || [],
+        description: u.description || '',
+        imageUrl: u.imageUrl || '',
+        roomEmail: u.unitUser?.email || `${u.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`,
+        roomPassword: u.roomPassword || 'Arv!789210',
+        roomPasswordLastReset: u.roomPasswordLastReset?.toISOString() || u.createdAt.toISOString(),
+        tenantName: isOccupiedUnit
+          ? (activeLease?.tenant?.user?.fullName || activeLease?.tenant?.fullName || undefined)
+          : undefined,
+        tenantPhone: isOccupiedUnit
+          ? (activeLease?.tenant?.user?.phoneNumber || activeLease?.tenant?.phoneNumber || undefined)
+          : undefined,
+        checkInDate: isOccupiedUnit && activeLease?.startDate
+          ? activeLease.startDate.toISOString().split('T')[0]
+          : undefined,
+        activeLease: isOccupiedUnit && activeLease ? {
+          id: activeLease.id,
+          contractNumber: (activeLease.contractUrl && !activeLease.contractUrl.startsWith('http'))
+            ? activeLease.contractUrl
+            : `KTR/ARV/${activeLease.id.slice(0, 6).toUpperCase()}`,
+          contractUrl: activeLease.contractUrl && activeLease.contractUrl.startsWith('http') ? activeLease.contractUrl : undefined,
+          startDate: activeLease.startDate ? activeLease.startDate.toISOString().split('T')[0] : undefined,
+          endDate: activeLease.endDate ? activeLease.endDate.toISOString().split('T')[0] : undefined,
+          status: activeLease.status || 'ACTIVE',
+          rentPrice: Number(activeLease.rentPrice || u.basePrice || 0),
+          securityDeposit: Number(activeLease.securityDeposit || resolvedDeposit || 0),
+          rentalPeriod: activeLease.rentalPeriod || 'MONTHLY',
+        } : undefined,
+        inventories: (u.inventoryItems || []).map((inv) => ({
+          id: inv.id,
+          propertyInventoryId: inv.propertyInventoryId || undefined,
+          propertyId: property.id,
+          unitId: u.id,
+          unitName: u.unitNumber,
+          name: inv.propertyInventory?.itemName || inv.itemName,
+          itemName: inv.propertyInventory?.itemName || inv.itemName,
+          quantity: inv.quantity,
+          condition: inv.condition,
+          notes: inv.notes || undefined,
+        })),
+        createdAt: u.createdAt.toISOString(),
+        updatedAt: u.updatedAt.toISOString(),
+      };
+    });
+
+    // Compute unit occupancy stats
+    const totalUnits = formattedUnits.length;
+    const occupiedUnits = formattedUnits.filter((u) => u.status === 'Occupied').length;
+    const availableUnits = formattedUnits.filter((u) => u.status === 'Available').length;
+
+    return {
+      ...property,
+      owner: property.owner ? {
+        ...property.owner,
+        paymentMethods: property.owner.ownerPaymentMethods || [],
+      } : null,
+      inventories: enrichedInventories,
+      units: formattedUnits,
+      stats: {
+        totalUnits,
+        occupiedUnits,
+        availableUnits,
+        occupancyRate: totalUnits > 0 ? Math.round((occupiedUnits / totalUnits) * 100) : 0,
+      },
+    };
   }
 
   /**

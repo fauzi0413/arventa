@@ -526,10 +526,10 @@ export default function PropertyDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED] rounded-2xl border border-[#C7D3C0]/40 p-6">
+      <div className="flex h-[80vh] items-center justify-center bg-card text-card-foreground rounded-2xl border border-border p-6">
         <div className="text-center space-y-3">
           <div className="h-9 w-9 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
-          <p className="text-xs text-gray-600 font-bold tracking-wide">Memuat rincian properti & unit dari database...</p>
+          <p className="text-xs text-muted-foreground font-bold tracking-wide">Memuat rincian properti & unit dari database...</p>
         </div>
       </div>
     );
@@ -537,10 +537,10 @@ export default function PropertyDetailPage() {
 
   if (!property) {
     return (
-      <div className="flex h-[60vh] flex-col items-center justify-center rounded-2xl border border-[#C7D3C0]/40 bg-[#F7F4ED] p-8 text-center">
+      <div className="flex h-[60vh] flex-col items-center justify-center rounded-2xl border border-border bg-card text-card-foreground p-8 text-center">
         <ShieldAlert className="h-12 w-12 text-[#C8A96B] mb-3" />
-        <h2 className="text-lg font-bold text-gray-800">Properti Tidak Ditemukan</h2>
-        <p className="text-sm text-gray-500 mt-1 max-w-sm">
+        <h2 className="text-lg font-bold text-foreground">Properti Tidak Ditemukan</h2>
+        <p className="text-sm text-muted-foreground mt-1 max-w-sm">
           Properti yang Anda cari tidak terdaftar atau telah dihapus dari database.
         </p>
         <button
@@ -565,13 +565,13 @@ export default function PropertyDetailPage() {
   const rate = total > 0 ? Math.round((occupied / total) * 100) : 0;
 
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[90vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-background min-h-[90vh] p-4 sm:p-6 rounded-2xl border border-border">
       {/* Navigation Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[#C7D3C0]/30 pb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <button
           type="button"
           onClick={handleSafeBack}
-          className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#8FA28A] transition-colors"
+          className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-[#8FA28A] transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
           Kembali ke Listing Properti
@@ -581,16 +581,16 @@ export default function PropertyDetailPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsFormOpen(true)}
-            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-[#C7D3C0] bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-[#C7D3C0]/20 transition-all shadow-sm"
+            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-border bg-card px-3.5 py-2 text-xs font-bold text-foreground hover:bg-muted transition-all shadow-xs"
           >
             <Edit3 className="h-4 w-4 text-[#8FA28A]" />
             Ubah Properti
           </button>
           <button
             onClick={handleDeleteProperty}
-            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3.5 py-2 text-xs font-bold text-red-600 hover:bg-red-50 transition-all shadow-sm"
+            className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-card px-3.5 py-2 text-xs font-bold text-destructive hover:bg-destructive/10 transition-all shadow-xs"
           >
-            <Trash2 className="h-4 w-4 text-red-500" />
+            <Trash2 className="h-4 w-4 text-destructive" />
             Hapus Properti
           </button>
         </div>
@@ -601,9 +601,9 @@ export default function PropertyDetailPage() {
         {/* Left Column: Image, Badges, Name, Details, and Tabs */}
         <div className="lg:col-span-2 space-y-6">
           {/* Main Card */}
-          <div className="overflow-hidden rounded-2xl border border-[#C7D3C0]/40 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
             {/* Property Hero Image */}
-            <div className="relative h-72 w-full overflow-hidden bg-gray-100">
+            <div className="relative h-72 w-full overflow-hidden bg-muted">
               <img
                 src={displayImage}
                 alt={property.name}
@@ -619,7 +619,7 @@ export default function PropertyDetailPage() {
               <div className="absolute bottom-5 left-5 right-5 flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-1">
                   {category && (
-                    <span className="inline-block rounded-full bg-white/95 px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-sm">
+                    <span className="inline-block rounded-full bg-background/95 backdrop-blur-xs px-3 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground shadow-sm border border-border/50">
                       {category.name}
                     </span>
                   )}
@@ -638,31 +638,31 @@ export default function PropertyDetailPage() {
 
             {/* Core Info */}
             <div className="p-6 space-y-4">
-              <div className="flex items-start gap-2 text-sm text-gray-600">
-                <MapPin className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-semibold text-gray-800">Alamat Properti:</span>
-                  <p className="mt-0.5 text-gray-600">{property.address}</p>
+                  <span className="font-semibold text-foreground">Alamat Properti:</span>
+                  <p className="mt-0.5 text-muted-foreground">{property.address}</p>
                 </div>
               </div>
 
               {property.description && (
-                <div className="pt-4 border-t border-gray-100 space-y-2">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block">Tentang Properti</span>
-                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{property.description}</p>
+                <div className="pt-4 border-t border-border space-y-2">
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">Tentang Properti</span>
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">{property.description}</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* Section Tab Switcher */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#C7D3C0]/40 pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
             <div className="flex gap-4">
               <button
                 onClick={() => setActiveTab('units')}
                 className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'units'
                   ? 'border-[#8FA28A] text-[#8FA28A]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
               >
                 <Home className="h-4 w-4" />
@@ -672,7 +672,7 @@ export default function PropertyDetailPage() {
                 onClick={() => setActiveTab('inventory')}
                 className={`flex items-center gap-1.5 pb-2 text-sm font-black border-b-2 transition-all ${activeTab === 'inventory'
                   ? 'border-[#8FA28A] text-[#8FA28A]'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
                   }`}
               >
                 <Package className="h-4 w-4" />
@@ -691,15 +691,15 @@ export default function PropertyDetailPage() {
 
           {/* Switchable Sections */}
           {activeTab === 'units' ? (
-            <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4 animate-in fade-in duration-200">
+            <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-4 animate-in fade-in duration-200">
               {/* Unit Section Header with Creation Actions */}
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-gray-100 pb-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-3">
                 <div>
-                  <h3 className="text-base font-bold text-gray-800 flex items-center gap-1.5">
+                  <h3 className="text-base font-bold text-foreground flex items-center gap-1.5">
                     <Home className="h-5 w-5 text-[#8FA28A]" />
                     Daftar Kamar / Unit
                   </h3>
-                  <p className="text-xs text-gray-400 mt-0.5">Total {units.length} Unit terdaftar di properti ini</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Total {units.length} Unit terdaftar di properti ini</p>
                 </div>
 
                 {/* Action Buttons: 1. + Tambah Unit (Single entry for single/batch modal), 2. Edit Unit (Bulk/Multi edit modal) */}
@@ -723,7 +723,7 @@ export default function PropertyDetailPage() {
                       }
                       setIsBulkModalOpen(true);
                     }}
-                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-800 dark:bg-card dark:text-card-foreground dark:border-border px-3.5 py-2 text-xs font-bold transition-all shadow-sm"
+                    className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground px-3.5 py-2 text-xs font-bold transition-all shadow-sm"
                   >
                     <Edit3 className="h-4 w-4 text-[#8FA28A]" />
                     Edit Unit
@@ -732,9 +732,9 @@ export default function PropertyDetailPage() {
               </div>
 
               {units.length === 0 ? (
-                <div className="text-center py-10 space-y-3 border-2 border-dashed border-gray-200 rounded-2xl p-6">
-                  <Home className="h-10 w-10 text-gray-300 mx-auto" />
-                  <p className="text-xs text-gray-400">Belum ada unit yang terdaftar di properti ini.</p>
+                <div className="text-center py-10 space-y-3 border-2 border-dashed border-border rounded-2xl p-6">
+                  <Home className="h-10 w-10 text-muted-foreground/60 mx-auto" />
+                  <p className="text-xs text-muted-foreground">Belum ada unit yang terdaftar di properti ini.</p>
                   <div className="flex items-center justify-center gap-3">
                     <button
                       onClick={() => {
@@ -755,8 +755,8 @@ export default function PropertyDetailPage() {
                       <div
                         key={unit.id}
                         className={`group flex flex-col justify-between rounded-xl border p-4 transition-all hover:shadow-md ${isRoomOccupied
-                          ? 'border-blue-200 bg-blue-50/20'
-                          : 'border-gray-200 bg-white hover:border-[#8FA28A]/50'
+                          ? 'border-blue-200/60 bg-blue-50/30 dark:border-blue-900/40 dark:bg-blue-950/20'
+                          : 'border-border bg-card hover:border-[#8FA28A]/50'
                           }`}
                       >
                         <div className="space-y-2">
@@ -764,18 +764,19 @@ export default function PropertyDetailPage() {
                             <div>
                               <Link
                                 href={`/properties/${id}/units/${unit.id}`}
-                                className="text-sm font-black text-gray-800 hover:text-[#8FA28A] transition-colors"
+                                className="text-sm font-black text-foreground hover:text-[#8FA28A] transition-colors"
                               >
                                 {unit.name}
                               </Link>
-                              <p className="text-[11px] font-semibold text-gray-400 mt-0.5">
+                              <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">
                                 {unit.capacity.dimensions} • Max {unit.capacity.maxPersons} Orang
                               </p>
                             </div>
 
                             {/* Inline Custom Status Badge Dropdown */}
                             <UnitStatusBadgeDropdown
-                              status={unit.status}                               onChange={async (newStatus) => {
+                              status={unit.status}
+                              onChange={async (newStatus) => {
                                 const isOcc = newStatus === 'Occupied';
                                 const updatedUnits = units.map((u) => (
                                   u.id === unit.id
@@ -858,13 +859,13 @@ export default function PropertyDetailPage() {
                             />
                           </div>
 
-                          <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100/80">
+                          <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
                             <span className="font-black text-[#8FA28A]">
                               {formatRupiah(unit.pricing.monthly)}
-                              <span className="text-[10px] font-semibold text-gray-400">/bln</span>
+                              <span className="text-[10px] font-semibold text-muted-foreground">/bln</span>
                             </span>
                             {unit.status === 'Occupied' && unit.tenantName && (
-                              <span className="text-[11px] font-bold text-blue-600 truncate max-w-[120px]">
+                              <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 truncate max-w-[120px]">
                                 Penyewa: {unit.tenantName}
                               </span>
                             )}
@@ -872,12 +873,12 @@ export default function PropertyDetailPage() {
                         </div>
 
                         {/* Inline Actions (Edit, Delete, Detail) */}
-                        <div className="flex items-center justify-between pt-3 mt-2 border-t border-gray-100">
+                        <div className="flex items-center justify-between pt-3 mt-2 border-t border-border">
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
                               onClick={(e) => triggerEditUnit(unit, e)}
-                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
                               title="Edit Unit"
                             >
                               <Edit3 className="h-4 w-4" />
@@ -885,7 +886,7 @@ export default function PropertyDetailPage() {
                             <button
                               type="button"
                               onClick={(e) => handleDeleteUnit(unit.id, e)}
-                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                               title="Hapus Unit"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -894,7 +895,7 @@ export default function PropertyDetailPage() {
 
                           <Link
                             href={`/properties/${id}/units/${unit.id}`}
-                            className="min-h-[36px] px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-[#8FA28A] hover:text-white font-bold text-xs text-gray-700 transition-colors flex items-center gap-1"
+                            className="min-h-[36px] px-3 py-1.5 rounded-lg bg-muted hover:bg-[#8FA28A] hover:text-white font-bold text-xs text-foreground transition-colors flex items-center gap-1"
                           >
                             Detail <ArrowRight className="h-3 w-3" />
                           </Link>
@@ -915,8 +916,8 @@ export default function PropertyDetailPage() {
         {/* Right Column: Statistics / Metrics Overview */}
         <div className="space-y-6">
           {/* Summary/Occupancy Card */}
-          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-6">
-            <h3 className="text-base font-bold text-gray-800 border-b border-gray-100 pb-3 flex items-center gap-1.5">
+          <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-6">
+            <h3 className="text-base font-bold text-foreground border-b border-border pb-3 flex items-center gap-1.5">
               <Info className="h-5 w-5 text-[#8FA28A]" />
               Ringkasan Keterisian
             </h3>
@@ -926,7 +927,7 @@ export default function PropertyDetailPage() {
               <div className="relative flex items-center justify-center h-28 w-28">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                   <path
-                    className="text-gray-100 dark:text-muted"
+                    className="text-muted"
                     strokeWidth="3.5"
                     stroke="currentColor"
                     fill="none"
@@ -942,39 +943,39 @@ export default function PropertyDetailPage() {
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                 </svg>
-                <span className="absolute text-2xl font-black text-gray-800 dark:text-foreground">{rate}%</span>
+                <span className="absolute text-2xl font-black text-foreground">{rate}%</span>
               </div>
               <p className="text-xs font-bold text-[#8FA28A] uppercase tracking-wide">Tingkat Keterisian</p>
             </div>
 
             {/* Micro Stats Grid */}
             <div className="grid grid-cols-3 gap-2 text-center pt-2">
-              <div className="bg-[#F7F4ED] rounded-xl p-2.5 border border-[#C7D3C0]/20">
-                <span className="block text-xs font-bold text-gray-400">Total</span>
-                <span className="text-lg font-black text-gray-800">{total}</span>
+              <div className="bg-muted/40 rounded-xl p-2.5 border border-border">
+                <span className="block text-xs font-bold text-muted-foreground">Total</span>
+                <span className="text-lg font-black text-foreground">{total}</span>
               </div>
               <div className="bg-[#8FA28A]/10 rounded-xl p-2.5 border border-[#8FA28A]/20">
                 <span className="block text-xs font-bold text-[#8FA28A]">Terisi</span>
                 <span className="text-lg font-black text-[#8FA28A]">{occupied}</span>
               </div>
-              <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100">
-                <span className="block text-xs font-bold text-gray-400">Kosong</span>
-                <span className="text-lg font-black text-gray-600">{vacant}</span>
+              <div className="bg-muted/40 rounded-xl p-2.5 border border-border">
+                <span className="block text-xs font-bold text-muted-foreground">Kosong</span>
+                <span className="text-lg font-black text-muted-foreground">{vacant}</span>
               </div>
             </div>
           </div>
 
           {/* Quick Info & Metadata */}
-          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Detail Sistem</h3>
+          <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-4">
+            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Detail Sistem</h3>
 
             <div className="space-y-3 text-xs">
               <div className="flex justify-between">
-                <span className="text-gray-500 flex items-center gap-1">
-                  <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
                   Ditambahkan pada
                 </span>
-                <span className="font-semibold text-gray-700">
+                <span className="font-semibold text-foreground">
                   {new Date(property.createdAt).toLocaleDateString('id-ID', {
                     year: 'numeric',
                     month: 'long',
@@ -984,16 +985,16 @@ export default function PropertyDetailPage() {
               </div>
 
               <div className="flex justify-between">
-                <span className="text-gray-500 flex items-center gap-1">
-                  <Layers className="h-3.5 w-3.5 text-gray-400" />
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Layers className="h-3.5 w-3.5 text-muted-foreground" />
                   Kategori
                 </span>
-                <span className="font-semibold text-gray-700">{category?.name || 'Umum'}</span>
+                <span className="font-semibold text-foreground">{category?.name || 'Umum'}</span>
               </div>
 
               <div className="flex justify-between">
-                <span className="text-gray-500 flex items-center gap-1">
-                  <Users className="h-3.5 w-3.5 text-gray-400" />
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
                   Role Pengelola
                 </span>
                 <span className="font-semibold text-[#8FA28A]">Pemilik Properti</span>
@@ -1002,9 +1003,9 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Property Contract Template Card */}
-          <div className="rounded-2xl border border-[#C7D3C0]/40 bg-white p-6 shadow-sm space-y-4">
-            <div className="border-b border-gray-100 pb-3">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+          <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-4">
+            <div className="border-b border-border pb-3">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <FileText className="h-4 w-4 text-[#8FA28A]" />
                 Template Kontrak Properti
               </h3>
@@ -1012,18 +1013,18 @@ export default function PropertyDetailPage() {
 
             <div className="space-y-3 text-xs">
               <div>
-                <span className="font-bold text-gray-800 text-sm block">
+                <span className="font-bold text-foreground text-sm block">
                   {contractTemplate?.templateName || `Template Kontrak ${property.name}`}
                 </span>
-                <span className="text-[11px] font-medium text-gray-500 mt-0.5 block">
+                <span className="text-[11px] font-medium text-muted-foreground mt-0.5 block">
                   {contractTemplate?.customClauses?.length || 0} Klausul Khusus Terkonfigurasi
                 </span>
               </div>
 
               {contractTemplate?.customClauses && contractTemplate.customClauses.length > 0 && (
-                <div className="p-3 rounded-xl bg-[#F7F4ED] border border-[#C7D3C0]/30 space-y-1.5">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Klausul Khusus Bawaan:</span>
-                  <ul className="list-disc list-inside text-gray-700 space-y-1 text-[11px] font-medium">
+                <div className="p-3 rounded-xl bg-muted/40 border border-border space-y-1.5">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Klausul Khusus Bawaan:</span>
+                  <ul className="list-disc list-inside text-foreground space-y-1 text-[11px] font-medium">
                     {contractTemplate.customClauses.slice(0, 3).map((clause, idx) => (
                       <li key={idx} className="truncate">{clause}</li>
                     ))}

@@ -91,21 +91,21 @@ export default function ResetPasswordModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-gray-100 flex flex-col">
+      <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-[#F7F4ED]">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/40">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#C8A96B] text-white shadow-md">
               <KeyRound className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-800">Reset Password Staf</h2>
-              <p className="text-xs text-gray-500">Atur ulang kata sandi akses staf</p>
+              <h2 className="text-base font-bold text-foreground">Reset Password Staf</h2>
+              <p className="text-xs text-muted-foreground">Atur ulang kata sandi akses staf</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="rounded-xl p-2 text-gray-400 hover:bg-gray-200/60 hover:text-gray-600 transition-all"
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
           >
             <X className="h-5 w-5" />
           </button>
@@ -115,19 +115,19 @@ export default function ResetPasswordModal({
         <div className="p-6 space-y-4">
           {isSuccess ? (
             <div className="text-center py-4 space-y-3">
-              <div className="h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+              <div className="h-12 w-12 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                 <Check className="h-6 w-6" />
               </div>
-              <h3 className="text-sm font-bold text-gray-800">Password Berhasil Diubah!</h3>
-              <p className="text-xs text-gray-500">
+              <h3 className="text-sm font-bold text-foreground">Password Berhasil Diubah!</h3>
+              <p className="text-xs text-muted-foreground">
                 Password baru untuk <b>{staff.fullName}</b> ({staff.email}) telah diperbarui. Silakan bagikan ke staf bersangkutan.
               </p>
 
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-3 flex items-center justify-between">
-                <code className="text-xs font-mono font-bold text-emerald-800">{newPassword}</code>
+              <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 flex items-center justify-between">
+                <code className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300">{newPassword}</code>
                 <button
                   onClick={handleCopy}
-                  className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:underline"
+                  className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
                 >
                   {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                   <span>{isCopied ? 'Tersalin' : 'Salin'}</span>
@@ -146,10 +146,10 @@ export default function ResetPasswordModal({
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* User Target Card */}
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3.5 flex items-center justify-between">
+              <div className="rounded-2xl border border-border bg-muted/40 p-3.5 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-gray-800">{staff.fullName}</p>
-                  <p className="text-[11px] text-gray-500">{staff.email}</p>
+                  <p className="text-xs font-bold text-foreground">{staff.fullName}</p>
+                  <p className="text-[11px] text-muted-foreground">{staff.email}</p>
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#8FA28A]/15 text-[#8FA28A] border border-[#8FA28A]/30">
                   Housekeeping
@@ -157,7 +157,7 @@ export default function ResetPasswordModal({
               </div>
 
               {error && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs font-semibold text-red-700 flex items-center gap-2">
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs font-semibold text-destructive flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 shrink-0" />
                   <span>{error}</span>
                 </div>
@@ -166,7 +166,7 @@ export default function ResetPasswordModal({
               {/* Password Input */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-700">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Password Baru <span className="text-red-500">*</span>
                   </label>
                   <button
@@ -184,13 +184,13 @@ export default function ResetPasswordModal({
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Masukkan password baru..."
-                    className="w-full rounded-xl border border-gray-200 px-3.5 pr-20 py-2.5 text-xs font-mono focus:border-[#8FA28A] focus:outline-none transition-all"
+                    className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 pr-20 py-2.5 text-xs font-mono focus:border-[#8FA28A] focus:outline-none transition-all"
                   />
-                  <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5 text-gray-400">
+                  <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5 text-muted-foreground">
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="hover:text-gray-600 transition-colors"
+                      className="hover:text-foreground transition-colors"
                       title={showPassword ? 'Sembunyikan' : 'Tampilkan'}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -198,7 +198,7 @@ export default function ResetPasswordModal({
                     <button
                       type="button"
                       onClick={handleCopy}
-                      className="hover:text-gray-600 transition-colors"
+                      className="hover:text-foreground transition-colors"
                       title="Salin Password"
                     >
                       {isCopied ? (
@@ -212,12 +212,12 @@ export default function ResetPasswordModal({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
                 <button
                   type="button"
                   onClick={handleClose}
                   disabled={isSubmitting}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-all"
+                  className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-all"
                 >
                   Batal
                 </button>

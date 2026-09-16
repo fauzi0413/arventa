@@ -61,13 +61,13 @@ export default function StatusManager({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl bg-[#F7F4ED] border border-[#C7D3C0] p-6 shadow-xl max-h-[85vh] flex flex-col">
+      <div className="relative w-full max-w-md rounded-2xl bg-card text-card-foreground border border-border p-6 shadow-xl max-h-[85vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#C7D3C0]/60 pb-3">
-          <h3 className="text-lg font-bold text-gray-800">Kelola Status Properti</h3>
+        <div className="flex items-center justify-between border-b border-border pb-3">
+          <h3 className="text-lg font-bold text-foreground">Kelola Status Properti</h3>
           <button
             onClick={onClose}
-            className="rounded-full p-1 text-gray-500 hover:bg-[#C7D3C0]/40 transition-colors"
+            className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -76,21 +76,21 @@ export default function StatusManager({
         {/* Content */}
         <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
           {/* Add Status Form */}
-          <form onSubmit={handleAdd} className="space-y-2 rounded-xl bg-white p-3 border border-[#C7D3C0]/40 shadow-sm">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tambah Status Baru</h4>
+          <form onSubmit={handleAdd} className="space-y-2 rounded-xl bg-muted/30 p-3 border border-border shadow-xs">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tambah Status Baru</h4>
             <div className="space-y-3">
               <input
                 type="text"
                 placeholder="Nama Status (contoh: Aktif, Maintenance)"
                 value={newStatusName}
                 onChange={(e) => setNewStatusName(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white text-gray-800 px-3 py-1.5 text-sm focus:border-[#8FA28A] focus:outline-none"
+                className="w-full rounded-lg border border-border bg-background text-foreground px-3 py-1.5 text-sm focus:border-[#8FA28A] focus:outline-none"
                 required
               />
 
               {/* Color Picker presets */}
               <div className="space-y-1">
-                <span className="text-[11px] font-semibold text-gray-400">Pilih Warna Badge:</span>
+                <span className="text-[11px] font-semibold text-muted-foreground">Pilih Warna Badge:</span>
                 <div className="flex flex-wrap gap-2">
                   {PRESET_COLORS.map((c) => (
                     <button
@@ -99,7 +99,7 @@ export default function StatusManager({
                       onClick={() => setNewStatusColor(c)}
                       className={`h-6 w-6 rounded-full border transition-all ${
                         newStatusColor === c
-                          ? 'border-gray-800 scale-110 shadow-sm ring-2 ring-[#8FA28A]/40'
+                          ? 'border-foreground scale-110 shadow-sm ring-2 ring-[#8FA28A]/40'
                           : 'border-transparent hover:scale-105'
                       }`}
                       style={{ backgroundColor: c }}
@@ -120,15 +120,15 @@ export default function StatusManager({
 
           {/* Status List */}
           <div className="space-y-2">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Daftar Status</h4>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Daftar Status</h4>
             {statuses.length === 0 ? (
-              <p className="text-center text-xs text-gray-400 py-4">Belum ada status yang dibuat.</p>
+              <p className="text-center text-xs text-muted-foreground py-4">Belum ada status yang dibuat.</p>
             ) : (
               <div className="space-y-2">
                 {statuses.map((status) => (
                   <div
                     key={status.id}
-                    className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3 transition-shadow hover:shadow-sm"
+                    className="flex flex-col gap-2 rounded-xl border border-border bg-muted/20 p-3 transition-shadow hover:shadow-sm"
                   >
                     {editingId === status.id ? (
                       <div className="space-y-2">
@@ -136,10 +136,10 @@ export default function StatusManager({
                           type="text"
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 text-gray-800 px-2 py-1 text-xs focus:border-[#8FA28A] focus:outline-none font-semibold"
+                          className="w-full rounded-lg border border-border bg-background text-foreground px-2 py-1 text-xs focus:border-[#8FA28A] focus:outline-none font-semibold"
                         />
                         <div className="space-y-1">
-                          <span className="text-[10px] text-gray-400 font-semibold">Pilih Warna:</span>
+                          <span className="text-[10px] text-muted-foreground font-semibold">Pilih Warna:</span>
                           <div className="flex flex-wrap gap-1.5">
                             {PRESET_COLORS.map((c) => (
                               <button
@@ -148,7 +148,7 @@ export default function StatusManager({
                                 onClick={() => setEditColor(c)}
                                 className={`h-5 w-5 rounded-full border transition-all ${
                                   editColor === c
-                                    ? 'border-gray-800 scale-110 shadow-sm'
+                                    ? 'border-foreground scale-110 shadow-sm'
                                     : 'border-transparent hover:scale-105'
                                 }`}
                                 style={{ backgroundColor: c }}
@@ -159,7 +159,7 @@ export default function StatusManager({
                         <div className="flex justify-end gap-2 pt-1">
                           <button
                             onClick={() => setEditingId(null)}
-                            className="rounded-lg bg-gray-100 hover:bg-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-600 transition-colors"
+                            className="rounded-lg bg-muted hover:bg-muted/80 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
                           >
                             Batal
                           </button>
@@ -184,13 +184,13 @@ export default function StatusManager({
                         <div className="flex items-center gap-1.5 ml-2 shrink-0">
                           <button
                             onClick={() => startEdit(status)}
-                            className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                            className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => onDeleteStatus(status.id)}
-                            className="rounded-lg p-1 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                            className="rounded-lg p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-500 transition-colors"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>

@@ -20,10 +20,10 @@ const ReportDetailModal = lazy(() => import('./components/ReportDetailModal'));
 function ModalSkeleton() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl space-y-4 animate-pulse">
-        <div className="h-6 w-1/2 bg-gray-200 rounded" />
-        <div className="h-20 bg-gray-100 rounded-xl" />
-        <div className="h-10 bg-gray-200 rounded-xl" />
+      <div className="w-full max-w-lg rounded-2xl bg-card text-card-foreground border border-border p-6 shadow-xl space-y-4 animate-pulse">
+        <div className="h-6 w-1/2 bg-muted rounded" />
+        <div className="h-20 bg-muted/60 rounded-xl" />
+        <div className="h-10 bg-muted rounded-xl" />
       </div>
     </div>
   );
@@ -57,25 +57,25 @@ function MaintenanceReportsContent() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
+      <div className="flex h-[80vh] items-center justify-center bg-background">
         <div className="text-center space-y-3">
           <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
-          <p className="text-xs font-bold text-gray-500">Memuat pusat laporan & audit trail...</p>
+          <p className="text-xs font-bold text-muted-foreground">Memuat pusat laporan & audit trail...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 bg-[#F7F4ED] min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-[#C7D3C0]/40">
+    <div className="space-y-6 bg-background min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-border">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-[#C7D3C0]/30 pb-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-800 flex items-center gap-2">
+          <h1 className="text-2xl font-black text-foreground flex items-center gap-2">
             <ClipboardList className="h-6 w-6 text-[#8FA28A]" />
             Pusat Pengelolaan Laporan Operasional
           </h1>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Pemisahan modul Layanan Kebersihan (Housekeeping) dan Laporan Kerusakan (Maintenance) beserta audit trail & rating ter-lock.
           </p>
         </div>
@@ -89,13 +89,13 @@ function MaintenanceReportsContent() {
       </div>
 
       {/* Main Tab Navigation Bar */}
-      <div className="flex items-center gap-2 border-b border-gray-200 pb-1 overflow-x-auto">
+      <div className="flex items-center gap-2 border-b border-border pb-1 overflow-x-auto">
         <button
           onClick={() => handleTabChange('HOUSEKEEPING')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'HOUSEKEEPING'
               ? 'bg-[#8FA28A] text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <Sparkles className="h-4 w-4" />
@@ -110,7 +110,7 @@ function MaintenanceReportsContent() {
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'MAINTENANCE'
               ? 'bg-amber-500 text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <Wrench className="h-4 w-4" />
@@ -124,8 +124,8 @@ function MaintenanceReportsContent() {
           onClick={() => handleTabChange('HISTORY')}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
             activeTab === 'HISTORY'
-              ? 'bg-gray-800 text-white shadow-sm'
-              : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              ? 'bg-[#2F332E] dark:bg-[#3D443C] text-white shadow-sm'
+              : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
           }`}
         >
           <History className="h-4 w-4" />
@@ -276,10 +276,10 @@ export default function MaintenanceReportsPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex h-[80vh] items-center justify-center bg-[#F7F4ED]">
+        <div className="flex h-[80vh] items-center justify-center bg-background">
           <div className="text-center space-y-3">
             <div className="h-9 w-9 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent mx-auto" />
-            <p className="text-xs font-bold text-gray-500">Memuat laporan & tugas lapangan...</p>
+            <p className="text-xs font-bold text-muted-foreground">Memuat laporan & tugas lapangan...</p>
           </div>
         </div>
       }

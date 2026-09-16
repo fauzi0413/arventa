@@ -485,9 +485,8 @@ export function PlatformSettingsManager() {
                   onChange={(e) => handleSettingChange("gemini_model", e.target.value)}
                   className="w-full rounded-lg border p-2.5 bg-background text-xs font-mono"
                 >
-                  <option value="gemini-2.0-flash">gemini-2.0-flash (Next Gen - Ultra Fast)</option>
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Latest Multimodal Vision)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (Fast & Stable - Recommended)</option>
+                  <option value="gemini-2.0-flash">gemini-2.0-flash (Next Gen - Ultra Fast & Recommended)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (Fast & Stable)</option>
                   <option value="gemini-1.5-pro">gemini-1.5-pro (High Accuracy & Complex Analysis)</option>
                 </select>
               </div>

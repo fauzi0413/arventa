@@ -238,7 +238,7 @@ export function OwnerDashboard({ data }: OwnerDashboardProps) {
           </div>
 
           {/* AI Financial & Occupancy Insight Card */}
-          <Card className="rounded-2xl border border-[#383E36] bg-[#1E221E] text-white shadow-md">
+          <Card className="rounded-2xl border border-[#C7D3C0]/60 bg-gradient-to-br from-white to-[#F7F4ED] text-[#2F332E] shadow-sm dark:from-[#1E221E] dark:to-[#242823] dark:border-[#383E36] dark:text-white">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <IconSparkles className="size-5 text-[#C8A96B]" />
@@ -247,8 +247,8 @@ export function OwnerDashboard({ data }: OwnerDashboardProps) {
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
               <p className="font-bold text-sm text-[#8FA28A]">{data.aiInsight.title}</p>
-              <p className="text-gray-300 leading-relaxed">{data.aiInsight.summary}</p>
-              <div className="rounded-xl bg-[#242823] border border-[#383E36] p-3 text-[#C8A96B] font-bold">
+              <p className="text-muted-foreground dark:text-gray-300 leading-relaxed">{data.aiInsight.summary}</p>
+              <div className="rounded-xl bg-amber-500/10 border border-amber-500/30 p-3 text-amber-900 dark:bg-[#242823] dark:border-[#383E36] dark:text-[#C8A96B] font-bold">
                 💡 <strong>Rekomendasi AI:</strong> {data.aiInsight.recommendation}
               </div>
             </CardContent>

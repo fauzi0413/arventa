@@ -46,9 +46,9 @@ export default function PropertyCard({
   const displayImage = property.imageUrl || getFallbackImage(category?.name);
 
   return (
-    <div className="group overflow-hidden rounded-2xl border border-[#C7D3C0]/40 bg-white shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#8FA28A]/50 flex flex-col h-full">
+    <div className="group overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#8FA28A]/50 flex flex-col h-full">
       {/* Property Image & Badges */}
-      <div className="relative h-48 w-full overflow-hidden bg-gray-100">
+      <div className="relative h-48 w-full overflow-hidden bg-muted">
         <img
           src={displayImage}
           alt={property.name}
@@ -59,12 +59,12 @@ export default function PropertyCard({
           }}
         />
         {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-70" />
 
         {/* Floating Category & Status Badges */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">
           {category && (
-            <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gray-800 shadow-sm">
+            <span className="rounded-full bg-background/95 backdrop-blur-xs px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-foreground shadow-sm border border-border/50">
               {category.name}
             </span>
           )}
@@ -82,16 +82,16 @@ export default function PropertyCard({
       {/* Details Area */}
       <div className="p-5 flex-1 flex flex-col justify-between">
         <div>
-          <h4 className="text-base font-bold text-gray-800 line-clamp-1 group-hover:text-[#8FA28A] transition-colors">
+          <h4 className="text-base font-bold text-foreground line-clamp-1 group-hover:text-[#8FA28A] transition-colors">
             {property.name}
           </h4>
 
-          <div className="mt-1.5 flex items-start gap-1 text-xs text-gray-500">
-            <MapPin className="h-3.5 w-3.5 mt-0.5 text-gray-400 shrink-0" />
+          <div className="mt-1.5 flex items-start gap-1 text-xs text-muted-foreground">
+            <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
             <span className="line-clamp-1">{property.address}</span>
           </div>
 
-          <p className="mt-3 text-xs text-gray-500 leading-relaxed min-h-[2.5rem]">
+          <p className="mt-3 text-xs text-muted-foreground leading-relaxed min-h-[2.5rem]">
             {(() => {
               const text = property.description?.trim();
               if (!text) return 'Tidak ada deskripsi untuk properti ini.';
@@ -102,19 +102,19 @@ export default function PropertyCard({
           </p>
 
           {/* Occupancy Stats Section */}
-          <div className="mt-4 pt-4 border-t border-[#C7D3C0]/30 space-y-2">
+          <div className="mt-4 pt-4 border-t border-border space-y-2">
             <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-gray-600 flex items-center gap-1">
+              <span className="font-semibold text-muted-foreground flex items-center gap-1">
                 <BedDouble className="h-3.5 w-3.5 text-[#8FA28A]" />
                 Keterisian Kamar
               </span>
-              <span className="font-bold text-gray-700">
+              <span className="font-bold text-foreground">
                 {occupiedUnits}/{totalUnits} Kamar ({occupancyRate}%)
               </span>
             </div>
 
             {/* Progress bar */}
-            <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-[#8FA28A] transition-all duration-500"
                 style={{ width: `${Math.min(100, occupancyRate)}%` }}
@@ -124,18 +124,18 @@ export default function PropertyCard({
         </div>
 
         {/* Footer Actions */}
-        <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+        <div className="mt-5 pt-3 border-t border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               onClick={() => onEdit(property)}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
               title="Edit Properti"
             >
               <Edit3 className="h-4 w-4" />
             </button>
             <button
               onClick={() => onDelete(property.id)}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
               title="Hapus Properti"
             >
               <Trash2 className="h-4 w-4" />
@@ -144,7 +144,7 @@ export default function PropertyCard({
 
           <Link
             href={`/properties/${property.id}`}
-            className="flex items-center gap-1 rounded-xl bg-[#8FA28A]/10 text-[#8FA28A] hover:bg-[#8FA28A] hover:text-white px-3.5 py-1.5 text-xs font-bold transition-all shadow-sm hover:shadow"
+            className="flex items-center gap-1 rounded-xl bg-[#8FA28A]/10 text-[#8FA28A] hover:bg-[#8FA28A] hover:text-white dark:bg-[#8FA28A]/20 dark:text-[#A3B89E] dark:hover:bg-[#8FA28A] dark:hover:text-white px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs hover:shadow-sm"
           >
             Detail
             <ArrowRight className="h-3.5 w-3.5" />
