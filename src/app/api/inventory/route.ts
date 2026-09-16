@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
     let targetPropIds = accessiblePropertyIds;
     if (propertyId && propertyId !== "all" && propertyId !== "ALL") {
-      targetPropIds = accessiblePropertyIds.filter((id) => id === propertyId);
+      targetPropIds = [propertyId];
     }
 
     const propWhere: any = { propertyId: { in: targetPropIds } };

@@ -120,11 +120,11 @@ export default function UnitCard({
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center gap-1.5 text-muted-foreground dark:text-muted-foreground">
             <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span>Max {unit.capacity.maxPersons} Orang</span>
+            <span>Max {typeof unit.capacity === 'object' && unit.capacity !== null ? (typeof unit.capacity.maxPersons === 'object' ? 1 : unit.capacity.maxPersons || 1) : (unit.capacity || 1)} Orang</span>
           </div>
           <div className="flex items-center gap-1.5 text-muted-foreground dark:text-muted-foreground">
             <Maximize2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span>{unit.capacity.dimensions}</span>
+            <span>{typeof unit.capacity === 'object' && unit.capacity !== null ? (unit.capacity.dimensions || '3x4 m') : '3x4 m'}</span>
           </div>
         </div>
 
@@ -161,15 +161,20 @@ export default function UnitCard({
         <div className="flex items-center gap-1">
           <button
             onClick={() => onEdit(unit)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
             title="Edit Unit"
           >
             <Edit3 className="h-4 w-4" />
           </button>
           <button
-            onClick={() => onDelete(unit.id)}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-            title="Hapus Unit"
+            disabled={unit.status === 'Occupied'}
+            onClick={() => unit.status !== 'Occupied' && onDelete(unit.id)}
+            className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl transition-colors ${
+              unit.status === 'Occupied'
+                ? 'text-muted-foreground/30 cursor-not-allowed opacity-40 hover:bg-transparent'
+                : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer'
+            }`}
+            title={unit.status === 'Occupied' ? 'Unit sedang terisi oleh penyewa, tidak dapat dihapus' : 'Hapus Unit'}
           >
             <Trash2 className="h-4 w-4" />
           </button>

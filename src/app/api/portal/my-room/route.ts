@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
 
     const formattedUnit = UnitService.formatUnit(unit);
 
-    // Fetch property common inventory & unit inventory with relational Master Inventory
+    // Fetch property master inventory & unit inventory
     const propertyInventories = await prisma.propertyInventory.findMany({
       where: { propertyId: unit.propertyId },
     });
@@ -171,42 +171,104 @@ export async function GET(request: NextRequest) {
       include: { propertyInventory: true },
     });
 
-    const mappedInventories = [
-      ...unitInventories.map((i) => ({
-        id: i.id,
-        inventory_id: i.propertyInventoryId || i.id,
-        propertyInventoryId: i.propertyInventoryId,
-        name: i.propertyInventory?.itemName || i.itemName,
-        category: "Fasilitas Kamar",
-        condition: i.condition,
-        unitId: i.unitId,
-        location: `Unit: ${unit.unitNumber}`,
-      })),
-      ...propertyInventories.map((i) => ({
-        id: i.id,
-        inventory_id: i.id,
-        propertyInventoryId: i.id,
-        name: i.itemName,
-        category: "Area Umum",
-        condition: i.condition,
-        unitId: unit.id,
-        location: "Area Umum",
-      })),
-    ];
+    const mappedInventories: any[] = [];
+    const addedNames = new Set<string>();
 
-    // Default room facilities if empty
+    // 1. Unit Specific Inventories (Only items assigned / selected for this specific unit)
+    const unitFacList: string[] = Array.isArray(unit.facilities) ? unit.facilities : [];
+
+    // From direct unitInventories records
+    unitInventories.forEach((ui) => {
+      const name = ui.propertyInventory?.itemName || ui.itemName;
+      if (name && !addedNames.has(name.toLowerCase())) {
+        addedNames.add(name.toLowerCase());
+        mappedInventories.push({
+          id: ui.id,
+          inventory_id: ui.propertyInventoryId || ui.id,
+          propertyInventoryId: ui.propertyInventoryId,
+          name: name,
+          category: "Dalam Unit",
+          locationType: "UNIT",
+          condition: ui.condition || "Baik",
+          unitId: unit.id,
+          location: `Unit ${unit.unitNumber}`,
+          imageUrl: (ui as any).imageUrl || ui.propertyInventory?.notes?.startsWith('http') ? ui.propertyInventory?.notes : undefined,
+        });
+      }
+    });
+
+    // From propertyInventories where locationType is UNIT and item is in unit.facilities
+    propertyInventories
+      .filter((p) => p.locationType === 'UNIT')
+      .forEach((p) => {
+        const isSelected = unitFacList.some((f) => f.toLowerCase() === p.itemName.toLowerCase());
+        if (isSelected && !addedNames.has(p.itemName.toLowerCase())) {
+          addedNames.add(p.itemName.toLowerCase());
+          mappedInventories.push({
+            id: p.id,
+            inventory_id: p.id,
+            propertyInventoryId: p.id,
+            name: p.itemName,
+            category: "Dalam Unit",
+            locationType: "UNIT",
+            condition: p.condition || "Baik",
+            unitId: unit.id,
+            location: `Unit ${unit.unitNumber}`,
+            imageUrl: p.notes?.startsWith('http') ? p.notes : undefined,
+          });
+        }
+      });
+
+    // From unit.facilities array if not yet mapped
+    unitFacList.forEach((facName, idx) => {
+      if (facName && !addedNames.has(facName.toLowerCase())) {
+        addedNames.add(facName.toLowerCase());
+        mappedInventories.push({
+          id: `fac-${unit.id}-${idx}`,
+          inventory_id: `fac-${unit.id}-${idx}`,
+          propertyInventoryId: null,
+          name: facName,
+          category: "Dalam Unit",
+          locationType: "UNIT",
+          condition: "Baik",
+          unitId: unit.id,
+          location: `Unit ${unit.unitNumber}`,
+        });
+      }
+    });
+
+    // 2. All Common Area Inventories for this Property (Area Umum)
+    propertyInventories
+      .filter((p) => p.locationType === 'COMMON_AREA')
+      .forEach((p) => {
+        mappedInventories.push({
+          id: p.id,
+          inventory_id: p.id,
+          propertyInventoryId: p.id,
+          name: p.itemName,
+          category: "Area Umum",
+          locationType: "COMMON_AREA",
+          condition: p.condition || "Baik",
+          unitId: undefined,
+          location: "Area Umum",
+          imageUrl: p.notes?.startsWith('http') ? p.notes : undefined,
+        });
+      });
+
+    // Fallback if completely empty
     if (mappedInventories.length === 0) {
-      const defaultItems = ["Kasur Springbed", "AC LG 1PK", "Smart TV 32 inch", "Lemari Pakaian"];
+      const defaultItems = ["Kasur Springbed", "AC LG 1PK", "Lemari Pakaian"];
       defaultItems.forEach((name, idx) => {
         mappedInventories.push({
           id: `inv-def-${idx}`,
           inventory_id: `inv-def-${idx}`,
           propertyInventoryId: null,
           name,
-          category: "Fasilitas",
-          condition: "BAIK",
+          category: "Dalam Unit",
+          locationType: "UNIT",
+          condition: "Baik",
           unitId: unit.id,
-          location: `Unit: ${unit.unitNumber}`,
+          location: `Unit ${unit.unitNumber}`,
         });
       });
     }

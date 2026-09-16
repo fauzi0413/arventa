@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package, Plus, Sparkles, ArrowRight, Check, FileText, Settings } from 'lucide-react';
+import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package, Plus, Sparkles, ArrowRight, Check, FileText, Settings, AlertTriangle, Loader2 } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import PropertyFormModal from '../_components/PropertyFormModal';
 import PropertyContractTemplateModal from '../_components/PropertyContractTemplateModal';
@@ -73,6 +73,10 @@ export default function PropertyDetailPage() {
   const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
 
+  // Custom Delete Unit Confirmation State
+  const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
+  const [isDeletingUnit, setIsDeletingUnit] = useState(false);
+
   // Tabs state
   const [activeTab, setActiveTab] = useState<'units' | 'inventory'>('units');
 
@@ -89,8 +93,29 @@ export default function PropertyDetailPage() {
             KONTRAKAN: 'cat-3',
             RUKO: 'cat-4',
           };
+          const statusMap: Record<string, UnitStatus> = {
+            AVAILABLE: 'Available',
+            Available: 'Available',
+            OCCUPIED: 'Occupied',
+            Occupied: 'Occupied',
+            MAINTENANCE: 'Maintenance',
+            Maintenance: 'Maintenance',
+            CLEANING: 'Need Cleaning',
+            Cleaning: 'Need Cleaning',
+            NEED_CLEANING: 'Need Cleaning',
+            'Need Cleaning': 'Need Cleaning',
+            RESERVED: 'Reserved',
+            Reserved: 'Reserved',
+          };
+
+          const occupiedUnitsCount = p.units?.filter((u: any) => 
+            u.status === 'OCCUPIED' || 
+            u.status === 'Occupied' || 
+            u.rawStatus === 'OCCUPIED' || 
+            Boolean(u.tenantName) || 
+            (u.leases && u.leases.length > 0)
+          ).length || 0;
           const totalUnitsCount = p.units?.length || 0;
-          const occupiedUnitsCount = p.units?.filter((u: any) => u.status === 'OCCUPIED' || (u.leases && u.leases.length > 0)).length || 0;
           const isFullyOccupied = totalUnitsCount > 0 && occupiedUnitsCount === totalUnitsCount;
 
           let computedStatusId = 'st-1';
@@ -121,35 +146,44 @@ export default function PropertyDetailPage() {
             ownerEmail: p.owner?.email || p.ownerEmail,
           };
 
-          const statusMap: Record<string, UnitStatus> = {
-            AVAILABLE: 'Available',
-            OCCUPIED: 'Occupied',
-            MAINTENANCE: 'Maintenance',
-            CLEANING: 'Need Cleaning',
-            NEED_CLEANING: 'Need Cleaning',
-            RESERVED: 'Reserved',
-          };
-
           const mappedUnits: Unit[] = (p.units || []).map((u: any) => {
-            const activeLease = u.leases?.[0];
+            const activeLease = u.leases?.[0] || u.activeLease;
             const tenant = activeLease?.tenant;
             const hasActiveLease = Boolean(activeLease);
-            const isOccupied = hasActiveLease || u.status === 'OCCUPIED';
-            const mappedStatus: UnitStatus = isOccupied ? 'Occupied' : (statusMap[u.status] || 'Available');
+            const isOccupied = hasActiveLease || u.status === 'OCCUPIED' || u.status === 'Occupied' || u.rawStatus === 'OCCUPIED' || Boolean(u.tenantName);
+            const mappedStatus: UnitStatus = isOccupied ? 'Occupied' : (statusMap[u.status] || (typeof u.status === 'string' && u.status.toLowerCase().includes('clean') ? 'Need Cleaning' : 'Available'));
+            
+            const maxPersons = typeof u.capacity === 'object' && u.capacity !== null
+              ? Number(u.capacity.maxPersons || 1)
+              : Number(u.capacity || 1);
+            const dimensions = typeof u.capacity === 'object' && u.capacity !== null && u.capacity.dimensions
+              ? String(u.capacity.dimensions)
+              : (u.dimensions || (u.floor ? `Lantai ${u.floor}` : '3x4 m'));
+
+            const monthlyPrice = typeof u.pricing === 'object' && u.pricing !== null
+              ? Number(u.pricing.monthly || 0)
+              : Number(u.basePrice || 0);
+            const dailyPrice = typeof u.pricing === 'object' && u.pricing !== null
+              ? u.pricing.daily
+              : (u.transitPrice ? Number(u.transitPrice) : (u.dailyPrice ? Number(u.dailyPrice) : undefined));
+            const depositPrice = typeof u.pricing === 'object' && u.pricing !== null
+              ? Number(u.pricing.deposit || 0)
+              : (u.deposit !== undefined && u.deposit !== null ? Number(u.deposit) : 0);
+
             return {
               id: u.id,
               propertyId: p.id,
-              name: u.unitNumber,
+              name: u.unitNumber || u.name,
               status: mappedStatus,
               facilities: Array.isArray(u.facilities) ? u.facilities : ['AC', 'WiFi', 'Kamar Mandi Dalam', 'Kasur Springbed'],
               capacity: {
-                maxPersons: u.capacity || 1,
-                dimensions: u.dimensions || (u.floor ? `Lantai ${u.floor}` : '3x4 m'),
+                maxPersons: isNaN(maxPersons) ? 1 : maxPersons,
+                dimensions,
               },
               pricing: {
-                monthly: Number(u.basePrice) || 0,
-                daily: u.transitPrice ? Number(u.transitPrice) : (u.dailyPrice ? Number(u.dailyPrice) : undefined),
-                deposit: u.deposit !== undefined && u.deposit !== null ? Number(u.deposit) : 0,
+                monthly: monthlyPrice,
+                daily: dailyPrice,
+                deposit: depositPrice,
                 utilities: u.utilities || '',
               },
               description: u.description || (u.floor ? `Lantai ${u.floor}` : ''),
@@ -265,6 +299,7 @@ export default function PropertyDetailPage() {
             tenantName: data.tenantName,
             tenantPhone: data.tenantPhone,
             checkInDate: data.checkInDate,
+            inventoryIds: data.inventoryIds,
           }),
         });
       } catch (e) {
@@ -301,6 +336,7 @@ export default function PropertyDetailPage() {
           dimensions: d.capacity.dimensions,
           facilities: d.facilities,
           description: d.description,
+          inventoryIds: d.inventoryIds,
         }));
         await fetch('/api/units', {
           method: 'POST',
@@ -389,23 +425,51 @@ export default function PropertyDetailPage() {
     }
   };
 
-  const handleDeleteUnit = async (unitId: string, e: React.MouseEvent) => {
+  const triggerDeleteUnit = (unit: Unit, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (window.confirm('Apakah Anda yakin ingin menghapus unit ini?')) {
-      const storedUnits = localStorage.getItem('arventa_units');
-      if (storedUnits) {
-        const allUnits: Unit[] = JSON.parse(storedUnits);
-        const updated = allUnits.filter((u) => u.id !== unitId);
-        saveAllUnits(updated);
-      }
+    setUnitToDelete(unit);
+  };
 
-      // Backend Prisma DB delete
+  const confirmDeleteUnit = async () => {
+    if (!unitToDelete || isDeletingUnit) return;
+    setIsDeletingUnit(true);
+
+    const unitId = unitToDelete.id;
+
+    // 1. Update local state
+    const storedUnits = localStorage.getItem('arventa_units');
+    if (storedUnits) {
+      const allUnits: Unit[] = JSON.parse(storedUnits);
+      const updated = allUnits.filter((u) => u.id !== unitId);
+      saveAllUnits(updated);
+    } else {
+      setUnits((prev) => prev.filter((u) => u.id !== unitId));
+    }
+
+    // 2. Also update property cache
+    const storedProps = localStorage.getItem('arventa_properties');
+    if (storedProps) {
       try {
-        await fetch(`/api/units/${unitId}`, { method: 'DELETE' });
-      } catch (err) {
-        console.error('Failed to delete unit in database:', err);
-      }
+        const props = JSON.parse(storedProps);
+        const updatedProps = props.map((p: any) => {
+          if (p.id === id) {
+            return { ...p, units: (p.units || []).filter((pu: any) => pu.id !== unitId) };
+          }
+          return p;
+        });
+        localStorage.setItem('arventa_properties', JSON.stringify(updatedProps));
+      } catch (e) {}
+    }
+
+    // 3. Backend Prisma DB delete
+    try {
+      await fetch(`/api/units/${unitId}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Failed to delete unit in database:', err);
+    } finally {
+      setIsDeletingUnit(false);
+      setUnitToDelete(null);
     }
   };
 
@@ -769,7 +833,7 @@ export default function PropertyDetailPage() {
                                 {unit.name}
                               </Link>
                               <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">
-                                {unit.capacity.dimensions} • Max {unit.capacity.maxPersons} Orang
+                                {(typeof unit.capacity === 'object' && unit.capacity !== null ? (unit.capacity.dimensions || '3x4 m') : '3x4 m')} • Max {(typeof unit.capacity === 'object' && unit.capacity !== null ? (typeof unit.capacity.maxPersons === 'object' ? 1 : unit.capacity.maxPersons || 1) : (unit.capacity || 1))} Orang
                               </p>
                             </div>
 
@@ -878,16 +942,24 @@ export default function PropertyDetailPage() {
                             <button
                               type="button"
                               onClick={(e) => triggerEditUnit(unit, e)}
-                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer transition-colors"
                               title="Edit Unit"
                             >
                               <Edit3 className="h-4 w-4" />
                             </button>
                             <button
                               type="button"
-                              onClick={(e) => handleDeleteUnit(unit.id, e)}
-                              className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                              title="Hapus Unit"
+                              disabled={isRoomOccupied}
+                              onClick={(e) => {
+                                if (isRoomOccupied) return;
+                                triggerDeleteUnit(unit, e);
+                              }}
+                              className={`min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg transition-colors ${
+                                isRoomOccupied
+                                  ? 'text-muted-foreground/30 cursor-not-allowed opacity-40 hover:bg-transparent'
+                                  : 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive cursor-pointer'
+                              }`}
+                              title={isRoomOccupied ? 'Unit sedang terisi oleh penyewa, tidak dapat dihapus' : 'Hapus Unit'}
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1102,6 +1174,73 @@ export default function PropertyDetailPage() {
         initialData={contractTemplate}
         onSaved={() => fetchContractTemplate()}
       />
+
+      {/* Custom Delete Unit Confirmation Modal */}
+      {unitToDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-foreground">Hapus Unit Kamar?</h4>
+                <p className="text-xs text-muted-foreground">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-muted/40 border border-border p-3.5 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-medium">Nama Unit:</span>
+                <span className="font-bold text-foreground">{unitToDelete.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-medium">Status:</span>
+                <span className="font-bold text-foreground">{unitToDelete.status}</span>
+              </div>
+              {unitToDelete.status === 'Occupied' && unitToDelete.tenantName && (
+                <div className="flex justify-between items-center pt-2 border-t border-border text-amber-600 dark:text-amber-400 font-semibold">
+                  <span>Penyewa Aktif:</span>
+                  <span>{unitToDelete.tenantName}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Unit <strong className="text-foreground">{unitToDelete.name}</strong> beserta riwayat inventaris di dalamnya akan dihapus dari properti ini.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border">
+              <button
+                type="button"
+                disabled={isDeletingUnit}
+                onClick={() => setUnitToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted disabled:opacity-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUnit}
+                onClick={confirmDeleteUnit}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer min-w-[120px] justify-center"
+              >
+                {isDeletingUnit ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Hapus Unit</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

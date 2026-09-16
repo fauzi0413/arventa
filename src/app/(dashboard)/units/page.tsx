@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Plus, Filter, LayoutGrid, List, AlertTriangle, ArrowLeft, Check, Layers, Trash2, Edit3, DollarSign, Tag, CheckSquare, Square } from 'lucide-react';
+import { Search, Plus, Filter, LayoutGrid, List, AlertTriangle, ArrowLeft, Check, Layers, Trash2, Edit3, DollarSign, Tag, CheckSquare, Square, Loader2 } from 'lucide-react';
 import { Unit, UnitStatus, BulkActionPayload, BulkActionType } from './_types';
 import UnitCard from './_components/UnitCard';
 import { Property } from '../properties/_types';
@@ -75,6 +75,10 @@ function UnitsPageContent() {
   // Modal Visibility
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
+
+  // Custom Delete Unit Confirmation State
+  const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
+  const [isDeletingUnit, setIsDeletingUnit] = useState(false);
 
   // Helper to update URL params
   const updateUrlParam = (key: string, value: string) => {
@@ -272,18 +276,30 @@ function UnitsPageContent() {
     }
   };
 
-  const handleDeleteUnit = async (id: string) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus unit ini?')) {
-      const updated = units.filter((u) => u.id !== id);
-      saveUnits(updated);
-      setSelectedUnitIds((prev) => prev.filter((item) => item !== id));
+  const handleDeleteUnit = (id: string) => {
+    const found = units.find((u) => u.id === id);
+    if (found) {
+      setUnitToDelete(found);
+    }
+  };
 
-      // Backend Prisma delete
-      try {
-        await fetch(`/api/units/${id}`, { method: 'DELETE' });
-      } catch (e) {
-        console.error('Failed to delete unit in database:', e);
-      }
+  const confirmDeleteUnit = async () => {
+    if (!unitToDelete || isDeletingUnit) return;
+    setIsDeletingUnit(true);
+    const id = unitToDelete.id;
+
+    const updated = units.filter((u) => u.id !== id);
+    saveUnits(updated);
+    setSelectedUnitIds((prev) => prev.filter((item) => item !== id));
+
+    // Backend Prisma delete
+    try {
+      await fetch(`/api/units/${id}`, { method: 'DELETE' });
+    } catch (e) {
+      console.error('Failed to delete unit in database:', e);
+    } finally {
+      setIsDeletingUnit(false);
+      setUnitToDelete(null);
     }
   };
 
@@ -854,6 +870,73 @@ function UnitsPageContent() {
           />
         )}
       </Suspense>
+
+      {/* Custom Delete Unit Confirmation Modal */}
+      {unitToDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-foreground">Hapus Unit Kamar?</h4>
+                <p className="text-xs text-muted-foreground">Tindakan ini tidak dapat dibatalkan</p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-muted/40 border border-border p-3.5 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-medium">Nama Unit:</span>
+                <span className="font-bold text-foreground">{unitToDelete.name}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground font-medium">Status:</span>
+                <span className="font-bold text-foreground">{unitToDelete.status}</span>
+              </div>
+              {unitToDelete.status === 'Occupied' && unitToDelete.tenantName && (
+                <div className="flex justify-between items-center pt-2 border-t border-border text-amber-600 dark:text-amber-400 font-semibold">
+                  <span>Penyewa Aktif:</span>
+                  <span>{unitToDelete.tenantName}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Unit <strong className="text-foreground">{unitToDelete.name}</strong> beserta riwayat inventaris di dalamnya akan dihapus.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-border">
+              <button
+                type="button"
+                disabled={isDeletingUnit}
+                onClick={() => setUnitToDelete(null)}
+                className="px-4 py-2 rounded-xl border border-border text-xs font-bold text-muted-foreground hover:bg-muted disabled:opacity-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingUnit}
+                onClick={confirmDeleteUnit}
+                className="px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer min-w-[120px] justify-center"
+              >
+                {isDeletingUnit ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                    <span>Menghapus...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>Hapus Unit</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

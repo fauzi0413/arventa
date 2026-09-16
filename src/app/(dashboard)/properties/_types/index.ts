@@ -35,9 +35,11 @@ export interface InventoryItem {
   id: string;
   propertyId: string;
   unitId?: string; // Optional: associated room unit ID (e.g. "unit-1")
-  unitName?: string; // Cache room name (e.g. "Kamar 101")
+  unitName?: string; // Cache room name or area label
   name: string; // e.g., "AC", "Kasur", "Lemari"
+  locationType?: 'UNIT' | 'COMMON_AREA';
   condition: InventoryCondition;
   imageUrl?: string; // Photo of item/condition
   lastUpdated: string;
 }
+

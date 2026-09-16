@@ -54,48 +54,20 @@ const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   }
 };
 
-const DEFAULT_INVENTORIES = (propertyId: string, unitId: string, unitName: string): InventoryItem[] => [
-  {
-    id: `inv-1-${unitId}`,
-    propertyId,
-    unitId,
-    unitName,
-    name: 'Air Conditioner (AC) 1 PK',
-    condition: 'Baik',
-    imageUrl: 'https://images.unsplash.com/photo-1585338107529-13afc5f02586?auto=format&fit=crop&q=80&w=600',
-    lastUpdated: new Date().toISOString(),
-  },
-  {
-    id: `inv-2-${unitId}`,
-    propertyId,
-    unitId,
-    unitName,
-    name: 'Kasur Springbed Queen Size',
-    condition: 'Baik',
-    imageUrl: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&q=80&w=600',
-    lastUpdated: new Date().toISOString(),
-  },
-  {
-    id: `inv-3-${unitId}`,
-    propertyId,
-    unitId,
-    unitName,
-    name: 'Lemari Pakaian Kayu 2 Pintu',
-    condition: 'Baik',
-    imageUrl: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&q=80&w=600',
-    lastUpdated: new Date().toISOString(),
-  },
-  {
-    id: `inv-4-${unitId}`,
-    propertyId,
-    unitId,
-    unitName,
-    name: 'Meja Kerja & Kursi Ergonomis',
-    condition: 'Perlu Perbaikan',
-    imageUrl: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&q=80&w=600',
-    lastUpdated: new Date().toISOString(),
-  },
-];
+const getFacilityIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('ac')) return '❄️';
+  if (n.includes('kasur') || n.includes('bed') || n.includes('springbed')) return '🛏️';
+  if (n.includes('mandi') || n.includes('shower')) return '🚿';
+  if (n.includes('lemari') || n.includes('pakaian')) return '🚪';
+  if (n.includes('wifi') || n.includes('internet')) return '🌐';
+  if (n.includes('tv') || n.includes('television')) return '📺';
+  if (n.includes('dapur') || n.includes('kompor')) return '🍳';
+  if (n.includes('water heater') || n.includes('pemanas')) return '🔥';
+  if (n.includes('kulkas') || n.includes('refrigerator')) return '🧊';
+  if (n.includes('meja') || n.includes('kursi')) return '🪑';
+  return '📦';
+};
 
 export default function PropertyUnitDetailPage() {
   const router = useRouter();
@@ -178,6 +150,59 @@ export default function PropertyUnitDetailPage() {
     };
   };
 
+  const resolveUnitInventories = async (unitObj: any, propId: string) => {
+    let resolved: InventoryItem[] = [];
+    const selectedNames = Array.isArray(unitObj.facilities) ? unitObj.facilities : [];
+    const selectedIds = Array.isArray(unitObj.inventoryIds) ? unitObj.inventoryIds : [];
+
+    try {
+      const invRes = await fetch(`/api/inventory?propertyId=${propId}`);
+      if (invRes.ok) {
+        const invJson = await invRes.json();
+        const propMasterItems = invJson.data?.propertyInventories || [];
+        if (Array.isArray(propMasterItems)) {
+          propMasterItems.forEach((p: any) => {
+            const isMatchById = selectedIds.includes(p.id);
+            const isMatchByName = selectedNames.some((n: string) => n.toLowerCase() === p.itemName?.toLowerCase());
+            if (isMatchById || isMatchByName) {
+              resolved.push({
+                id: p.id,
+                propertyId: propId,
+                unitId: unitObj.id,
+                unitName: unitObj.name,
+                name: p.itemName,
+                locationType: p.locationType || 'UNIT',
+                condition: p.condition || 'Baik',
+                imageUrl: p.imageUrl,
+                lastUpdated: p.updatedAt || new Date().toISOString(),
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch property master inventory:', e);
+    }
+
+    // If any selected facility name is not yet in resolved items, append it cleanly
+    selectedNames.forEach((facName: string, idx: number) => {
+      if (!resolved.some((r) => r.name.toLowerCase() === facName.toLowerCase())) {
+        resolved.push({
+          id: `unit-fac-${idx}-${Date.now()}`,
+          propertyId: propId,
+          unitId: unitObj.id,
+          unitName: unitObj.name,
+          name: facName,
+          locationType: 'UNIT',
+          condition: 'Baik',
+          lastUpdated: unitObj.createdAt || new Date().toISOString(),
+        });
+      }
+    });
+
+    return resolved;
+  };
+
   const handleEditUnitSubmit = async (unitData: Omit<Unit, 'id' | 'createdAt'>) => {
     if (!unit) return;
     try {
@@ -194,6 +219,7 @@ export default function PropertyUnitDetailPage() {
           dimensions: unitData.capacity.dimensions,
           facilities: unitData.facilities,
           description: unitData.description,
+          inventoryIds: unitData.inventoryIds,
         }),
       });
 
@@ -202,11 +228,17 @@ export default function PropertyUnitDetailPage() {
         const updatedData = json.data;
         if (updatedData) {
           setUnit(updatedData);
+          const resolved = await resolveUnitInventories(updatedData, propertyId);
+          setInventories(resolved);
         } else {
           setUnit({ ...unit, ...unitData });
+          const resolved = await resolveUnitInventories({ ...unit, ...unitData, id: unit.id }, propertyId);
+          setInventories(resolved);
         }
       } else {
         setUnit({ ...unit, ...unitData });
+        const resolved = await resolveUnitInventories({ ...unit, ...unitData, id: unit.id }, propertyId);
+        setInventories(resolved);
       }
 
       const storedUnits = localStorage.getItem('arventa_units');
@@ -386,28 +418,9 @@ export default function PropertyUnitDetailPage() {
               setInvoiceKPI(resolveInvoiceKPILogic([], uData.pricing?.monthly || 4500000));
             }
 
-            // Fetch live Master Inventory assigned to this unit
-            try {
-              const invRes = await fetch(`/api/inventory?unit_id=${unitId}`);
-              if (invRes.ok) {
-                const invJson = await invRes.json();
-                if (Array.isArray(invJson.data) && invJson.data.length > 0) {
-                  setInventories(invJson.data);
-                  setLoading(false);
-                  return;
-                }
-              }
-            } catch (invErr) {
-              console.warn('API unit inventory fetch notice:', invErr);
-            }
-
-            const storedInventory = localStorage.getItem('arventa_inventory');
-            let loadedInventory: InventoryItem[] = storedInventory ? JSON.parse(storedInventory) : [];
-            let unitInventory = (uData.inventories && uData.inventories.length > 0)
-              ? uData.inventories
-              : loadedInventory.filter((item) => item.unitId === unitId);
-
-            setInventories(unitInventory);
+            // Resolve inventories strictly from unit facilities / inventoryIds
+            const resolvedUnitInvs = await resolveUnitInventories(uData, propertyId);
+            setInventories(resolvedUnitInvs);
             setLoading(false);
             return;
           }
@@ -419,15 +432,12 @@ export default function PropertyUnitDetailPage() {
       // 2. Fallback to LocalStorage
       const storedProps = localStorage.getItem('arventa_properties');
       const storedUnits = localStorage.getItem('arventa_units');
-      const storedInventory = localStorage.getItem('arventa_inventory');
 
       let loadedProps: Property[] = [];
       let loadedUnits: Unit[] = [];
-      let loadedInventory: InventoryItem[] = [];
 
       if (storedProps) loadedProps = JSON.parse(storedProps);
       if (storedUnits) loadedUnits = JSON.parse(storedUnits);
-      if (storedInventory) loadedInventory = JSON.parse(storedInventory);
 
       const foundProp = loadedProps.find((p) => p.id === propertyId);
       const foundUnit = loadedUnits.find((u) => u.id === unitId);
@@ -442,18 +452,14 @@ export default function PropertyUnitDetailPage() {
         localStorage.setItem('arventa_units', JSON.stringify(updated));
       }
 
-      let unitInventory = loadedInventory.filter((item) => item.unitId === unitId);
-
-      if (unitInventory.length === 0 && foundProp && foundUnit) {
-        const defaults = DEFAULT_INVENTORIES(propertyId, unitId, foundUnit.name);
-        const updatedMasterInventory = [...loadedInventory, ...defaults];
-        localStorage.setItem('arventa_inventory', JSON.stringify(updatedMasterInventory));
-        unitInventory = defaults;
-      }
-
       setProperty(foundProp || null);
       setUnit(foundUnit || null);
-      setInventories(unitInventory);
+      if (foundUnit) {
+        const resolved = await resolveUnitInventories(foundUnit, propertyId);
+        setInventories(resolved);
+      } else {
+        setInventories([]);
+      }
       setLoading(false);
     };
 
@@ -775,7 +781,7 @@ export default function PropertyUnitDetailPage() {
                   <Compass className="h-3.5 w-3.5 text-[#8FA28A]" /> Dimensi Kamar
                 </span>
                 <p className="text-base font-black text-foreground dark:text-foreground">
-                  {unit.capacity.dimensions}
+                  {typeof unit.capacity === 'object' && unit.capacity !== null ? (unit.capacity.dimensions || '3x4 m') : '3x4 m'}
                 </p>
               </div>
               <div className="bg-muted/50 dark:bg-muted/30 rounded-xl p-4 border border-border dark:border-border space-y-1">
@@ -783,7 +789,7 @@ export default function PropertyUnitDetailPage() {
                   <User className="h-3.5 w-3.5 text-[#8FA28A]" /> Kapasitas Maksimal
                 </span>
                 <p className="text-base font-black text-foreground dark:text-foreground">
-                  {unit.capacity.maxPersons} Orang
+                  {typeof unit.capacity === 'object' && unit.capacity !== null ? (typeof unit.capacity.maxPersons === 'object' ? 1 : unit.capacity.maxPersons || 1) : (unit.capacity || 1)} Orang
                 </p>
               </div>
             </div>
@@ -889,28 +895,6 @@ export default function PropertyUnitDetailPage() {
               </div>
             </div>
 
-            {/* Facilities Section */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <Award className="h-4 w-4 text-[#8FA28A]" />
-                Fasilitas Unit Kamar
-              </h3>
-              {unit.facilities.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Tidak ada fasilitas terdaftar.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {unit.facilities.map((fac) => (
-                    <span
-                      key={fac}
-                      className="rounded-xl bg-muted dark:bg-muted/60 border border-border dark:border-border px-3.5 py-1.5 text-xs font-bold text-foreground"
-                    >
-                      {fac}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Notes/Description */}
             {unit.description && (
               <div className="space-y-2 border-t border-border dark:border-border pt-4">
@@ -924,101 +908,94 @@ export default function PropertyUnitDetailPage() {
             )}
           </div>
 
-          {/* Unit Inventory List (Master Data Relasional) */}
+          {/* Unit Inventory List */}
           <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-border pb-3">
               <div>
                 <h3 className="text-base font-bold text-foreground dark:text-foreground flex items-center gap-2">
                   <Package className="h-5 w-5 text-[#8FA28A]" />
-                  Daftar Inventaris Unit (Master Data)
+                  <span>Fasilitas & Inventaris Kamar</span>
                 </h3>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Item inventaris dialokasikan langsung dari Master Data Properti.
+                  Daftar fasilitas dan perabot yang terdaftar di dalam kamar ini.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsEditUnitModalOpen(true)}
-                className="min-h-[36px] px-3.5 py-1.5 rounded-xl border border-[#8FA28A]/40 bg-[#8FA28A]/10 text-[#8FA28A] hover:bg-[#8FA28A]/20 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Layers className="h-3.5 w-3.5" />
-                <span>Pilih dari Master Data</span>
-              </button>
             </div>
 
             {inventories.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border dark:border-border p-8 text-center space-y-3">
                 <Package className="h-8 w-8 text-muted-foreground mx-auto opacity-40" />
                 <p className="text-xs text-muted-foreground">
-                  Belum ada barang inventaris master yang dialokasikan untuk unit kamar ini.
+                  Belum ada fasilitas atau perabot yang terdaftar untuk kamar ini.
                 </p>
                 <button
                   type="button"
                   onClick={() => setIsEditUnitModalOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors cursor-pointer shadow-xs"
                 >
-                  + Alokasikan Barang dari Master Data
+                  + Pilih Fasilitas Kamar
                 </button>
               </div>
             ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {inventories.map((item) => (
-                <div
-                  key={item.id}
-                  className="overflow-hidden rounded-xl border border-border dark:border-border bg-card dark:bg-card shadow-sm hover:shadow transition-shadow flex flex-col"
-                >
-                  <div className="relative h-44 w-full bg-muted">
-                    <img
-                      src={
-                        item.imageUrl ||
-                        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=600'
-                      }
-                      alt={item.name}
-                      className="h-full w-full object-cover"
-                    />
-                    <div className="absolute top-3 right-3">
-                      <span
-                        className={`rounded-xl border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider shadow-sm ${CONDITION_BADGE_STYLE(
-                          item.condition
-                        )}`}
-                      >
-                        {item.condition}
-                      </span>
-                    </div>
-                  </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {inventories.map((item) => {
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-border dark:border-border bg-card dark:bg-card p-3.5 shadow-2xs hover:border-[#8FA28A]/40 transition-all flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Photo Thumbnail / N/A Badge */}
+                          <div className="h-12 w-12 shrink-0 rounded-xl overflow-hidden bg-muted/40 border border-border flex items-center justify-center">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                            ) : (
+                              <div className="h-full w-full flex flex-col items-center justify-center text-[10px] text-muted-foreground font-bold uppercase bg-muted/30">
+                                <span>N/A</span>
+                              </div>
+                            )}
+                          </div>
 
-                  <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-sm font-black text-foreground dark:text-foreground line-clamp-1">
-                        {item.name}
-                      </h4>
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Terakhir diverifikasi:{' '}
-                        {new Date(item.lastUpdated).toLocaleDateString('id-ID', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </p>
-                    </div>
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-bold text-foreground dark:text-foreground truncate">
+                              {item.name}
+                            </h4>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              Terverifikasi: {new Date(item.lastUpdated).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="text-[11px] text-[#8FA28A] font-semibold mt-3 pt-2 border-t border-border dark:border-border flex items-center justify-between">
-                      <span>✓ Aset Milik Properti {property.name}</span>
-                      {(item.condition === 'Perlu Perbaikan' || item.condition === 'Rusak Berat') && (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCreateTicket('REPAIR', `Perbaikan ${item.name} (${unit.name})`)}
-                          className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 transition-colors shadow-xs"
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 ${CONDITION_BADGE_STYLE(
+                            item.condition
+                          )}`}
                         >
-                          <Wrench className="h-3 w-3" />
-                          Tiket Perbaikan
-                        </button>
+                          {item.condition}
+                        </span>
+                      </div>
+
+                      {(item.condition === 'Perlu Perbaikan' || item.condition === 'Rusak Berat') && (
+                        <div className="mt-3 pt-2 border-t border-border/60 dark:border-border/60 flex items-center justify-end">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCreateTicket('REPAIR', `Perbaikan ${item.name} (${unit.name})`)}
+                            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 transition-colors shadow-xs cursor-pointer"
+                          >
+                            <Wrench className="h-3 w-3" />
+                            Tiket Perbaikan
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
