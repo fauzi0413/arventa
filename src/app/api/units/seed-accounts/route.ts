@@ -12,16 +12,15 @@ export async function GET(request: NextRequest) {
   try {
     const units = await prisma.unit.findMany({
       include: {
-        property: true,
-        unitUser: {
-          include: {
-            userCredential: true,
-          },
-        },
         property: {
           select: {
             id: true,
             name: true,
+          },
+        },
+        unitUser: {
+          include: {
+            userCredential: true,
           },
         },
       },
@@ -34,7 +33,8 @@ export async function GET(request: NextRequest) {
     for (const u of units) {
       const cleanProp = u.property?.name?.toLowerCase().replace(/[^a-z0-9]/g, "") || `p${u.propertyId.slice(0, 6)}`;
       const cleanNum = u.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, "") || `u${Date.now()}`;
-      let roomEmail = `${cleanNum}.${cleanProp}@arventa.id`;
+      const baseCandidate = `${cleanNum}.${cleanProp}`;
+      let roomEmail = `${baseCandidate}@arventa.id`;
 
       // Check if user already exists for another unit
       let targetPassword = u.roomPassword;
