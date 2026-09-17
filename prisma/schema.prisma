@@ -500,6 +500,10 @@ model Property {
   hasCleaningService Boolean      @default(true) @map("has_cleaning_service")
   defaultLateFee     Decimal      @default(50000) @map("default_late_fee") @db.Decimal(12, 2)
   defaultDeposit     Decimal      @default(0) @map("default_deposit") @db.Decimal(12, 2)
+  hasWifi            Boolean      @default(false) @map("has_wifi")
+  wifiSsid           String?      @map("wifi_ssid")
+  wifiPassword       String?      @map("wifi_password")
+  hasSmartLock       Boolean      @default(false) @map("has_smart_lock")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -562,6 +566,7 @@ model Unit {
   imageUrl              String?   @map("image_url")
   roomPassword          String?   @map("room_password")
   roomPasswordLastReset DateTime? @map("room_password_last_reset")
+  smartLockPin          String?   @map("smart_lock_pin")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

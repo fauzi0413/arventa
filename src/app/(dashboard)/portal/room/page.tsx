@@ -17,19 +17,6 @@ import TenantHousekeepingCard from './_components/TenantHousekeepingCard';
 const TenantComplaintModal = lazy(() => import('./_components/TenantComplaintModal'));
 const HousekeepingRequestModal = lazy(() => import('./_components/HousekeepingRequestModal'));
 
-const DEFAULT_RULES = [
-  "Dilarang membawa tamu lawan jenis menginap tanpa izin pengelola.",
-  "Menjaga ketenangan bersama dan menghormati hak privasi penghuni lain.",
-  "Batas waktu berkunjung tamu luar maksimal pukul 22.00 WIB.",
-  "Dilarang merokok di dalam kamar ber-AC.",
-  "Sampah wajib dikemas kantong plastik dan dibuang ke tempat pembuangan luar."
-];
-
-const DEFAULT_CONTACTS: EmergencyContact[] = [
-  { name: "Pak Ahmad (Owner)", role: "Pemilik Properti", phone: "+62 813-8354-4440" },
-  { name: "Mas Rudi (Housekeeping)", role: "Tim Lapangan & Bersih-Bersih", phone: "0813-8354-4440" }
-];
-
 export default function PortalRoomPage() {
   const [details, setDetails] = useState<TenantRoomDetails | null>(null);
   const [complaints, setComplaints] = useState<TenantComplaint[]>([]);
@@ -52,17 +39,12 @@ export default function PortalRoomPage() {
             unit: apiData.unit,
             property: apiData.property,
             inventories: apiData.inventories || [],
-            houseRules: apiData.houseRules && apiData.houseRules.length > 0 ? apiData.houseRules : DEFAULT_RULES,
-            emergencyContacts: apiData.emergencyContacts && apiData.emergencyContacts.length > 0
-              ? apiData.emergencyContacts
-              : [
-                  { name: apiData.property.ownerName || "Pemilik Properti", role: "Pemilik Properti", phone: apiData.property.ownerPhone || "+62 812-3456-7890" },
-                  { name: "Tim Lapangan & Housekeeping", role: "Tim Lapangan & Bersih-Bersih", phone: apiData.property.ownerPhone || "+62 812-3456-7890" },
-                ],
-            billingSummary: apiData.billingSummary,
+            houseRules: apiData.houseRules || [],
+            emergencyContacts: apiData.emergencyContacts || [],
+            billingSummary: apiData.billingSummary || null,
             wifiSsid: apiData.wifiSsid,
             wifiPassword: apiData.wifiPassword,
-            smartLockCode: apiData.smartLockCode,
+            smartLockCode: apiData.smartLockCode || null,
           });
           setLoading(false);
           return;
@@ -103,50 +85,31 @@ export default function PortalRoomPage() {
       const unitComplaints = loadedComplaints.filter((c) => c.unitId === activeUnit.id);
       const unitHousekeeping = loadedHousekeeping.filter((h) => h.unitId === activeUnit.id);
 
-      const billingSummary: TenantBillingSummary = {
-        invoiceNumber: `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${activeUnit.name.replace(/\D/g, '') || '001'}`,
-        billingMonth: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
-        monthlyRent: activeUnit.pricing?.monthly || 1500000,
-        utilitiesCost: activeUnit.pricing?.utilities ? 100000 : 100000,
-        totalAmount: (activeUnit.pricing?.monthly || 1500000) + 100000,
-        dueDate: `25 ${new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}`,
-        paymentStatus: 'Pending',
-      };
-
-      const propName = activeProp?.name || 'Kost Raka';
-      const dynamicContacts: EmergencyContact[] = [
-        { name: `Pengelola ${propName} (Owner)`, role: 'Pemilik Properti', phone: '+62 812-3456-7890' },
-        { name: 'Tim Housekeeping & Operasional', role: 'Tim Lapangan & Bersih-Bersih', phone: '+62 812-3456-7890' },
-      ];
-
-      const dynamicRules = [
-        `Dilarang membawa tamu lawan jenis menginap tanpa izin pengelola ${propName}.`,
-        'Menjaga ketenangan bersama dan menghormati hak privasi penghuni lain.',
-        'Batas waktu berkunjung tamu luar maksimal pukul 22.00 WIB.',
-        'Dilarang merokok di dalam kamar ber-AC.',
-        'Sampah wajib dikemas kantong plastik dan dibuang ke tempat pembuangan luar.',
-      ];
+      const dynamicContacts: EmergencyContact[] = [];
+      if (activeProp?.ownerName && activeProp?.ownerPhone) {
+        dynamicContacts.push({
+          name: `${activeProp.ownerName} (Owner)`,
+          role: 'Pemilik Properti',
+          phone: activeProp.ownerPhone,
+        });
+      }
 
       if (activeProp) {
         setDetails({
           unit: {
             ...activeUnit,
-            tenantName: activeUnit.tenantName || 'Penghuni Terdaftar',
-            tenantPhone: activeUnit.tenantPhone || '0812-3456-7890',
-            checkInDate: activeUnit.checkInDate || new Date().toISOString().split('T')[0],
+            tenantName: activeUnit.status === 'Occupied' ? activeUnit.tenantName : undefined,
+            tenantPhone: activeUnit.status === 'Occupied' ? activeUnit.tenantPhone : undefined,
+            checkInDate: activeUnit.status === 'Occupied' ? activeUnit.checkInDate : undefined,
           },
           property: activeProp,
-          inventories: unitInventory.length > 0 ? unitInventory : [
-            { id: 'inv-1', name: 'Kasur Springbed', category: 'Fasilitas', condition: 'BAIK', location: `Unit ${activeUnit.name}` },
-            { id: 'inv-2', name: 'AC LG 1PK', category: 'Fasilitas', condition: 'BAIK', location: `Unit ${activeUnit.name}` },
-            { id: 'inv-3', name: 'Lemari Pakaian', category: 'Fasilitas', condition: 'BAIK', location: `Unit ${activeUnit.name}` },
-          ],
-          houseRules: dynamicRules,
+          inventories: unitInventory,
+          houseRules: [],
           emergencyContacts: dynamicContacts,
-          billingSummary,
-          wifiSsid: cred?.wifiSsid || `WiFi-${activeUnit.name.replace(/\s+/g, '')}`,
-          wifiPassword: cred?.wifiPassword || 'Arv!789210',
-          smartLockCode: cred?.smartLockCode || '123456',
+          billingSummary: null,
+          wifiSsid: cred?.wifiSsid || null,
+          wifiPassword: cred?.wifiPassword || null,
+          smartLockCode: cred?.smartLockCode || null,
         });
         setComplaints(unitComplaints);
         setHousekeepingRequests(unitHousekeeping);
@@ -280,7 +243,7 @@ export default function PortalRoomPage() {
             <AlertTriangle className="h-4 w-4" />
             <span>Lapor Kerusakan</span>
           </button>
-          {details.property.hasCleaningService !== false && (
+          {details.property.hasCleaningService !== false && details.property.hasHousekeepingStaff !== false && (
             <button
               type="button"
               onClick={() => setIsHousekeepingModalOpen(true)}
@@ -320,6 +283,7 @@ export default function PortalRoomPage() {
           requests={housekeepingRequests}
           onOpenModal={() => setIsHousekeepingModalOpen(true)}
           hasCleaningService={details.property.hasCleaningService !== false}
+          hasHousekeepingStaff={details.property.hasHousekeepingStaff !== false}
         />
 
         {/* Room Specifications Card */}

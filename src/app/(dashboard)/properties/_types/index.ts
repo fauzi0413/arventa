@@ -24,6 +24,10 @@ export interface Property {
   hasCleaningService?: boolean;
   defaultLateFee?: number;
   defaultDeposit?: number;
+  hasWifi?: boolean;
+  wifiSsid?: string | null;
+  wifiPassword?: string | null;
+  hasSmartLock?: boolean;
   createdAt: string;
   ownerName?: string;
   ownerPhone?: string;

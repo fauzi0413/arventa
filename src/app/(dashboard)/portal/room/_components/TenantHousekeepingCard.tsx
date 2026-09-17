@@ -9,9 +9,10 @@ interface TenantHousekeepingCardProps {
   requests: HousekeepingRequest[];
   onOpenModal: () => void;
   hasCleaningService?: boolean;
+  hasHousekeepingStaff?: boolean;
 }
 
-export default function TenantHousekeepingCard({ requests, onOpenModal, hasCleaningService = true }: TenantHousekeepingCardProps) {
+export default function TenantHousekeepingCard({ requests, onOpenModal, hasCleaningService = true, hasHousekeepingStaff = true }: TenantHousekeepingCardProps) {
   const [selectedItem, setSelectedItem] = useState<HousekeepingRequest | null>(null);
 
   const getStatusBadge = (status: HousekeepingStatus | string) => {
@@ -83,24 +84,31 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
           )}
         </div>
 
-        {/* Notice when service is turned OFF by owner */}
-        {!hasCleaningService && (
+        {/* Notice when service is turned OFF by owner or no staff assigned */}
+        {!hasCleaningService ? (
           <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3.5 text-center space-y-1">
             <p className="text-xs font-bold text-rose-600 dark:text-rose-400">Layanan Kebersihan Dinonaktifkan</p>
             <p className="text-[11px] text-rose-600/90 dark:text-rose-400/90 leading-relaxed">
               Pemilik properti sedang menonaktifkan fitur panggilan kebersihan untuk unit ini.
             </p>
           </div>
-        )}
+        ) : !hasHousekeepingStaff ? (
+          <div className="rounded-xl border border-border bg-muted/40 p-3 text-center space-y-1">
+            <p className="text-xs font-bold text-foreground">Belum Ada Staf Bertugas</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Belum ada petugas housekeeping yang ditugaskan di properti ini.
+            </p>
+          </div>
+        ) : null}
 
         {/* Housekeeping Clean List View */}
         {requests.length === 0 ? (
           <div className="bg-muted/40 rounded-xl p-4 text-center space-y-1 border border-border">
             <p className="text-xs text-muted-foreground font-semibold">Belum ada riwayat panggilan kebersihan.</p>
             <p className="text-[11px] text-muted-foreground/80">
-              {hasCleaningService
+              {hasCleaningService && hasHousekeepingStaff
                 ? 'Anda dapat memanggil tim housekeeping untuk menyapu, ngepel, atau mengganti sprei kamar.'
-                : 'Fitur panggilan kebersihan saat ini tidak aktif.'}
+                : 'Layanan kebersihan belum tersedia untuk dipanggil.'}
             </p>
           </div>
         ) : (
@@ -147,16 +155,7 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
 
       {/* Action Button */}
       <div className="pt-2">
-        {hasCleaningService ? (
-          <button
-            type="button"
-            onClick={onOpenModal}
-            className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
-          >
-            <Sparkles className="h-4 w-4" />
-            Panggil Tim Housekeeping
-          </button>
-        ) : (
+        {!hasCleaningService ? (
           <button
             type="button"
             disabled
@@ -164,6 +163,24 @@ export default function TenantHousekeepingCard({ requests, onOpenModal, hasClean
           >
             <Sparkles className="h-4 w-4 text-muted-foreground" />
             Layanan Dinonaktifkan oleh Owner
+          </button>
+        ) : !hasHousekeepingStaff ? (
+          <button
+            type="button"
+            disabled
+            className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-muted border border-border text-muted-foreground px-4 py-2.5 text-xs font-bold cursor-not-allowed opacity-80"
+          >
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            Belum Ada Petugas Housekeeping
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onOpenModal}
+            className="min-h-[44px] w-full flex items-center justify-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
+          >
+            <Sparkles className="h-4 w-4" />
+            Panggil Tim Housekeeping
           </button>
         )}
       </div>

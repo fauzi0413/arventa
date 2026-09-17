@@ -35,11 +35,15 @@ export default function PropertyDetailCard({ property, emergencyContacts, houseR
         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block flex items-center gap-1">
           <ShieldCheck className="h-4 w-4 text-[#8FA28A]" /> Tata Tertib Hunian
         </span>
-        <ul className="space-y-1.5 pl-3.5 list-disc text-xs text-muted-foreground font-medium">
-          {houseRules.map((rule, idx) => (
-            <li key={idx} className="leading-relaxed">{rule}</li>
-          ))}
-        </ul>
+        {houseRules.length > 0 ? (
+          <ul className="space-y-1.5 pl-3.5 list-disc text-xs text-muted-foreground font-medium">
+            {houseRules.map((rule, idx) => (
+              <li key={idx} className="leading-relaxed">{rule}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">Belum ada tata tertib khusus yang dikonfigurasi untuk properti ini.</p>
+        )}
       </div>
 
       {/* Emergency Contacts */}
@@ -47,23 +51,27 @@ export default function PropertyDetailCard({ property, emergencyContacts, houseR
         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block flex items-center gap-1">
           <Phone className="h-4 w-4 text-[#8FA28A]" /> Kontak Darurat & Pengelola
         </span>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {emergencyContacts.map((contact, idx) => (
-            <div key={idx} className="p-3 rounded-xl border border-border bg-muted/40 flex items-center justify-between text-xs">
-              <div>
-                <span className="text-[9px] font-bold text-[#8FA28A] uppercase tracking-wide">{contact.role}</span>
-                <p className="font-black text-foreground">{contact.name}</p>
+        {emergencyContacts.length > 0 ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {emergencyContacts.map((contact, idx) => (
+              <div key={idx} className="p-3 rounded-xl border border-border bg-muted/40 flex items-center justify-between text-xs">
+                <div>
+                  <span className="text-[9px] font-bold text-[#8FA28A] uppercase tracking-wide">{contact.role}</span>
+                  <p className="font-black text-foreground">{contact.name}</p>
+                </div>
+                <a
+                  href={`tel:${contact.phone}`}
+                  className="rounded-lg p-1.5 bg-[#8FA28A]/10 text-[#8FA28A] dark:text-[#A3B89E] hover:bg-[#8FA28A]/20 transition-colors"
+                  title={`Call ${contact.name}`}
+                >
+                  <Phone className="h-3.5 w-3.5" />
+                </a>
               </div>
-              <a
-                href={`tel:${contact.phone}`}
-                className="rounded-lg p-1.5 bg-[#8FA28A]/10 text-[#8FA28A] dark:text-[#A3B89E] hover:bg-[#8FA28A]/20 transition-colors"
-                title={`Call ${contact.name}`}
-              >
-                <Phone className="h-3.5 w-3.5" />
-              </a>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground italic">Kontak pengelola belum dikonfigurasi.</p>
+        )}
       </div>
     </div>
   );

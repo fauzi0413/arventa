@@ -55,14 +55,16 @@ export interface HousekeepingRequest {
 
 export interface TenantRoomDetails {
   unit: Unit;
-  property: Property;
+  property: Property & { hasHousekeepingStaff?: boolean };
   inventories: InventoryItem[];
   houseRules: string[];
   emergencyContacts: EmergencyContact[];
-  billingSummary?: TenantBillingSummary;
+  billingSummary?: TenantBillingSummary | null;
   complaints?: TenantComplaint[];
   housekeepingRequests?: HousekeepingRequest[];
-  wifiSsid?: string;
-  wifiPassword?: string;
-  smartLockCode?: string;
+  wifiSsid?: string | null;
+  wifiPassword?: string | null;
+  smartLockCode?: string | null;
+  hasHousekeepingStaff?: boolean;
+  hasActiveTenant?: boolean;
 }

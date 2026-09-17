@@ -232,6 +232,7 @@ function UnitsPageContent() {
             tenantPhone: data.tenantPhone,
             checkInDate: data.checkInDate,
             inventoryIds: data.inventoryIds,
+            smartLockPin: data.smartLockPin,
           }),
         });
       } catch (e) {

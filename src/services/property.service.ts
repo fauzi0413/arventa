@@ -144,6 +144,20 @@ export class PropertyService {
         paymentMethods: {
           where: { isEnabled: true },
         },
+        housekeepingAssignments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phoneNumber: true,
+                avatarUrl: true,
+                isActive: true,
+              },
+            },
+          },
+        },
         inventories: {
           include: {
             unitInventories: {
@@ -310,6 +324,15 @@ export class PropertyService {
         ...property.owner,
         paymentMethods: property.owner.ownerPaymentMethods || [],
       } : null,
+      housekeepingStaff: (property.housekeepingAssignments || []).map((a) => ({
+        id: a.user.id,
+        assignmentId: a.id,
+        fullName: a.user.fullName,
+        email: a.user.email,
+        phoneNumber: a.user.phoneNumber || "-",
+        avatarUrl: a.user.avatarUrl,
+        isActive: a.user.isActive,
+      })),
       inventories: enrichedInventories,
       units: formattedUnits,
       stats: {
@@ -344,6 +367,10 @@ export class PropertyService {
           hasCleaningService: data.hasCleaningService ?? true,
           defaultLateFee: data.defaultLateFee ?? 50000,
           defaultDeposit: data.defaultDeposit ?? 0,
+          hasWifi: data.hasWifi ?? false,
+          wifiSsid: data.hasWifi ? (data.wifiSsid || null) : null,
+          wifiPassword: data.hasWifi ? (data.wifiPassword || null) : null,
+          hasSmartLock: data.hasSmartLock ?? false,
         },
         include: {
           owner: {
@@ -440,6 +467,33 @@ export class PropertyService {
         }
       }
 
+      // Otomatis sinkronkan fasilitas ke Master Inventaris Properti (PropertyInventory) jika dipilih YA (true)
+      if (data.hasWifi) {
+        await tx.propertyInventory.create({
+          data: {
+            propertyId: newProperty.id,
+            itemName: 'WiFi',
+            locationType: 'COMMON_AREA',
+            quantity: 1,
+            condition: 'Baik',
+            notes: data.wifiSsid ? `SSID: ${data.wifiSsid}` : 'Fasilitas Akses Internet WiFi',
+          },
+        });
+      }
+
+      if (data.hasSmartLock) {
+        await tx.propertyInventory.create({
+          data: {
+            propertyId: newProperty.id,
+            itemName: 'Smart Lock Pintu',
+            locationType: 'UNIT',
+            quantity: Math.max(1, totalUnitsCount),
+            condition: 'Baik',
+            notes: 'Fasilitas Kunci Digital Smart Lock Pintu Unit',
+          },
+        });
+      }
+
       return newProperty;
     }, {
       maxWait: 15000,
@@ -451,7 +505,7 @@ export class PropertyService {
    * Update existing property
    */
   static async updateProperty(id: string, data: UpdatePropertyInput) {
-    return prisma.property.update({
+    const updated = await prisma.property.update({
       where: { id },
       data: {
         ...(data.ownerId && { ownerId: data.ownerId }),
@@ -464,8 +518,196 @@ export class PropertyService {
         ...(data.hasCleaningService !== undefined && { hasCleaningService: data.hasCleaningService }),
         ...(data.defaultLateFee !== undefined && { defaultLateFee: data.defaultLateFee }),
         ...(data.defaultDeposit !== undefined && { defaultDeposit: data.defaultDeposit }),
+        ...(data.hasWifi !== undefined && { hasWifi: data.hasWifi }),
+        ...(data.hasWifi !== undefined && !data.hasWifi && { wifiSsid: null, wifiPassword: null }),
+        ...(data.hasWifi && data.wifiSsid !== undefined && { wifiSsid: data.wifiSsid || null }),
+        ...(data.hasWifi && data.wifiPassword !== undefined && { wifiPassword: data.wifiPassword || null }),
+        ...(data.hasSmartLock !== undefined && { hasSmartLock: data.hasSmartLock }),
+      },
+      include: {
+        units: true,
       },
     });
+
+    // ==========================================
+    // 1. SINKRONISASI FASILITAS WIFI
+    // ==========================================
+    if (data.hasWifi === true) {
+      const existingWifi = await prisma.propertyInventory.findFirst({
+        where: {
+          propertyId: id,
+          itemName: { in: ['WiFi', 'WiFi Bersama', 'Internet WiFi'] },
+        },
+      });
+      if (!existingWifi) {
+        await prisma.propertyInventory.create({
+          data: {
+            propertyId: id,
+            itemName: 'WiFi',
+            locationType: 'COMMON_AREA',
+            quantity: 1,
+            condition: 'Baik',
+            notes: data.wifiSsid ? `SSID: ${data.wifiSsid}` : 'Fasilitas Akses Internet WiFi',
+          },
+        });
+      } else if (data.wifiSsid) {
+        await prisma.propertyInventory.update({
+          where: { id: existingWifi.id },
+          data: { notes: `SSID: ${data.wifiSsid}` },
+        });
+      }
+
+      // WiFi adalah fasilitas Area Bersama (COMMON_AREA) properti, bukan fasilitas internal unit
+      if (updated.units && updated.units.length > 0) {
+        for (const u of updated.units) {
+          const facList = Array.isArray(u.facilities) ? [...u.facilities] : [];
+          const filtered = facList.filter((f) => f.toLowerCase() !== 'wifi');
+          if (filtered.length !== facList.length) {
+            await prisma.unit.update({
+              where: { id: u.id },
+              data: { facilities: filtered },
+            });
+          }
+        }
+      }
+    } else if (data.hasWifi === false) {
+      // JIKA FALSE: Hapus fasilitas WiFi dari Master Inventaris Fasilitas
+      const wifiItems = await prisma.propertyInventory.findMany({
+        where: {
+          propertyId: id,
+          itemName: { in: ['WiFi', 'WiFi Bersama', 'Internet WiFi'] },
+        },
+        select: { id: true },
+      });
+      if (wifiItems.length > 0) {
+        const wifiIds = wifiItems.map((w) => w.id);
+        await prisma.unitInventory.deleteMany({
+          where: { propertyInventoryId: { in: wifiIds } },
+        });
+        await prisma.propertyInventory.deleteMany({
+          where: { id: { in: wifiIds } },
+        });
+      }
+
+      // Hapus 'WiFi' dari facilities pada semua unit di properti ini
+      if (updated.units && updated.units.length > 0) {
+        for (const u of updated.units) {
+          const facList = Array.isArray(u.facilities) ? [...u.facilities] : [];
+          if (facList.some((f) => f.toLowerCase() === 'wifi')) {
+            const filteredFacs = facList.filter((f) => f.toLowerCase() !== 'wifi');
+            await prisma.unit.update({
+              where: { id: u.id },
+              data: { facilities: filteredFacs },
+            });
+          }
+        }
+      }
+    }
+
+    // ==========================================
+    // 2. SINKRONISASI FASILITAS SMART LOCK
+    // ==========================================
+    if (data.hasSmartLock === true) {
+      const existingLock = await prisma.propertyInventory.findFirst({
+        where: {
+          propertyId: id,
+          itemName: { in: ['Smart Lock', 'Smart Lock Pintu', 'Smart Lock Pintu Unit'] },
+        },
+      });
+      const totalUnits = updated.units?.length || 1;
+      let masterLockId = existingLock?.id;
+
+      if (!existingLock) {
+        const newLock = await prisma.propertyInventory.create({
+          data: {
+            propertyId: id,
+            itemName: 'Smart Lock Pintu',
+            locationType: 'UNIT',
+            quantity: Math.max(1, totalUnits),
+            condition: 'Baik',
+            notes: 'Fasilitas Kunci Digital Smart Lock Pintu Unit',
+          },
+        });
+        masterLockId = newLock.id;
+      } else {
+        await prisma.propertyInventory.update({
+          where: { id: existingLock.id },
+          data: { quantity: Math.max(existingLock.quantity, totalUnits) },
+        });
+      }
+
+      // Otomatis tambahkan 'Smart Lock Pintu' ke fasilitas & unit inventory untuk unit di properti ini
+      if (updated.units && updated.units.length > 0) {
+        for (const u of updated.units) {
+          const facList = Array.isArray(u.facilities) ? [...u.facilities] : [];
+          if (!facList.some((f) => f.toLowerCase().includes('smart lock'))) {
+            facList.push('Smart Lock Pintu');
+            await prisma.unit.update({
+              where: { id: u.id },
+              data: { facilities: facList },
+            });
+          }
+          if (masterLockId) {
+            const existingUnitInv = await prisma.unitInventory.findUnique({
+              where: {
+                unitId_propertyInventoryId: {
+                  unitId: u.id,
+                  propertyInventoryId: masterLockId,
+                },
+              },
+            });
+            if (!existingUnitInv) {
+              await prisma.unitInventory.create({
+                data: {
+                  unitId: u.id,
+                  propertyInventoryId: masterLockId,
+                  itemName: 'Smart Lock Pintu',
+                  quantity: 1,
+                  condition: 'Baik',
+                },
+              });
+            }
+          }
+        }
+      }
+    } else if (data.hasSmartLock === false) {
+      // JIKA FALSE: Hapus fasilitas Smart Lock dari Master Inventaris Fasilitas
+      const lockItems = await prisma.propertyInventory.findMany({
+        where: {
+          propertyId: id,
+          itemName: { in: ['Smart Lock', 'Smart Lock Pintu', 'Smart Lock Pintu Unit'] },
+        },
+        select: { id: true },
+      });
+      if (lockItems.length > 0) {
+        const lockIds = lockItems.map((l) => l.id);
+        await prisma.unitInventory.deleteMany({
+          where: { propertyInventoryId: { in: lockIds } },
+        });
+        await prisma.propertyInventory.deleteMany({
+          where: { id: { in: lockIds } },
+        });
+      }
+
+      // Hapus 'Smart Lock Pintu' dari facilities pada semua unit di properti ini dan reset PIN
+      if (updated.units && updated.units.length > 0) {
+        for (const u of updated.units) {
+          const facList = Array.isArray(u.facilities) ? [...u.facilities] : [];
+          if (facList.some((f) => f.toLowerCase().includes('smart lock'))) {
+            const filteredFacs = facList.filter((f) => !f.toLowerCase().includes('smart lock'));
+            await prisma.unit.update({
+              where: { id: u.id },
+              data: {
+                facilities: filteredFacs,
+                smartLockPin: null,
+              },
+            });
+          }
+        }
+      }
+    }
+
+    return updated;
   }
 
   /**

@@ -61,6 +61,15 @@ export default function UnitDetailPage() {
           const json = await res.json();
           if (json.data) {
             setUnit(json.data);
+            const storedProps = localStorage.getItem('arventa_properties');
+            if (storedProps) setProperties(JSON.parse(storedProps));
+            try {
+              const pRes = await fetch('/api/properties');
+              if (pRes.ok) {
+                const pJson = await pRes.json();
+                if (Array.isArray(pJson.data)) setProperties(pJson.data);
+              }
+            } catch {}
             setLoading(false);
             return;
           }
@@ -556,6 +565,24 @@ export default function UnitDetailPage() {
                     </span>
                   )}
                 </div>
+
+                {properties.find((p) => p.id === unit.propertyId)?.hasSmartLock && unit.smartLockPin && (
+                  <div className="bg-card dark:bg-card p-3.5 rounded-xl border border-border dark:border-border space-y-1 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                        PIN Smart Lock Pintu Unit
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                        Smart Lock Aktif
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-black text-amber-600 dark:text-amber-400 tracking-wider">
+                        {unit.smartLockPin}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">

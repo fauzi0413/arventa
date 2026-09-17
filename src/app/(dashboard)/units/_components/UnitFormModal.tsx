@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Loader2, Plus, Layers, Sparkles, Info, HelpCircle, Lock, Calculator } from 'lucide-react';
+import { X, Loader2, Plus, Layers, Sparkles, Info, HelpCircle, Lock, Calculator, Key } from 'lucide-react';
 import { Unit, UnitStatus, UnitPricing, UnitCapacity } from '../_types';
 import FacilitySelector, { SelectedInventoryRef } from './FacilitySelector';
 import { Property } from '../../properties/_types';
@@ -66,6 +66,16 @@ export default function UnitFormModal({
   );
   const [selectedInventoryRefs, setSelectedInventoryRefs] = useState<SelectedInventoryRef[]>([]);
   const [description, setDescription] = useState(initialData?.description || '');
+  const [smartLockPin, setSmartLockPin] = useState(initialData?.smartLockPin || '');
+
+  // Smart Lock input hanya aktif jika properti mengaktifkan fitur Smart Lock dan fasilitas Smart Lock dipilih
+  const isSmartLockSelected = useMemo(() => {
+    if (!selectedProperty?.hasSmartLock) return false;
+    return (
+      facilities.some((f) => f.toLowerCase().includes('smart lock')) ||
+      selectedInventoryRefs.some((r) => r.name.toLowerCase().includes('smart lock'))
+    );
+  }, [selectedProperty?.hasSmartLock, facilities, selectedInventoryRefs]);
 
   // Batch Mode states
   const [batchCount, setBatchCount] = useState<number>(5);
@@ -137,6 +147,7 @@ export default function UnitFormModal({
         setTenantName(initialData.tenantName || '');
         setTenantPhone(initialData.tenantPhone || '');
         setCheckInDate(initialData.checkInDate ? initialData.checkInDate.split('T')[0] : '');
+        setSmartLockPin(initialData.smartLockPin || '');
       } else {
         const resolvedPropId = initialPropertyId || properties[0]?.id || '';
         setPropertyId(resolvedPropId);
@@ -146,7 +157,11 @@ export default function UnitFormModal({
         setName('');
         setNamePrefix(resolvedConfig.defaultBatchPrefix);
         setStatus('Available');
-        setFacilities([]);
+        
+        // Inisialisasi fasilitas otomatis jika Smart Lock aktif pada properti (WiFi adalah fasilitas area bersama, bukan dalam unit)
+        const initialFacs: string[] = [];
+        if (currentProp?.hasSmartLock) initialFacs.push('Smart Lock Pintu');
+        setFacilities(initialFacs);
         setInventoryIds([]);
         setSelectedInventoryRefs([]);
         setDescription('');
@@ -160,6 +175,7 @@ export default function UnitFormModal({
         setTenantName('');
         setTenantPhone('');
         setCheckInDate('');
+        setSmartLockPin('');
       }
     }
   }, [initialData, isOpen, initialPropertyId, properties, isSubmitting]);
@@ -255,14 +271,17 @@ export default function UnitFormModal({
           ? inventoryIds
           : selectedInventoryRefs.map((r) => r.inventory_id);
 
+        const finalFacilities = [...facilities];
+
         const unitData: Omit<Unit, 'id' | 'createdAt'> = {
           propertyId,
           name: name.trim(),
           status,
-          facilities,
+          facilities: finalFacilities,
           capacity,
           pricing,
           description: description.trim(),
+          smartLockPin: isSmartLockSelected ? (smartLockPin.trim() || undefined) : undefined,
           tenantName: status === 'Occupied' ? tenantName.trim() || undefined : undefined,
           tenantPhone: status === 'Occupied' ? tenantPhone.trim() || undefined : undefined,
           checkInDate: status === 'Occupied' ? checkInDate || undefined : undefined,
@@ -294,13 +313,18 @@ export default function UnitFormModal({
         const batchInventoryIds = inventoryIds.length > 0
           ? inventoryIds
           : selectedInventoryRefs.map((r) => r.inventory_id);
+        const finalBatchFacilities = [...facilities];
+        if (selectedProperty?.hasSmartLock && !finalBatchFacilities.some((f) => f.toLowerCase().includes('smart lock'))) {
+          finalBatchFacilities.push('Smart Lock Pintu');
+        }
+
         const batchUnitsData: Omit<Unit, 'id' | 'createdAt'>[] = batchNames.map((unitName) => {
           const roomCreds = generateRoomCredentials(unitName);
           return {
             propertyId,
             name: unitName,
             status,
-            facilities,
+            facilities: finalBatchFacilities,
             capacity,
             pricing,
             description: description.trim(),
@@ -365,8 +389,9 @@ export default function UnitFormModal({
           <div className="grid grid-cols-2 gap-2 p-1.5 bg-muted/80 dark:bg-muted/60 rounded-xl mb-4 text-xs font-bold border border-border dark:border-border">
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={() => setCreationMode('single')}
-              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${
                 creationMode === 'single'
                   ? 'bg-card text-card-foreground dark:bg-card dark:text-card-foreground shadow-sm font-black border border-border dark:border-border'
                   : 'text-muted-foreground hover:text-foreground'
@@ -377,8 +402,9 @@ export default function UnitFormModal({
             </button>
             <button
               type="button"
+              disabled={isSubmitting}
               onClick={() => setCreationMode('batch')}
-              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${
                 creationMode === 'batch'
                   ? 'bg-[#8FA28A] text-white shadow-sm font-black'
                   : 'text-muted-foreground hover:text-foreground'
@@ -429,10 +455,11 @@ export default function UnitFormModal({
                 <input
                   type="text"
                   required
+                  disabled={isSubmitting}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder={typeConfig.unitNamePlaceholder}
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -441,9 +468,10 @@ export default function UnitFormModal({
                   Status Awal <span className="text-red-500 font-bold ml-0.5">*</span>
                 </label>
                 <select
+                  disabled={isSubmitting}
                   value={status}
                   onChange={(e) => setStatus(e.target.value as UnitStatus)}
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {STATUS_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -470,9 +498,10 @@ export default function UnitFormModal({
                     min="1"
                     max="50"
                     required
+                    disabled={isSubmitting}
                     value={batchCount}
                     onChange={(e) => setBatchCount(Math.min(50, Math.max(1, Number(e.target.value))))}
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -482,10 +511,11 @@ export default function UnitFormModal({
                   </label>
                   <input
                     type="text"
+                    disabled={isSubmitting}
                     value={namePrefix}
                     onChange={(e) => setNamePrefix(e.target.value)}
                     placeholder={`Contoh: ${typeConfig.defaultBatchPrefix}`}
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
 
@@ -497,9 +527,10 @@ export default function UnitFormModal({
                     type="number"
                     min="1"
                     required
+                    disabled={isSubmitting}
                     value={startNumber}
                     onChange={(e) => setStartNumber(Math.max(1, Number(e.target.value)))}
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -532,9 +563,10 @@ export default function UnitFormModal({
                 Status Awal <span className="text-red-500 font-bold ml-0.5">*</span>
               </label>
               <select
+                disabled={isSubmitting}
                 value={status}
                 onChange={(e) => setStatus(e.target.value as UnitStatus)}
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {STATUS_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -555,9 +587,10 @@ export default function UnitFormModal({
                 type="number"
                 min="1"
                 required
+                disabled={isSubmitting}
                 value={maxPersons}
                 onChange={(e) => setMaxPersons(Math.max(1, Number(e.target.value)))}
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -568,10 +601,11 @@ export default function UnitFormModal({
               <input
                 type="text"
                 required
+                disabled={isSubmitting}
                 value={dimensions}
                 onChange={(e) => setDimensions(e.target.value)}
                 placeholder={typeConfig.dimensionsPlaceholder}
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -602,11 +636,12 @@ export default function UnitFormModal({
                   {priceMonthly !== '' && Number(priceMonthly) > 0 && priceYearly === '' ? (
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => {
                         const calculated = Number(priceMonthly) * 12;
                         setPriceYearly(calculated);
                       }}
-                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Hitung estimasi harga tahunan (Bulanan × 12)"
                     >
                       <Calculator className="h-3 w-3" />
@@ -619,10 +654,11 @@ export default function UnitFormModal({
                 <input
                   type="text"
                   inputMode="numeric"
+                  disabled={isSubmitting}
                   value={priceYearly !== '' && priceYearly !== undefined && priceYearly !== null ? new Intl.NumberFormat('id-ID').format(Number(priceYearly)) : ''}
                   onChange={(e) => handleYearlyPriceChange(e.target.value)}
                   placeholder={typeConfig.type === 'KONTRAKAN' ? "Contoh: 25.000.000" : typeConfig.type === 'RUKO' ? "Contoh: 45.000.000" : "Contoh: 18.000.000"}
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -638,11 +674,12 @@ export default function UnitFormModal({
                   {priceYearly !== '' && Number(priceYearly) > 0 ? (
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => {
                         const calculated = Math.round(Number(priceYearly) / 12);
                         setPriceMonthly(calculated);
                       }}
-                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Hitung estimasi harga bulanan dari harga tahunan (dibagi 12)"
                     >
                       <Calculator className="h-3 w-3" />
@@ -655,10 +692,11 @@ export default function UnitFormModal({
                 <input
                   type="text"
                   inputMode="numeric"
+                  disabled={isSubmitting}
                   value={priceMonthly !== '' && priceMonthly !== undefined && priceMonthly !== null ? new Intl.NumberFormat('id-ID').format(Number(priceMonthly)) : ''}
                   onChange={(e) => handleMonthlyPriceChange(e.target.value)}
                   placeholder="Contoh: 1.500.000"
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -671,11 +709,12 @@ export default function UnitFormModal({
                   {priceMonthly !== '' && Number(priceMonthly) > 0 ? (
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => {
                         const calculated = Math.round(Number(priceMonthly) / 30);
                         setPriceDaily(calculated);
                       }}
-                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Hitung estimasi harga harian dari harga bulanan (dibagi 30 hari)"
                     >
                       <Calculator className="h-3 w-3" />
@@ -684,11 +723,12 @@ export default function UnitFormModal({
                   ) : priceYearly !== '' && Number(priceYearly) > 0 ? (
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => {
                         const calculated = Math.round(Number(priceYearly) / 365);
                         setPriceDaily(calculated);
                       }}
-                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Hitung estimasi harga harian dari harga tahunan (dibagi 365 hari)"
                     >
                       <Calculator className="h-3 w-3" />
@@ -699,13 +739,14 @@ export default function UnitFormModal({
                 <input
                   type="text"
                   inputMode="numeric"
+                  disabled={isSubmitting}
                   value={priceDaily !== '' && priceDaily !== undefined && priceDaily !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDaily)) : ''}
                   onChange={(e) => {
                     const clean = e.target.value.replace(/\D/g, '');
                     setPriceDaily(clean ? Number(clean) : '');
                   }}
                   placeholder="Contoh: 150.000"
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -717,13 +758,14 @@ export default function UnitFormModal({
                 <input
                   type="text"
                   inputMode="numeric"
+                  disabled={isSubmitting}
                   value={priceDeposit !== '' && priceDeposit !== undefined && priceDeposit !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDeposit)) : ''}
                   onChange={(e) => {
                     const clean = e.target.value.replace(/\D/g, '');
                     setPriceDeposit(clean ? Number(clean) : '');
                   }}
                   placeholder="Contoh: 500.000"
-                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -733,10 +775,11 @@ export default function UnitFormModal({
             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Keterangan Biaya / Utilitas</label>
             <input
               type="text"
+              disabled={isSubmitting}
               value={utilities}
               onChange={(e) => setUtilities(e.target.value)}
               placeholder={typeConfig.type === 'APARTEMEN' ? "Contoh: Listrik token mandiri, IPL Rp 350.000/bln" : typeConfig.type === 'RUKO' ? "Contoh: Daya listrik 4400W pascabayar, PBB ditanggung penyewa" : "Contoh: Listrik token mandiri, PDAM termasuk"}
-              className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+              className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -748,12 +791,39 @@ export default function UnitFormModal({
             unitName={creationMode === 'batch' ? `Batch (${getBatchPreviewNames().length} Unit Sekaligus)` : (name || initialData?.name)}
             selectedFacilities={facilities}
             selectedInventoryIds={inventoryIds}
+            disabled={isSubmitting}
             onChange={(newFacilities, newInventoryIds) => {
               setFacilities(newFacilities);
               setInventoryIds(newInventoryIds);
             }}
             onSelectedInventoryChange={setSelectedInventoryRefs}
           />
+
+          {/* Smart Lock PIN (Khusus Single Unit & Hanya Tampil Jika Fasilitas Smart Lock Dipilih) */}
+          {creationMode === 'single' && isSmartLockSelected && (
+            <div className="rounded-xl border border-border/80 bg-card p-4 space-y-2 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                  <Key className="h-4 w-4 text-[#8FA28A]" />
+                  PIN Smart Lock Pintu Unit
+                </label>
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                  Smart Lock Aktif
+                </span>
+              </div>
+              <input
+                type="text"
+                disabled={isSubmitting}
+                value={smartLockPin}
+                onChange={(e) => setSmartLockPin(e.target.value)}
+                placeholder="Contoh: 123456 atau 8899#"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                PIN khusus untuk unit ini. Akan otomatis ditampilkan di Portal Kamar penyewa unit ini.
+              </p>
+            </div>
+          )}
 
           {/* Active Tenant assignment (read-only/disabled view for Occupied units) */}
           {creationMode === 'single' && (status === 'Occupied' || (status as string) === 'OCCUPIED') && (
@@ -805,10 +875,11 @@ export default function UnitFormModal({
             <label className="block text-xs font-bold text-gray-700 mb-1">Keterangan Tambahan / Deskripsi</label>
             <textarea
               rows={2}
+              disabled={isSubmitting}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Tambahkan catatan khusus mengenai unit..."
-              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none resize-none"
+              className="w-full rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none resize-none disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 

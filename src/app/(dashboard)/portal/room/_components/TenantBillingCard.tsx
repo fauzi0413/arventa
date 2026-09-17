@@ -5,7 +5,7 @@ import { CreditCard, Calendar, CheckCircle2, AlertCircle, Clock, FileText, Arrow
 import { TenantBillingSummary } from '../_types';
 
 interface TenantBillingCardProps {
-  billing?: TenantBillingSummary;
+  billing?: TenantBillingSummary | null;
   monthlyRent: number;
 }
 
@@ -18,16 +18,42 @@ export default function TenantBillingCard({ billing, monthlyRent }: TenantBillin
     }).format(val);
   };
 
-  // Fallback default billing data if none provided
-  const activeBilling: TenantBillingSummary = billing || {
-    invoiceNumber: 'INV-202608-001',
-    billingMonth: 'Agustus 2026',
-    monthlyRent: monthlyRent,
-    utilitiesCost: 150000,
-    totalAmount: monthlyRent + 150000,
-    dueDate: '2026-08-25',
-    paymentStatus: 'Pending',
-  };
+  if (!billing) {
+    return (
+      <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-6 flex flex-col justify-between">
+        <div className="space-y-5">
+          {/* Card Header */}
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-[#8FA28A]" />
+              <h3 className="text-sm font-black text-foreground uppercase tracking-wider">Status Tagihan Bulanan</h3>
+            </div>
+            <span className="rounded-full border border-border px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground bg-muted/40 uppercase tracking-wider">
+              Tidak Ada Tagihan
+            </span>
+          </div>
+
+          {/* Empty State Banner */}
+          <div className="rounded-xl border border-dashed border-border p-6 text-center space-y-2">
+            <div className="h-10 w-10 rounded-full bg-muted/60 flex items-center justify-center mx-auto text-muted-foreground">
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <p className="text-xs font-bold text-foreground">Belum Ada Tagihan Aktif</p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Tidak ada tagihan yang harus dibayar saat ini. Tagihan sewa akan terbit otomatis saat unit terisi penyewa dan memiliki kontrak sewa aktif.
+            </p>
+          </div>
+        </div>
+
+        {/* Disabled Action Footer */}
+        <div className="pt-2 border-t border-border/50 text-center">
+          <span className="text-[11px] text-muted-foreground italic">Semua tagihan lunas atau belum diterbitkan</span>
+        </div>
+      </div>
+    );
+  }
+
+  const activeBilling = billing;
 
   const getStatusBadge = (status: 'Lunas' | 'Jatuh Tempo' | 'Pending') => {
     switch (status) {

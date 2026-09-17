@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, UploadCloud, Image as ImageIcon, Trash2, Loader2, AlertCircle, CheckCircle2, MapPin, ChevronDown, Check, Search } from 'lucide-react';
+import { X, UploadCloud, Image as ImageIcon, Trash2, Loader2, AlertCircle, CheckCircle2, MapPin, ChevronDown, Check, Search, Wifi, Lock } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import { getPropertyTypeConfig } from '@/lib/utils/propertyTypeConfig';
 import { INDONESIA_CITIES } from '@/lib/constants/indonesia-cities';
@@ -52,6 +52,10 @@ export default function PropertyFormModal({
   const [statusId, setStatusId] = useState('');
   const [defaultLateFee, setDefaultLateFee] = useState<number | ''>(50000);
   const [defaultDeposit, setDefaultDeposit] = useState<number | ''>(0);
+  const [hasWifi, setHasWifi] = useState(false);
+  const [wifiSsid, setWifiSsid] = useState('');
+  const [wifiPassword, setWifiPassword] = useState('');
+  const [hasSmartLock, setHasSmartLock] = useState(false);
   const [description, setDescription] = useState('');
 
   // Image Upload State
@@ -111,6 +115,10 @@ export default function PropertyFormModal({
         setStatusId(initialData.statusId === 'st-4' ? defaultStatusId : (initialData.statusId || defaultStatusId));
         setDefaultLateFee(initialData.defaultLateFee ?? 50000);
         setDefaultDeposit(initialData.defaultDeposit ?? 0);
+        setHasWifi(Boolean(initialData.hasWifi));
+        setWifiSsid(initialData.wifiSsid || '');
+        setWifiPassword(initialData.wifiPassword || '');
+        setHasSmartLock(Boolean(initialData.hasSmartLock));
         setDescription(initialData.description || '');
         setPreviewUrl(initialData.imageUrl || '');
         setSelectedFile(null);
@@ -122,6 +130,10 @@ export default function PropertyFormModal({
         setStatusId(defaultStatusId);
         setDefaultLateFee(50000);
         setDefaultDeposit(0);
+        setHasWifi(false);
+        setWifiSsid('');
+        setWifiPassword('');
+        setHasSmartLock(false);
         setDescription('');
         setPreviewUrl('');
         setSelectedFile(null);
@@ -243,6 +255,10 @@ export default function PropertyFormModal({
         occupiedUnits: initialData?.occupiedUnits || 0,
         defaultLateFee: Number(defaultLateFee || 50000),
         defaultDeposit: Number(defaultDeposit || 0),
+        hasWifi,
+        wifiSsid: hasWifi ? (wifiSsid.trim() || undefined) : undefined,
+        wifiPassword: hasWifi ? (wifiPassword.trim() || undefined) : undefined,
+        hasSmartLock,
         description: description.trim(),
         imageUrl: finalImageUrl.trim() || undefined,
       });
@@ -505,6 +521,98 @@ export default function PropertyFormModal({
                 <p className="text-[10px] text-muted-foreground mt-1">
                   Nominal deposit default saat membuat Unit atau Kontrak Sewa baru.
                 </p>
+              </div>
+            </div>
+
+            {/* Fasilitas Digital & Akses (WiFi & Smart Lock) */}
+            <div className="rounded-2xl border border-border bg-muted/20 p-4 space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
+                <Wifi className="h-4 w-4 text-[#8FA28A]" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  Akses Digital & Fasilitas (WiFi & Smart Lock)
+                </h4>
+              </div>
+
+              {/* Toggle WiFi Properti */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-foreground block">Fasilitas WiFi Bersama</label>
+                    <p className="text-[11px] text-muted-foreground">Aktifkan jika properti ini menyediakan jaringan WiFi untuk penghuni.</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => setHasWifi(!hasWifi)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      hasWifi ? 'bg-[#8FA28A]' : 'bg-muted border-border'
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                        hasWifi ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {hasWifi && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                      <label className="block text-[11px] font-bold text-foreground mb-1">
+                        Nama SSID Jaringan WiFi
+                      </label>
+                      <input
+                        type="text"
+                        disabled={isSubmitting}
+                        value={wifiSsid}
+                        onChange={(e) => setWifiSsid(e.target.value)}
+                        placeholder="Contoh: WiFi-Melati-Utama"
+                        className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-foreground text-xs font-medium focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-foreground mb-1">
+                        Kata Sandi WiFi
+                      </label>
+                      <input
+                        type="text"
+                        disabled={isSubmitting}
+                        value={wifiPassword}
+                        onChange={(e) => setWifiPassword(e.target.value)}
+                        placeholder="Contoh: melati12345"
+                        className="w-full px-3.5 py-2 rounded-xl border border-border bg-background text-foreground text-xs font-medium focus:border-[#8FA28A] focus:outline-none shadow-2xs"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle Smart Lock Properti */}
+              <div className="pt-2 border-t border-border/50 flex items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Lock className="h-3.5 w-3.5 text-[#8FA28A]" />
+                    <label className="text-xs font-bold text-foreground block">Fitur Smart Lock Pintu Unit</label>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    Pilihan ada atau tidak. Jika aktif, PIN Smart Lock unik dapat dimasukkan pada masing-masing unit kamar.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => setHasSmartLock(!hasSmartLock)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    hasSmartLock ? 'bg-[#8FA28A]' : 'bg-muted border-border'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                      hasSmartLock ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
               </div>
             </div>
 

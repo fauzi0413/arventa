@@ -36,6 +36,7 @@ interface FacilitySelectorProps {
   selectedInventoryIds?: string[];
   onChange: (facilities: string[], inventoryIds: string[]) => void;
   onSelectedInventoryChange?: (items: SelectedUnitInventoryRef[]) => void;
+  disabled?: boolean;
 }
 
 import FacilityIcon from '@/components/common/FacilityIcon';
@@ -49,6 +50,7 @@ export default function FacilitySelector({
   selectedInventoryIds = [],
   onChange,
   onSelectedInventoryChange,
+  disabled = false,
 }: FacilitySelectorProps) {
   const typeConfig = getPropertyTypeConfig(propertyType);
   const predefinedItems = typeConfig.defaultFacilities;
@@ -86,7 +88,11 @@ export default function FacilitySelector({
         const unitInvs = json.data?.unitInventories || [];
 
         if (Array.isArray(propItems)) {
-          const unitOnlyItems = propItems.filter((p: any) => !p.locationType || p.locationType === 'UNIT');
+          const unitOnlyItems = propItems.filter((p: any) => {
+            if (p.locationType === 'COMMON_AREA') return false;
+            if (p.itemName?.toLowerCase().includes('wifi')) return false;
+            return !p.locationType || p.locationType === 'UNIT';
+          });
           setMasterItems(
             unitOnlyItems.map((p: any) => ({
               id: p.id,
@@ -292,8 +298,9 @@ export default function FacilitySelector({
         {/* CTA Button */}
         <button
           type="button"
+          disabled={disabled}
           onClick={() => setIsAddMasterOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8FA28A]/15 hover:bg-[#8FA28A]/25 text-[#8FA28A] border border-[#8FA28A]/30 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-2xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8FA28A]/15 hover:bg-[#8FA28A]/25 text-[#8FA28A] border border-[#8FA28A]/30 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-3.5 w-3.5" />
           <span>Tambah Barang Baru</span>
@@ -334,8 +341,9 @@ export default function FacilitySelector({
               <button
                 key={master.id}
                 type="button"
+                disabled={disabled}
                 onClick={() => toggleFacility(master)}
-                className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all text-left cursor-pointer ${
+                className={`flex items-center justify-between rounded-xl border p-2.5 text-xs transition-all text-left ${disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} ${
                   isSelected
                     ? 'border-[#8FA28A] bg-[#8FA28A]/10 text-foreground font-bold shadow-2xs'
                     : 'border-border bg-card/90 text-muted-foreground font-semibold hover:border-[#8FA28A]/50 hover:bg-muted/30 hover:text-foreground'

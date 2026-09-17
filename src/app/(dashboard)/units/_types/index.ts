@@ -30,6 +30,7 @@ export interface Unit {
   roomEmail?: string;
   roomPassword?: string;
   roomPasswordLastReset?: string;
+  smartLockPin?: string;
   inventoryIds?: string[];
   createdAt: string;
 }

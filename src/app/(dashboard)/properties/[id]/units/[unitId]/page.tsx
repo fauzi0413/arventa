@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import {
@@ -38,6 +38,7 @@ import AssignTenantModal from '@/app/(dashboard)/units/_components/AssignTenantM
 import UnitFormModal from '@/app/(dashboard)/units/_components/UnitFormModal';
 import ImageFileInput from '@/app/(dashboard)/housekeeping/maintenance-reports/components/common/ImageFileInput';
 import TenantInvoiceHistoryModal from './_components/TenantInvoiceHistoryModal';
+import FacilityIcon from '@/components/common/FacilityIcon';
 
 const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   switch (cond) {
@@ -63,6 +64,7 @@ export default function PropertyUnitDetailPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [unit, setUnit] = useState<Unit | null>(null);
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
+  const [inventoryFilter, setInventoryFilter] = useState<'ALL' | 'UNIT' | 'COMMON_AREA'>('ALL');
   const [loading, setLoading] = useState(true);
   const [isEditUnitModalOpen, setIsEditUnitModalOpen] = useState(false);
   const [invoiceKPI, setInvoiceKPI] = useState<{
@@ -135,7 +137,7 @@ export default function PropertyUnitDetailPage() {
     };
   };
 
-  const resolveUnitInventories = async (unitObj: any, propId: string) => {
+  const resolveUnitInventories = async (unitObj: any, propId: string, currentProp?: Property | null) => {
     let resolved: InventoryItem[] = [];
     const selectedNames = Array.isArray(unitObj.facilities) ? unitObj.facilities : [];
     const selectedIds = Array.isArray(unitObj.inventoryIds) ? unitObj.inventoryIds : [];
@@ -149,18 +151,25 @@ export default function PropertyUnitDetailPage() {
           propMasterItems.forEach((p: any) => {
             const isMatchById = selectedIds.includes(p.id);
             const isMatchByName = selectedNames.some((n: string) => n.toLowerCase() === p.itemName?.toLowerCase());
-            if (isMatchById || isMatchByName) {
-              resolved.push({
-                id: p.id,
-                propertyId: propId,
-                unitId: unitObj.id,
-                unitName: unitObj.name,
-                name: p.itemName,
-                locationType: p.locationType || 'UNIT',
-                condition: p.condition || 'Baik',
-                imageUrl: p.imageUrl,
-                lastUpdated: p.updatedAt || new Date().toISOString(),
-              });
+            const isCommonArea = p.locationType === 'COMMON_AREA';
+
+            if (isMatchById || isMatchByName || isCommonArea) {
+              const alreadyExists = resolved.some(
+                (r) => r.id === p.id || (r.name.toLowerCase() === p.itemName?.toLowerCase() && r.locationType === p.locationType)
+              );
+              if (!alreadyExists) {
+                resolved.push({
+                  id: p.id,
+                  propertyId: propId,
+                  unitId: isCommonArea ? undefined : unitObj.id,
+                  unitName: isCommonArea ? 'Area Umum' : unitObj.name,
+                  name: p.itemName,
+                  locationType: (p.locationType as 'UNIT' | 'COMMON_AREA') || (isCommonArea ? 'COMMON_AREA' : 'UNIT'),
+                  condition: (p.condition as InventoryCondition) || 'Baik',
+                  imageUrl: p.imageUrl,
+                  lastUpdated: p.updatedAt || new Date().toISOString(),
+                });
+              }
             }
           });
         }
@@ -169,9 +178,9 @@ export default function PropertyUnitDetailPage() {
       console.warn('Failed to fetch property master inventory:', e);
     }
 
-    // If any selected facility name is not yet in resolved items, append it cleanly
+    // If any selected facility name for unit is not yet in resolved items, append it cleanly
     selectedNames.forEach((facName: string, idx: number) => {
-      if (!resolved.some((r) => r.name.toLowerCase() === facName.toLowerCase())) {
+      if (!resolved.some((r) => r.name.toLowerCase() === facName.toLowerCase() && r.locationType === 'UNIT')) {
         resolved.push({
           id: `unit-fac-${idx}-${Date.now()}`,
           propertyId: propId,
@@ -184,6 +193,19 @@ export default function PropertyUnitDetailPage() {
         });
       }
     });
+
+    // If property has WiFi enabled and no WiFi item exists in resolved list, add common area WiFi item
+    if (currentProp?.hasWifi && !resolved.some((r) => r.name.toLowerCase().includes('wifi'))) {
+      resolved.push({
+        id: `prop-wifi-${propId}`,
+        propertyId: propId,
+        unitName: 'Area Umum',
+        name: currentProp.wifiSsid ? `WiFi (${currentProp.wifiSsid})` : 'WiFi / Internet',
+        locationType: 'COMMON_AREA',
+        condition: 'Baik',
+        lastUpdated: new Date().toISOString(),
+      });
+    }
 
     return resolved;
   };
@@ -205,6 +227,7 @@ export default function PropertyUnitDetailPage() {
           facilities: unitData.facilities,
           description: unitData.description,
           inventoryIds: unitData.inventoryIds,
+          smartLockPin: unitData.smartLockPin,
         }),
       });
 
@@ -213,16 +236,17 @@ export default function PropertyUnitDetailPage() {
         const updatedData = json.data;
         if (updatedData) {
           setUnit(updatedData);
-          const resolved = await resolveUnitInventories(updatedData, propertyId);
+          const resolved = await resolveUnitInventories(updatedData, propertyId, property);
           setInventories(resolved);
         } else {
-          setUnit({ ...unit, ...unitData });
-          const resolved = await resolveUnitInventories({ ...unit, ...unitData, id: unit.id }, propertyId);
+          setUnit((prev) => (prev ? { ...prev, ...unitData } : null));
+          const resolved = await resolveUnitInventories({ ...unit, ...unitData, id: unit.id }, propertyId, property);
           setInventories(resolved);
         }
+        await fetchUnitData();
       } else {
-        setUnit({ ...unit, ...unitData });
-        const resolved = await resolveUnitInventories({ ...unit, ...unitData, id: unit.id }, propertyId);
+        setUnit((prev) => (prev ? { ...prev, ...unitData } : null));
+        const resolved = await resolveUnitInventories({ ...unit, ...unitData, id: unit.id }, propertyId, property);
         setInventories(resolved);
       }
 
@@ -315,9 +339,8 @@ export default function PropertyUnitDetailPage() {
     }
   };
 
-  useEffect(() => {
-    const fetchUnitData = async () => {
-      // 1. Attempt API fetch
+  const fetchUnitData = useCallback(async () => {
+    // 1. Attempt API fetch
       try {
         const res = await fetch(`/api/units/${unitId}`);
         if (res.ok) {
@@ -348,6 +371,10 @@ export default function PropertyUnitDetailPage() {
                     description: pRaw.description || '',
                     imageUrl: pRaw.coverImage || 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=600',
                     hasCleaningService: pRaw.hasCleaningService ?? true,
+                    hasWifi: Boolean(pRaw.hasWifi),
+                    wifiSsid: pRaw.wifiSsid || null,
+                    wifiPassword: pRaw.wifiPassword || null,
+                    hasSmartLock: Boolean(pRaw.hasSmartLock),
                     createdAt: pRaw.createdAt || new Date().toISOString(),
                   };
                 }
@@ -403,8 +430,8 @@ export default function PropertyUnitDetailPage() {
               setInvoiceKPI(resolveInvoiceKPILogic([], uData.pricing?.monthly || 4500000));
             }
 
-            // Resolve inventories strictly from unit facilities / inventoryIds
-            const resolvedUnitInvs = await resolveUnitInventories(uData, propertyId);
+            // Resolve inventories from unit facilities / inventoryIds & property common area
+            const resolvedUnitInvs = await resolveUnitInventories(uData, propertyId, pData);
             setInventories(resolvedUnitInvs);
             setLoading(false);
             return;
@@ -454,11 +481,12 @@ export default function PropertyUnitDetailPage() {
       } else {
         setInventories([]);
       }
-      setLoading(false);
-    };
-
-    fetchUnitData();
+    setLoading(false);
   }, [propertyId, unitId]);
+
+  useEffect(() => {
+    fetchUnitData();
+  }, [fetchUnitData]);
 
   const [isAssignTenantOpen, setIsAssignTenantOpen] = useState(false);
 
@@ -886,6 +914,24 @@ export default function PropertyUnitDetailPage() {
                     </span>
                   )}
                 </div>
+
+                {property?.hasSmartLock && (
+                  <div className="bg-card dark:bg-card p-3.5 rounded-xl border border-border dark:border-border space-y-1 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase block">
+                        PIN Smart Lock Pintu Unit
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                        Smart Lock Aktif
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-black text-amber-600 dark:text-amber-400 tracking-wider">
+                        {unit.smartLockPin || 'Belum diatur (Edit unit untuk isi PIN)'}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -902,96 +948,172 @@ export default function PropertyUnitDetailPage() {
             )}
           </div>
 
-          {/* Unit Inventory List */}
-          <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-border pb-3">
-              <div>
-                <h3 className="text-base font-bold text-foreground dark:text-foreground flex items-center gap-2">
-                  <Package className="h-5 w-5 text-[#8FA28A]" />
-                  <span>Fasilitas & Inventaris Kamar</span>
-                </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Daftar fasilitas dan perabot yang terdaftar di dalam kamar ini.
-                </p>
-              </div>
-            </div>
+          {/* Unit & Common Area Inventory List */}
+          {(() => {
+            const filteredInventories = inventories.filter((i) => {
+              if (inventoryFilter === 'UNIT') return i.locationType !== 'COMMON_AREA';
+              if (inventoryFilter === 'COMMON_AREA') return i.locationType === 'COMMON_AREA';
+              return true;
+            });
+            const unitCount = inventories.filter((i) => i.locationType !== 'COMMON_AREA').length;
+            const commonCount = inventories.filter((i) => i.locationType === 'COMMON_AREA').length;
 
-            {inventories.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border dark:border-border p-8 text-center space-y-3">
-                <Package className="h-8 w-8 text-muted-foreground mx-auto opacity-40" />
-                <p className="text-xs text-muted-foreground">
-                  Belum ada fasilitas atau perabot yang terdaftar untuk kamar ini.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setIsEditUnitModalOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors cursor-pointer shadow-xs"
-                >
-                  + Pilih Fasilitas Kamar
-                </button>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {inventories.map((item) => {
-                  return (
-                    <div
-                      key={item.id}
-                      className="rounded-xl border border-border dark:border-border bg-card dark:bg-card p-3.5 shadow-2xs hover:border-[#8FA28A]/40 transition-all flex flex-col justify-between"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Photo Thumbnail / N/A Badge */}
-                          <div className="h-12 w-12 shrink-0 rounded-xl overflow-hidden bg-muted/40 border border-border flex items-center justify-center">
-                            {item.imageUrl ? (
-                              <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
-                            ) : (
-                              <div className="h-full w-full flex flex-col items-center justify-center text-[10px] text-muted-foreground font-bold uppercase bg-muted/30">
-                                <span>N/A</span>
-                              </div>
-                            )}
-                          </div>
+            return (
+              <div className="rounded-2xl border border-border dark:border-border bg-card dark:bg-card text-card-foreground dark:text-card-foreground p-6 shadow-sm space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border dark:border-border pb-3">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground dark:text-foreground flex items-center gap-2">
+                      <Package className="h-5 w-5 text-[#8FA28A]" />
+                      <span>Fasilitas & Inventaris</span>
+                    </h3>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      Daftar fasilitas kamar dan fasilitas area umum properti.
+                    </p>
+                  </div>
 
-                          <div className="min-w-0">
-                            <h4 className="text-xs font-bold text-foreground dark:text-foreground truncate">
-                              {item.name}
-                            </h4>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              Terverifikasi: {new Date(item.lastUpdated).toLocaleDateString('id-ID', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })}
-                            </p>
-                          </div>
-                        </div>
-
-                        <span
-                          className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 ${CONDITION_BADGE_STYLE(
-                            item.condition
-                          )}`}
-                        >
-                          {item.condition}
-                        </span>
-                      </div>
-
-                      {(item.condition === 'Perlu Perbaikan' || item.condition === 'Rusak Berat') && (
-                        <div className="mt-3 pt-2 border-t border-border/60 dark:border-border/60 flex items-center justify-end">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenCreateTicket('REPAIR', `Perbaikan ${item.name} (${unit.name})`)}
-                            className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 transition-colors shadow-xs cursor-pointer"
-                          >
-                            <Wrench className="h-3 w-3" />
-                            Tiket Perbaikan
-                          </button>
-                        </div>
-                      )}
+                  {/* Filter Tabs */}
+                  {inventories.length > 0 && (
+                    <div className="flex items-center gap-1 p-1 bg-muted/40 dark:bg-muted/20 rounded-xl border border-border text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setInventoryFilter('ALL')}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px] ${
+                          inventoryFilter === 'ALL'
+                            ? 'bg-card text-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Semua ({inventories.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInventoryFilter('UNIT')}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px] ${
+                          inventoryFilter === 'UNIT'
+                            ? 'bg-card text-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Dalam Kamar ({unitCount})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setInventoryFilter('COMMON_AREA')}
+                        className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer text-[11px] ${
+                          inventoryFilter === 'COMMON_AREA'
+                            ? 'bg-card text-foreground shadow-xs font-bold'
+                            : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        Area Umum ({commonCount})
+                      </button>
                     </div>
-                  );
-                })}
+                  )}
+                </div>
+
+                {filteredInventories.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border dark:border-border p-8 text-center space-y-3">
+                    <Package className="h-8 w-8 text-muted-foreground mx-auto opacity-40" />
+                    <p className="text-xs text-muted-foreground">
+                      {inventoryFilter === 'COMMON_AREA'
+                        ? 'Belum ada fasilitas area umum yang terdaftar untuk properti ini.'
+                        : 'Belum ada fasilitas atau perabot yang terdaftar untuk kamar ini.'}
+                    </p>
+                    {inventoryFilter !== 'COMMON_AREA' && (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditUnitModalOpen(true)}
+                        className="px-4 py-2 rounded-xl bg-[#8FA28A] text-white text-xs font-bold hover:bg-[#8FA28A]/90 transition-colors cursor-pointer shadow-xs"
+                      >
+                        + Pilih Fasilitas Kamar
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {filteredInventories.map((item) => {
+                      const isCommon = item.locationType === 'COMMON_AREA';
+                      return (
+                        <div
+                          key={item.id}
+                          className="rounded-xl border border-border dark:border-border bg-card dark:bg-card p-3.5 shadow-2xs hover:border-[#8FA28A]/40 transition-all flex flex-col justify-between"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              {/* Photo Thumbnail or Clean Facility Icon (No N/A box) */}
+                              <div
+                                className={`h-11 w-11 shrink-0 rounded-xl overflow-hidden flex items-center justify-center border ${
+                                  isCommon
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                                    : 'bg-[#8FA28A]/10 text-[#8FA28A] border-[#8FA28A]/20'
+                                }`}
+                              >
+                                {item.imageUrl ? (
+                                  <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <FacilityIcon name={item.name} className="h-5 w-5" />
+                                )}
+                              </div>
+
+                              <div className="min-w-0 space-y-0.5">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4 className="text-xs font-bold text-foreground dark:text-foreground truncate">
+                                    {item.name}
+                                  </h4>
+                                  <span
+                                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md border shrink-0 ${
+                                      isCommon
+                                        ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/25'
+                                        : 'bg-[#8FA28A]/10 text-[#8FA28A] border-[#8FA28A]/25'
+                                    }`}
+                                  >
+                                    {isCommon ? 'Area Umum' : 'Dalam Kamar'}
+                                  </span>
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Terverifikasi: {new Date(item.lastUpdated).toLocaleDateString('id-ID', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0 ${CONDITION_BADGE_STYLE(
+                                item.condition
+                              )}`}
+                            >
+                              {item.condition}
+                            </span>
+                          </div>
+
+                          {(item.condition === 'Perlu Perbaikan' || item.condition === 'Rusak Berat') && (
+                            <div className="mt-3 pt-2 border-t border-border/60 dark:border-border/60 flex items-center justify-end">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleOpenCreateTicket(
+                                    'REPAIR',
+                                    `Perbaikan ${item.name} (${isCommon ? 'Area Umum' : unit.name})`
+                                  )
+                                }
+                                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold flex items-center gap-1 transition-colors shadow-xs cursor-pointer"
+                              >
+                                <Wrench className="h-3 w-3" />
+                                Tiket Perbaikan
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
         {/* Right Side Column: Pricing details, Active Tenant & Housekeeping Service */}

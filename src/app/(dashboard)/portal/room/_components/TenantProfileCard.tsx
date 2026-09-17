@@ -6,9 +6,9 @@ import { Unit } from '@/app/(dashboard)/units/_types';
 
 interface TenantProfileCardProps {
   unit: Unit;
-  wifiSsid?: string;
-  wifiPassword?: string;
-  smartLockCode?: string;
+  wifiSsid?: string | null;
+  wifiPassword?: string | null;
+  smartLockCode?: string | null;
 }
 
 export default function TenantProfileCard({ unit, wifiSsid, wifiPassword, smartLockCode }: TenantProfileCardProps) {
@@ -20,9 +20,10 @@ export default function TenantProfileCard({ unit, wifiSsid, wifiPassword, smartL
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const hasTenant = Boolean(unit.tenantName && unit.tenantName !== 'Belum Ada Penyewa');
+
   const getRemainingDays = (checkInDateStr?: string) => {
-    if (!checkInDateStr) return 'N/A';
-    // Calculate a dummy lease end date (e.g. 1 month from check-in) for visualization
+    if (!checkInDateStr || !hasTenant) return '-';
     const checkIn = new Date(checkInDateStr);
     const end = new Date(checkIn);
     end.setMonth(end.getMonth() + 1);
@@ -45,39 +46,55 @@ export default function TenantProfileCard({ unit, wifiSsid, wifiPassword, smartL
       </div>
 
       {/* Tenant Identity */}
-      <div className="flex items-center gap-3.5 bg-[#8FA28A]/10 p-4 rounded-xl border border-[#8FA28A]/20">
-        <div className="h-11 w-11 rounded-full bg-[#8FA28A] text-white flex items-center justify-center font-bold text-base shadow-sm">
-          {unit.tenantName?.substring(0, 2).toUpperCase() || 'TN'}
+      {hasTenant ? (
+        <div className="flex items-center gap-3.5 bg-[#8FA28A]/10 p-4 rounded-xl border border-[#8FA28A]/20">
+          <div className="h-11 w-11 rounded-full bg-[#8FA28A] text-white flex items-center justify-center font-bold text-base shadow-sm">
+            {unit.tenantName?.substring(0, 2).toUpperCase() || 'TN'}
+          </div>
+          <div>
+            <h4 className="text-sm font-black text-foreground">{unit.tenantName}</h4>
+            <p className="text-[10px] text-[#8FA28A] font-bold uppercase tracking-wider">Penyewa Terdaftar</p>
+          </div>
         </div>
-        <div>
-          <h4 className="text-sm font-black text-foreground">{unit.tenantName || 'Penyewa'}</h4>
-          <p className="text-[10px] text-[#8FA28A] font-bold uppercase tracking-wider">Penyewa Terdaftar</p>
+      ) : (
+        <div className="flex items-center gap-3.5 bg-muted/50 p-4 rounded-xl border border-border">
+          <div className="h-11 w-11 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-bold text-base shadow-xs border border-border">
+            <User className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-foreground">Belum Ada Penyewa</h4>
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wider">Unit Kosong / Belum Terisi</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Lease Details */}
       <div className="space-y-3.5 text-xs">
         <div className="flex items-center justify-between border-b border-border/50 pb-2">
           <span className="text-muted-foreground flex items-center gap-1.5">
-            <Phone className="h-3.5 w-3.5 text-muted-foreground/70" /> WhatsApp Anda
+            <Phone className="h-3.5 w-3.5 text-muted-foreground/70" /> WhatsApp Penyewa
           </span>
-          <span className="font-bold text-foreground">{unit.tenantPhone || 'N/A'}</span>
+          <span className="font-bold text-foreground">{hasTenant ? (unit.tenantPhone || '-') : '-'}</span>
         </div>
 
         <div className="flex items-center justify-between border-b border-border/50 pb-2">
           <span className="text-muted-foreground flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground/70" /> Tanggal Check-In
           </span>
-          <span className="font-bold text-foreground">{unit.checkInDate || 'N/A'}</span>
+          <span className="font-bold text-foreground">{hasTenant ? (unit.checkInDate || '-') : '-'}</span>
         </div>
 
         <div className="flex items-center justify-between border-b border-border/50 pb-2">
           <span className="text-muted-foreground flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground/70" /> Sisa Masa Sewa
           </span>
-          <span className="rounded-full bg-[#8FA28A]/15 border border-[#8FA28A]/30 px-2.5 py-0.5 text-[10px] font-black text-[#6A7866] dark:text-[#A3B89E]">
-            {getRemainingDays(unit.checkInDate)}
-          </span>
+          {hasTenant && unit.checkInDate ? (
+            <span className="rounded-full bg-[#8FA28A]/15 border border-[#8FA28A]/30 px-2.5 py-0.5 text-[10px] font-black text-[#6A7866] dark:text-[#A3B89E]">
+              {getRemainingDays(unit.checkInDate)}
+            </span>
+          ) : (
+            <span className="font-bold text-muted-foreground">-</span>
+          )}
         </div>
       </div>
 
@@ -93,7 +110,7 @@ export default function TenantProfileCard({ unit, wifiSsid, wifiPassword, smartL
                 <Wifi className="h-3.5 w-3.5" /> WiFi Kamar
               </span>
             </div>
-            {wifiSsid ? (
+            {wifiSsid && wifiPassword ? (
               <div className="grid grid-cols-2 gap-2 text-xs font-semibold text-foreground">
                 <div>
                   <span className="text-[9px] text-muted-foreground block font-normal">SSID</span>
