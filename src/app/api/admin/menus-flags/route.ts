@@ -109,6 +109,20 @@ export async function GET() {
       });
     }
 
+    // Auto-align /units to title "Unit" and icon "IconDoor"
+    const unitItem = await prisma.menuItem.findFirst({
+      where: { path: "/units" },
+    });
+    if (unitItem && (unitItem.title !== "Unit" || unitItem.icon !== "IconDoor")) {
+      await prisma.menuItem.update({
+        where: { id: unitItem.id },
+        data: {
+          title: "Unit",
+          icon: "IconDoor",
+        },
+      });
+    }
+
     // Smart auto-alignment for submenus with correct parent IDs and sequential ordering
     const parentMappings: Record<string, string[]> = {
       "Komunitas Properti": ["Forum Komunitas", "History Komunitas"],

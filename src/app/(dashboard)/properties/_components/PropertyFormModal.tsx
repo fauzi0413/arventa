@@ -195,13 +195,16 @@ export default function PropertyFormModal({
 
       let finalImageUrl = previewUrl;
 
-      // If user selected a new local file, upload it to storage
+      // If user selected a new local file, upload it to storage (and automatically delete old image)
       if (selectedFile) {
         setUploadStatus('Mengunggah gambar properti...');
         try {
           const uploadFormData = new FormData();
           uploadFormData.append('file', selectedFile);
           uploadFormData.append('bucket', 'property-images');
+          if (initialData?.imageUrl) {
+            uploadFormData.append('oldFileUrl', initialData.imageUrl);
+          }
 
           const uploadRes = await fetch('/api/upload', {
             method: 'POST',
@@ -216,6 +219,15 @@ export default function PropertyFormModal({
           }
         } catch (uploadErr) {
           console.warn('Upload API notice: falling back to base64 preview', uploadErr);
+        }
+      } else if (!previewUrl && initialData?.imageUrl && !initialData.imageUrl.startsWith('data:')) {
+        // If user explicitly removed the photo without replacing it
+        try {
+          await fetch(`/api/upload?bucket=property-images&url=${encodeURIComponent(initialData.imageUrl)}`, {
+            method: 'DELETE',
+          });
+        } catch (delErr) {
+          console.warn('Notice: failed to delete removed image from storage', delErr);
         }
       }
 
@@ -261,8 +273,10 @@ export default function PropertyFormModal({
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            disabled={isSubmitting}
+            className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -277,314 +291,334 @@ export default function PropertyFormModal({
             </div>
           )}
 
-          {/* Nama Properti */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-              Nama Properti <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={typeConfig.samplePropertyName}
-              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-            />
-          </div>
-
-          {/* Alamat Jalan / Lokasi (Baris Tersendiri) */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-              Alamat Jalan / Lokasi <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              required
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Contoh: Jl. Diponegoro No. 45 RT 02/05"
-              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-            />
-          </div>
-
-          {/* Kota / Kabupaten Dropdown (Baris Tersendiri) */}
-          <div className="relative" ref={cityDropdownRef}>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-              Kota / Kabupaten <span className="text-red-500">*</span>
-            </label>
-            <div
-              onClick={() => setIsCityOpen(true)}
-              className="relative flex items-center w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus-within:border-[#8FA28A] shadow-2xs cursor-pointer min-h-[42px]"
-            >
-              <MapPin className="h-4 w-4 text-[#8FA28A] mr-2 shrink-0" />
+          {/* Fieldset disables all child form controls natively while isSubmitting is true */}
+          <fieldset disabled={isSubmitting} className="space-y-4 m-0 p-0 border-none min-w-0">
+            {/* Nama Properti */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
+                Nama Properti <span className="text-red-500">*</span>
+              </label>
               <input
                 type="text"
                 required
-                value={city}
-                onChange={(e) => {
-                  setCity(e.target.value);
-                  setIsCityOpen(true);
-                }}
-                onFocus={() => setIsCityOpen(true)}
-                placeholder="Pilih atau ketik nama Kota / Kabupaten..."
-                className="w-full bg-transparent text-xs font-semibold text-foreground focus:outline-none placeholder:text-muted-foreground pr-2"
+                disabled={isSubmitting}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={typeConfig.samplePropertyName}
+                className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/40"
               />
-              {city && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCity('');
-                    setIsCityOpen(true);
-                  }}
-                  className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
-                  title="Hapus pilihan"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ml-1 ${isCityOpen ? 'rotate-180' : ''}`} />
             </div>
 
-            {/* Dropdown Options Popup */}
-            {isCityOpen && (
-              <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-2xl border border-border bg-popover text-popover-foreground p-1.5 shadow-2xl animate-in fade-in-0 zoom-in-95">
-                <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1 flex items-center justify-between">
-                  <span>Daftar Wilayah Resmi Indonesia</span>
-                  <span className="text-[#8FA28A]">{filteredCities.length} ditemukan</span>
-                </div>
-
-                {filteredCities.length === 0 ? (
-                  <div className="p-3 text-center text-xs text-muted-foreground">
-                    Tidak ditemukan. Tekan luar untuk tetap memakai &quot;{city}&quot;.
-                  </div>
-                ) : (
-                  <div className="space-y-0.5">
-                    {filteredCities.map((item) => {
-                      const isSelected = city.toLowerCase() === item.value.toLowerCase() || city.toLowerCase() === item.label.toLowerCase();
-                      return (
-                        <button
-                          key={item.value}
-                          type="button"
-                          onClick={() => {
-                            setCity(item.value);
-                            setIsCityOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
-                            isSelected
-                              ? 'bg-[#8FA28A]/15 text-[#8FA28A] font-bold'
-                              : 'hover:bg-muted text-foreground'
-                          }`}
-                        >
-                          <div className="flex flex-col min-w-0 pr-2">
-                            <span className="font-semibold truncate text-xs">{item.label}</span>
-                            <span className="text-[10px] text-muted-foreground truncate">{item.province}</span>
-                          </div>
-                          {isSelected ? (
-                            <Check className="h-4 w-4 text-[#8FA28A] shrink-0" />
-                          ) : (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0 uppercase">
-                              {item.type}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Kategori & Status */}
-          <div className="grid grid-cols-2 gap-3">
+            {/* Alamat Jalan / Lokasi (Baris Tersendiri) */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-                Kategori <span className="text-red-500">*</span>
+                Alamat Jalan / Lokasi <span className="text-red-500">*</span>
               </label>
-              <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background text-foreground px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-              >
-                {effectiveCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+              <input
+                type="text"
+                required
+                disabled={isSubmitting}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Contoh: Jl. Diponegoro No. 45 RT 02/05"
+                className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/40"
+              />
             </div>
 
-            <div>
+            {/* Kota / Kabupaten Dropdown (Baris Tersendiri) */}
+            <div className="relative" ref={cityDropdownRef}>
               <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-                Status <span className="text-red-500">*</span>
+                Kota / Kabupaten <span className="text-red-500">*</span>
               </label>
-              <select
-                value={statusId}
-                onChange={(e) => setStatusId(e.target.value)}
-                className="w-full rounded-xl border border-border bg-background text-foreground px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-              >
-                {effectiveStatuses.map((st) => (
-                  <option key={st.id} value={st.id}>
-                    {st.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Financial Defaults Grid: Denda & Deposit */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-                Denda Keterlambatan Default (Rp)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-xs text-muted-foreground font-bold">Rp</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={defaultLateFee !== '' && defaultLateFee !== undefined ? new Intl.NumberFormat('id-ID').format(Number(defaultLateFee)) : ''}
-                  onChange={(e) => {
-                    const clean = e.target.value.replace(/\D/g, '');
-                    setDefaultLateFee(clean ? Number(clean) : 0);
-                  }}
-                  placeholder="50.000"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Nominal denda default saat membuat Kontrak Sewa baru.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-                Uang Jaminan / Deposit Default (Rp)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-xs text-muted-foreground font-bold">Rp</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={defaultDeposit !== '' && defaultDeposit !== undefined ? new Intl.NumberFormat('id-ID').format(Number(defaultDeposit)) : ''}
-                  onChange={(e) => {
-                    const clean = e.target.value.replace(/\D/g, '');
-                    setDefaultDeposit(clean ? Number(clean) : 0);
-                  }}
-                  placeholder="500.000"
-                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
-                />
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Nominal deposit default saat membuat Unit atau Kontrak Sewa baru.
-              </p>
-            </div>
-          </div>
-
-          {/* Upload Foto / Gambar Properti (File Upload instead of URL input) */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
-              Foto Properti (Upload File)
-            </label>
-
-            {/* Hidden File Input */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept="image/png, image/jpeg, image/jpg, image/webp"
-              onChange={(e) => {
-                if (e.target.files && e.target.files.length > 0) {
-                  handleFileChange(e.target.files[0]);
-                }
-              }}
-              className="hidden"
-            />
-
-            {previewUrl ? (
-              /* Image Preview Box */
-              <div className="relative rounded-2xl border-2 border-dashed border-[#8FA28A] bg-card p-3 shadow-2xs space-y-2">
-                <div className="relative h-40 w-full overflow-hidden rounded-xl bg-muted flex items-center justify-center">
-                  <img
-                    src={previewUrl}
-                    alt="Preview Properti"
-                    className="h-full w-full object-cover"
-                  />
-                  <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs rounded-xl p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="rounded-lg bg-white/90 hover:bg-white text-gray-800 px-2 py-1 text-[11px] font-bold transition-all shadow-xs"
-                      title="Ganti Foto"
-                    >
-                      Ganti Foto
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="rounded-lg bg-red-600 hover:bg-red-700 text-white p-1 text-xs transition-all shadow-xs"
-                      title="Hapus Foto"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                {selectedFile && (
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium px-1">
-                    <span className="truncate max-w-[250px]">{selectedFile.name}</span>
-                    <span>{(selectedFile.size / 1024).toFixed(0)} KB</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Drag & Drop Upload Zone */
               <div
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition-all bg-card hover:bg-muted/50 ${
-                  isDragOver
-                    ? 'border-[#8FA28A] bg-[#8FA28A]/10 scale-[1.01]'
-                    : 'border-border hover:border-[#8FA28A]'
+                onClick={() => !isSubmitting && setIsCityOpen(true)}
+                className={`relative flex items-center w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus-within:border-[#8FA28A] shadow-2xs min-h-[42px] ${
+                  isSubmitting ? 'opacity-60 cursor-not-allowed bg-muted/40' : 'cursor-pointer'
                 }`}
               >
-                <div className="flex flex-col items-center justify-center space-y-2">
-                  <div className="h-12 w-12 rounded-2xl bg-[#8FA28A]/15 text-[#8FA28A] flex items-center justify-center shadow-xs">
-                    <UploadCloud className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-foreground">
-                      Klik untuk memilih file foto atau seret ke sini
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Mendukung format JPG, PNG, WEBP (Maksimal 10 MB)
-                    </p>
-                  </div>
+                <MapPin className="h-4 w-4 text-[#8FA28A] mr-2 shrink-0" />
+                <input
+                  type="text"
+                  required
+                  disabled={isSubmitting}
+                  value={city}
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                    setIsCityOpen(true);
+                  }}
+                  onFocus={() => !isSubmitting && setIsCityOpen(true)}
+                  placeholder="Pilih atau ketik nama Kota / Kabupaten..."
+                  className="w-full bg-transparent text-xs font-semibold text-foreground focus:outline-none placeholder:text-muted-foreground pr-2 disabled:cursor-not-allowed"
+                />
+                {city && !isSubmitting && (
                   <button
                     type="button"
-                    className="mt-1 rounded-xl bg-[#8FA28A]/10 px-3 py-1.5 text-xs font-bold text-[#8FA28A] hover:bg-[#8FA28A]/20 transition-colors"
+                    disabled={isSubmitting}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCity('');
+                      setIsCityOpen(true);
+                    }}
+                    className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0 disabled:pointer-events-none"
+                    title="Hapus pilihan"
                   >
-                    Pilih File Foto
+                    <X className="h-3.5 w-3.5" />
                   </button>
-                </div>
+                )}
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ml-1 ${isCityOpen ? 'rotate-180' : ''}`} />
               </div>
-            )}
-          </div>
 
-          {/* Deskripsi Properti */}
-          <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-              Deskripsi Properti
-            </label>
-            <textarea
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Berikan keterangan detail mengenai properti, fasilitas umum, tata tertib, dll..."
-              className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none resize-none shadow-2xs"
-            />
-          </div>
+              {/* Dropdown Options Popup */}
+              {isCityOpen && !isSubmitting && (
+                <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-2xl border border-border bg-popover text-popover-foreground p-1.5 shadow-2xl animate-in fade-in-0 zoom-in-95">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1 flex items-center justify-between">
+                    <span>Daftar Wilayah Resmi Indonesia</span>
+                    <span className="text-[#8FA28A]">{filteredCities.length} ditemukan</span>
+                  </div>
+
+                  {filteredCities.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-muted-foreground">
+                      Tidak ditemukan. Tekan luar untuk tetap memakai &quot;{city}&quot;.
+                    </div>
+                  ) : (
+                    <div className="space-y-0.5">
+                      {filteredCities.map((item) => {
+                        const isSelected = city.toLowerCase() === item.value.toLowerCase() || city.toLowerCase() === item.label.toLowerCase();
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            onClick={() => {
+                              setCity(item.value);
+                              setIsCityOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#8FA28A]/15 text-[#8FA28A] font-bold'
+                                : 'hover:bg-muted text-foreground'
+                            }`}
+                          >
+                            <div className="flex flex-col min-w-0 pr-2">
+                              <span className="font-semibold truncate text-xs">{item.label}</span>
+                              <span className="text-[10px] text-muted-foreground truncate">{item.province}</span>
+                            </div>
+                            {isSelected ? (
+                              <Check className="h-4 w-4 text-[#8FA28A] shrink-0" />
+                            ) : (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0 uppercase">
+                                {item.type}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Kategori & Status */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
+                  Kategori <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={categoryId}
+                  disabled={isSubmitting}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background text-foreground px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/40"
+                >
+                  {effectiveCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
+                  Status <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={statusId}
+                  disabled={isSubmitting}
+                  onChange={(e) => setStatusId(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background text-foreground px-3 py-2 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/40"
+                >
+                  {effectiveStatuses.map((st) => (
+                    <option key={st.id} value={st.id}>
+                      {st.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Financial Defaults Grid: Denda & Deposit */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
+                  Denda Keterlambatan Default (Rp)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-xs text-muted-foreground font-bold">Rp</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    disabled={isSubmitting}
+                    value={defaultLateFee !== '' && defaultLateFee !== undefined ? new Intl.NumberFormat('id-ID').format(Number(defaultLateFee)) : ''}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, '');
+                      setDefaultLateFee(clean ? Number(clean) : 0);
+                    }}
+                    placeholder="50.000"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/40"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Nominal denda default saat membuat Kontrak Sewa baru.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
+                  Uang Jaminan / Deposit Default (Rp)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3.5 top-2.5 text-xs text-muted-foreground font-bold">Rp</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    disabled={isSubmitting}
+                    value={defaultDeposit !== '' && defaultDeposit !== undefined ? new Intl.NumberFormat('id-ID').format(Number(defaultDeposit)) : ''}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, '');
+                      setDefaultDeposit(clean ? Number(clean) : 0);
+                    }}
+                    placeholder="500.000"
+                    className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-xs font-bold focus:border-[#8FA28A] focus:outline-none shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/40"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Nominal deposit default saat membuat Unit atau Kontrak Sewa baru.
+                </p>
+              </div>
+            </div>
+
+            {/* Upload Foto / Gambar Properti (File Upload instead of URL input) */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1.5">
+                Foto Properti (Upload File)
+              </label>
+
+              {/* Hidden File Input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                disabled={isSubmitting}
+                accept="image/png, image/jpeg, image/jpg, image/webp"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    handleFileChange(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+              />
+
+              {previewUrl ? (
+                /* Image Preview Box */
+                <div className={`relative rounded-2xl border-2 border-dashed border-[#8FA28A] bg-card p-3 shadow-2xs space-y-2 ${isSubmitting ? 'opacity-70' : ''}`}>
+                  <div className="relative h-40 w-full overflow-hidden rounded-xl bg-muted flex items-center justify-center">
+                    <img
+                      src={previewUrl}
+                      alt="Preview Properti"
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs rounded-xl p-1.5">
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-lg bg-white/90 hover:bg-white text-gray-800 px-2 py-1 text-[11px] font-bold transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Ganti Foto"
+                      >
+                        Ganti Foto
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isSubmitting}
+                        onClick={handleRemoveImage}
+                        className="rounded-lg bg-red-600 hover:bg-red-700 text-white p-1 text-xs transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Hapus Foto"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  {selectedFile && (
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium px-1">
+                      <span className="truncate max-w-[250px]">{selectedFile.name}</span>
+                      <span>{(selectedFile.size / 1024).toFixed(0)} KB</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* Drag & Drop Upload Zone */
+                <div
+                  onClick={() => !isSubmitting && fileInputRef.current?.click()}
+                  onDragOver={isSubmitting ? undefined : handleDragOver}
+                  onDragLeave={isSubmitting ? undefined : handleDragLeave}
+                  onDrop={isSubmitting ? undefined : handleDrop}
+                  className={`rounded-2xl border-2 border-dashed p-6 text-center transition-all bg-card ${
+                    isSubmitting
+                      ? 'border-border opacity-50 cursor-not-allowed pointer-events-none'
+                      : isDragOver
+                        ? 'cursor-pointer border-[#8FA28A] bg-[#8FA28A]/10 scale-[1.01]'
+                        : 'cursor-pointer border-border hover:border-[#8FA28A] hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="flex flex-col items-center justify-center space-y-2">
+                    <div className="h-12 w-12 rounded-2xl bg-[#8FA28A]/15 text-[#8FA28A] flex items-center justify-center shadow-xs">
+                      <UploadCloud className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-foreground">
+                        Klik untuk memilih file foto atau seret ke sini
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Mendukung format JPG, PNG, WEBP (Maksimal 10 MB)
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      className="mt-1 rounded-xl bg-[#8FA28A]/10 px-3 py-1.5 text-xs font-bold text-[#8FA28A] hover:bg-[#8FA28A]/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Pilih File Foto
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Deskripsi Properti */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
+                Deskripsi Properti
+              </label>
+              <textarea
+                rows={3}
+                disabled={isSubmitting}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Berikan keterangan detail mengenai properti, fasilitas umum, tata tertib, dll..."
+                className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none resize-none shadow-2xs disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/40"
+              />
+            </div>
+          </fieldset>
 
           {/* Footer Buttons */}
           <div className="flex items-center justify-between pt-3 border-t border-border">
@@ -602,14 +636,14 @@ export default function PropertyFormModal({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50 shadow-2xs"
+                className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-bold text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
               >
                 Batal
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex items-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#7D9178] text-white px-5 py-2 text-xs font-bold transition-all shadow-md disabled:opacity-50"
+                className="flex items-center gap-2 rounded-xl bg-[#8FA28A] hover:bg-[#7D9178] text-white px-5 py-2 text-xs font-bold transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>

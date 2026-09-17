@@ -455,7 +455,7 @@ function UnitsPageContent() {
         <div>
           <h1 className="text-2xl font-black text-foreground dark:text-foreground flex items-center gap-2">
             <LayoutGrid className="h-6 w-6 text-[#8FA28A]" />
-            Manajemen Unit Kamar
+            Manajemen Unit
           </h1>
           <p className="text-sm text-muted-foreground dark:text-muted-foreground mt-1">
             Pantau ketersediaan, kelola harga sewa bulanan/harian, fasilitas, dan detail penyewa unit properti Anda.
@@ -657,7 +657,7 @@ function UnitsPageContent() {
       ) : properties.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm">
           <p className="text-sm font-semibold text-gray-500">
-            Sistem mendeteksi Anda belum memiliki Properti. Anda wajib mendaftarkan properti utama Anda terlebih dahulu sebelum bisa menambahkan unit kamar.
+            Sistem mendeteksi Anda belum memiliki Properti. Anda wajib mendaftarkan properti utama Anda terlebih dahulu sebelum bisa menambahkan unit.
           </p>
           <Link
             href="/properties"
@@ -669,7 +669,7 @@ function UnitsPageContent() {
       ) : filteredUnits.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#C7D3C0] bg-white p-12 text-center shadow-sm">
           <p className="text-sm font-semibold text-gray-400">
-            Tidak ada unit kamar ditemukan. Silakan tambahkan unit baru atau sesuaikan filter Anda.
+            Tidak ada unit ditemukan. Silakan tambahkan unit baru atau sesuaikan filter Anda.
           </p>
           <button
             onClick={() => {
@@ -880,7 +880,7 @@ function UnitsPageContent() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-foreground">Hapus Unit Kamar?</h4>
+                <h4 className="text-base font-bold text-foreground">Hapus Unit?</h4>
                 <p className="text-xs text-muted-foreground">Tindakan ini tidak dapat dibatalkan</p>
               </div>
             </div>
@@ -946,7 +946,7 @@ export default function UnitsPage() {
     <Suspense
       fallback={
         <div className="p-8 text-center text-xs font-semibold text-gray-500">
-          Memuat manajemen unit kamar...
+          Memuat manajemen unit...
         </div>
       }
     >

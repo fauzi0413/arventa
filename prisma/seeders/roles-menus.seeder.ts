@@ -145,7 +145,7 @@ export async function seedRolesAndMenus() {
       // --- OWNER MENUS ---
       { title: "Dashboard Utama", path: "/owner/dashboard", icon: "IconHome", group: "UTAMA", order: 1, roles: ["OWNER"] },
       { title: "Properti & Manajemen Unit", path: "/properties", icon: "IconBuilding", group: "PROPERTI & OPERASIONAL", order: 2, roles: ["OWNER"] },
-      { title: "Unit Kamar", path: "/units", icon: "IconBed", group: "PROPERTI & OPERASIONAL", order: 3, roles: ["OWNER"] },
+      { title: "Unit", path: "/units", icon: "IconDoor", group: "PROPERTI & OPERASIONAL", order: 3, roles: ["OWNER"] },
       { title: "Tim Operasional & Housekeeping", path: "/operations/housekeeping-team", icon: "IconSparkles", group: "PROPERTI & OPERASIONAL", order: 4, roles: ["OWNER"] },
       { title: "Pusat Laporan & Maintenance", path: "/operations/maintenance-reports", icon: "IconTools", group: "PROPERTI & OPERASIONAL", order: 5, roles: ["OWNER"] },
       { title: "Komunitas Properti", path: "/community", icon: "IconMessages", group: "KOMUNITAS", order: 5, roles: ["OWNER", "TENANT"] },

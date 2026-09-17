@@ -735,7 +735,7 @@ export default function PropertyDetailPage() {
                   }`}
               >
                 <Home className="h-4 w-4" />
-                Kamar / Unit ({units.length})
+                Unit ({units.length})
               </button>
               <button
                 onClick={() => setActiveTab('inventory')}
@@ -766,7 +766,7 @@ export default function PropertyDetailPage() {
                 <div>
                   <h3 className="text-base font-bold text-foreground flex items-center gap-1.5">
                     <Home className="h-5 w-5 text-[#8FA28A]" />
-                    Daftar Kamar / Unit
+                    Daftar Unit
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Total {units.length} Unit terdaftar di properti ini</p>
                 </div>
@@ -812,7 +812,7 @@ export default function PropertyDetailPage() {
                       }}
                       className="text-xs font-bold text-[#8FA28A] hover:underline"
                     >
-                      Tambah Unit Kamar
+                      Tambah Unit
                     </button>
                   </div>
                 </div>
@@ -1193,7 +1193,7 @@ export default function PropertyDetailPage() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-foreground">Hapus Unit Kamar?</h4>
+                <h4 className="text-base font-bold text-foreground">Hapus Unit?</h4>
                 <p className="text-xs text-muted-foreground">Tindakan ini tidak dapat dibatalkan</p>
               </div>
             </div>
