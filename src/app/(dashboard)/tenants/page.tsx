@@ -927,7 +927,7 @@ function TenantsPageContent() {
         await fetchTenants();
         setTenantToDelete(null);
         setIsDeleting(false);
-        showToast('Data Penyewa Dihapus', `Profil data penyewa ${targetTenant?.fullName || ''} berhasil dihapus dari database.`, 'info');
+        showToast('Data Penyewa Dihapus', `Profil data penyewa ${targetTenant?.fullName || ''} berhasil dihapus.`, 'info');
         return;
       }
     } catch (err) {

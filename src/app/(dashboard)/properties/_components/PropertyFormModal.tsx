@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { X, UploadCloud, Image as ImageIcon, Trash2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
+import { getPropertyTypeConfig } from '@/lib/utils/propertyTypeConfig';
 
 interface PropertyFormModalProps {
   isOpen: boolean;
@@ -60,6 +61,10 @@ export default function PropertyFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const typeConfig = useMemo(() => {
+    return getPropertyTypeConfig(null, categoryId);
+  }, [categoryId]);
 
   // Reset or initialize state when opening / switching initialData
   useEffect(() => {
@@ -246,7 +251,7 @@ export default function PropertyFormModal({
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Contoh: Kos Graha Asri Dago"
+              placeholder={typeConfig.samplePropertyName}
               className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs font-semibold focus:border-[#8FA28A] focus:outline-none shadow-2xs"
             />
           </div>

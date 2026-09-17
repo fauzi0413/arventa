@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Check, Plus, Info, Loader2, Package, Sparkles, ExternalLink, AlertCircle, X } from 'lucide-react';
 
+import { getPropertyTypeConfig, SupportedPropertyType } from '@/lib/utils/propertyTypeConfig';
+
 export interface PropertyMasterItem {
   id: string;
   name: string;
@@ -27,6 +29,7 @@ export type SelectedInventoryRef = SelectedUnitInventoryRef;
 
 interface FacilitySelectorProps {
   propertyId?: string;
+  propertyType?: SupportedPropertyType | string;
   unitId?: string;
   unitName?: string;
   selectedFacilities: string[];
@@ -35,25 +38,11 @@ interface FacilitySelectorProps {
   onSelectedInventoryChange?: (items: SelectedUnitInventoryRef[]) => void;
 }
 
-const getFacilityIcon = (name: string) => {
-  const n = name.toLowerCase();
-  if (n.includes('ac')) return '❄️';
-  if (n.includes('kasur') || n.includes('bed') || n.includes('springbed')) return '🛏️';
-  if (n.includes('mandi') || n.includes('shower')) return '🚿';
-  if (n.includes('lemari') || n.includes('pakaian')) return '🚪';
-  if (n.includes('wifi') || n.includes('internet')) return '🌐';
-  if (n.includes('tv') || n.includes('television')) return '📺';
-  if (n.includes('dapur') || n.includes('kompor')) return '🍳';
-  if (n.includes('water heater') || n.includes('pemanas')) return '🔥';
-  if (n.includes('kulkas') || n.includes('refrigerator')) return '🧊';
-  if (n.includes('meja') || n.includes('kursi')) return '🪑';
-  return '📦';
-};
-
-const PREDEFINED_ITEMS = ['AC', 'Kasur Springbed', 'Lemari Pakaian', 'TV', 'Water Heater', 'Kulkas Mini', 'Meja Belajar'];
+import FacilityIcon from '@/components/common/FacilityIcon';
 
 export default function FacilitySelector({
   propertyId,
+  propertyType,
   unitId,
   unitName,
   selectedFacilities,
@@ -61,17 +50,27 @@ export default function FacilitySelector({
   onChange,
   onSelectedInventoryChange,
 }: FacilitySelectorProps) {
+  const typeConfig = getPropertyTypeConfig(propertyType);
+  const predefinedItems = typeConfig.defaultFacilities;
+
   const [masterItems, setMasterItems] = useState<PropertyMasterItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Modal State for "Tambah ke Master Inventaris Properti"
   const [isAddMasterOpen, setIsAddMasterOpen] = useState(false);
-  const [newMasterName, setNewMasterName] = useState(PREDEFINED_ITEMS[0]);
+  const [newMasterName, setNewMasterName] = useState(predefinedItems[0] || 'AC');
   const [newMasterCustomName, setNewMasterCustomName] = useState('');
   const [newMasterCondition, setNewMasterCondition] = useState('Baik');
   const [newMasterNotes, setNewMasterNotes] = useState('');
   const [isSubmittingMaster, setIsSubmittingMaster] = useState(false);
   const [masterError, setMasterError] = useState<string | null>(null);
+
+  // Keep newMasterName in sync with property type predefined options
+  useEffect(() => {
+    if (predefinedItems && predefinedItems.length > 0) {
+      setNewMasterName(predefinedItems[0]);
+    }
+  }, [typeConfig.type]);
 
   const loadMasterInventory = useCallback(async () => {
     if (!propertyId) return;
@@ -241,7 +240,7 @@ export default function FacilitySelector({
         onChange(updatedFacs, updatedInvIds);
 
         // Reset form & close
-        setNewMasterName(PREDEFINED_ITEMS[0]);
+        setNewMasterName(predefinedItems[0] || 'AC');
         setNewMasterCustomName('');
         setNewMasterCondition('Baik');
         setNewMasterNotes('');
@@ -283,10 +282,10 @@ export default function FacilitySelector({
         <div>
           <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
             <Package className="h-4 w-4 text-[#8FA28A]" />
-            <span>Fasilitas & Inventaris Kamar</span>
+            <span>{typeConfig.facilitiesTitle}</span>
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            Pilih perabot atau perlengkapan yang disediakan di dalam kamar ini.
+            {typeConfig.facilitiesDescription}
           </p>
         </div>
 
@@ -316,7 +315,7 @@ export default function FacilitySelector({
             <span>Belum Ada Pilihan Fasilitas</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            Belum ada perabot atau fasilitas terdaftar untuk kamar. Tambahkan barang baru agar dapat dipilih pada kamar ini.
+            Belum ada perabot atau fasilitas terdaftar untuk {typeConfig.unitLabel.toLowerCase()}. Tambahkan barang baru agar dapat dipilih pada unit ini.
           </p>
           <button
             type="button"
@@ -330,7 +329,6 @@ export default function FacilitySelector({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[280px] overflow-y-auto pr-1">
           {masterItems.map((master) => {
             const isSelected = isItemSelected(master);
-            const icon = getFacilityIcon(master.name);
 
             return (
               <button
@@ -344,8 +342,8 @@ export default function FacilitySelector({
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate pr-2">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background border border-border text-base shadow-2xs">
-                    {icon}
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-background border border-border text-foreground shadow-2xs">
+                    <FacilityIcon name={master.name} className="h-4 w-4 text-[#8FA28A]" />
                   </span>
                   <div className="truncate min-w-0">
                     <span className="block truncate font-bold text-foreground text-xs">{master.name}</span>
@@ -379,10 +377,10 @@ export default function FacilitySelector({
       {/* Selected Items Counter */}
       <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[11px] text-muted-foreground">
         <span>
-          Terpilih: <strong className="text-foreground">{selectedUnitCount}</strong> fasilitas kamar
+          Terpilih: <strong className="text-foreground">{selectedUnitCount}</strong> fasilitas
         </span>
         <span className="text-[11px] text-[#8FA28A] font-semibold flex items-center gap-1">
-          <Check className="h-3 w-3" /> Otomatis tersimpan ke kamar ini
+          <Check className="h-3 w-3" /> Otomatis tersimpan ke unit ini
         </span>
       </div>
 
@@ -396,8 +394,8 @@ export default function FacilitySelector({
                   <Package className="h-4 w-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Tambah Fasilitas Kamar</h3>
-                  <p className="text-[11px] text-muted-foreground">Tambahkan perabot atau fasilitas baru untuk kamar ini</p>
+                  <h3 className="text-sm font-bold text-foreground">Tambah Fasilitas {typeConfig.unitLabel}</h3>
+                  <p className="text-[11px] text-muted-foreground">Tambahkan perabot atau fasilitas baru untuk unit ini</p>
                 </div>
               </div>
               <button
@@ -419,13 +417,13 @@ export default function FacilitySelector({
             <div className="space-y-3.5 text-xs">
               {/* Item Selection Dropdown */}
               <div>
-                <label className="block font-bold text-foreground mb-1">Nama Fasilitas / Barang *</label>
+                <label className="block font-bold text-foreground mb-1">Pilih Rekomendasi / Kategori Fasilitas *</label>
                 <select
                   value={newMasterName}
                   onChange={(e) => setNewMasterName(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background p-2.5 font-medium text-foreground focus:outline-none focus:border-[#8FA28A]"
                 >
-                  {PREDEFINED_ITEMS.map((item) => (
+                  {predefinedItems.map((item) => (
                     <option key={item} value={item}>
                       {item}
                     </option>
@@ -437,7 +435,7 @@ export default function FacilitySelector({
               {/* Custom Write-in Name */}
               {newMasterName === 'Lainnya' && (
                 <div>
-                  <label className="block font-bold text-foreground mb-1">Tulis Nama Barang *</label>
+                  <label className="block font-bold text-foreground mb-1">Tulis Nama Barang / Fasilitas *</label>
                   <input
                     type="text"
                     required
@@ -463,14 +461,14 @@ export default function FacilitySelector({
                 <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-3.5 py-2.5 text-xs font-medium text-foreground">
                   <span className="flex items-center gap-2 font-bold text-foreground">
                     <span className="h-2 w-2 rounded-full bg-[#8FA28A]" />
-                    Di Dalam Kamar Unit
+                    Di Dalam {typeConfig.unitLabel}
                   </span>
                   <span className="text-[10px] text-muted-foreground font-semibold px-2 py-0.5 rounded-md bg-muted border border-border/80">
-                    Kamar
+                    {typeConfig.badgeLabel}
                   </span>
                 </div>
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Barang ini otomatis ditambahkan ke daftar fasilitas kamar dan langsung dipilih.
+                  Barang ini otomatis ditambahkan ke daftar fasilitas dan langsung dipilih pada unit ini.
                 </p>
               </div>
 

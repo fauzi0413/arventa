@@ -613,7 +613,7 @@ export default function TenantContractPage() {
           Menghubungkan Data & Memuat Kontrak...
         </h3>
         <p className="text-xs text-muted-foreground max-w-sm">
-          Harap tunggu sebentar, sistem sedang memverifikasi unit kamar, data penyewa, dan Surat Perjanjian Digital dari database.
+          Harap tunggu sebentar, sistem sedang memverifikasi unit kamar, data penyewa, dan Surat Perjanjian Digital.
         </p>
 
         {/* Animated Progress bar */}

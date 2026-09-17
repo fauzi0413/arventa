@@ -593,7 +593,7 @@ export default function PropertyDetailPage() {
       <div className="flex h-[80vh] items-center justify-center bg-card text-card-foreground rounded-2xl border border-border p-6">
         <div className="text-center space-y-3">
           <div className="h-9 w-9 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
-          <p className="text-xs text-muted-foreground font-bold tracking-wide">Memuat rincian properti & unit dari database...</p>
+          <p className="text-xs text-muted-foreground font-bold tracking-wide">Memuat rincian properti & unit...</p>
         </div>
       </div>
     );
@@ -605,7 +605,7 @@ export default function PropertyDetailPage() {
         <ShieldAlert className="h-12 w-12 text-[#C8A96B] mb-3" />
         <h2 className="text-lg font-bold text-foreground">Properti Tidak Ditemukan</h2>
         <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-          Properti yang Anda cari tidak terdaftar atau telah dihapus dari database.
+          Properti yang Anda cari tidak terdaftar atau telah dihapus.
         </p>
         <button
           type="button"
@@ -740,7 +740,7 @@ export default function PropertyDetailPage() {
                   }`}
               >
                 <Package className="h-4 w-4" />
-                Inventaris Barang
+                Inventaris Fasilitas
               </button>
             </div>
 
@@ -980,7 +980,11 @@ export default function PropertyDetailPage() {
             </div>
           ) : (
             <div className="animate-in fade-in duration-200">
-              <InventoryManager propertyId={property.id} propertyName={property.name} />
+              <InventoryManager
+                propertyId={property.id}
+                propertyName={property.name}
+                propertyType={property.categoryId || (property as any).type}
+              />
             </div>
           )}
         </div>
@@ -1089,7 +1093,7 @@ export default function PropertyDetailPage() {
                   {contractTemplate?.templateName || `Template Kontrak ${property.name}`}
                 </span>
                 <span className="text-[11px] font-medium text-muted-foreground mt-0.5 block">
-                  {contractTemplate?.customClauses?.length || 0} Klausul Khusus Terkonfigurasi
+                  {contractTemplate?.customClauses?.length || 'Tidak Ada'} Klausul Khusus Terkonfigurasi
                 </span>
               </div>
 

@@ -839,7 +839,7 @@ export default function OwnerSubscriptionPage() {
       <div className="flex flex-col items-center justify-center min-h-[70vh] gap-3">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#8FA28A] border-t-transparent" />
         <p className="text-xs font-semibold text-muted-foreground animate-pulse">
-          Memuat data paket langganan SaaS ARVENTA dari database...
+          Memuat data paket langganan SaaS ARVENTA...
         </p>
       </div>
     );

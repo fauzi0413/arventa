@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Plus, Layers, Sparkles } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { X, Loader2, Plus, Layers, Sparkles, Info, HelpCircle, Lock } from 'lucide-react';
 import { Unit, UnitStatus, UnitPricing, UnitCapacity } from '../_types';
 import FacilitySelector, { SelectedInventoryRef } from './FacilitySelector';
 import { Property } from '../../properties/_types';
+import { getPropertyTypeConfig, SupportedPropertyType } from '@/lib/utils/propertyTypeConfig';
 
 interface UnitFormModalProps {
   isOpen: boolean;
@@ -44,6 +45,16 @@ export default function UnitFormModal({
   const [propertyId, setPropertyId] = useState(
     initialData?.propertyId || initialPropertyId || properties[0]?.id || ''
   );
+
+  // Derive dynamic configuration based on selected property
+  const selectedProperty = useMemo(() => {
+    return properties.find((p) => p.id === propertyId);
+  }, [properties, propertyId]);
+
+  const typeConfig = useMemo(() => {
+    return getPropertyTypeConfig(selectedProperty);
+  }, [selectedProperty]);
+
   const [name, setName] = useState(initialData?.name || '');
   const [status, setStatus] = useState<UnitStatus>(initialData?.status || 'Available');
   const [facilities, setFacilities] = useState<string[]>(initialData?.facilities || []);
@@ -58,7 +69,7 @@ export default function UnitFormModal({
 
   // Batch Mode states
   const [batchCount, setBatchCount] = useState<number>(5);
-  const [namePrefix, setNamePrefix] = useState<string>('Kamar ');
+  const [namePrefix, setNamePrefix] = useState<string>(typeConfig.defaultBatchPrefix);
   const [startNumber, setStartNumber] = useState<number>(101);
 
   // Capacity states
@@ -78,6 +89,13 @@ export default function UnitFormModal({
 
   const prevIsOpenRef = useRef(false);
   const prevDataIdRef = useRef<string | undefined>(undefined);
+
+  // Sync batch prefix when property type changes
+  useEffect(() => {
+    if (!initialData && ['Kamar ', 'Pintu ', 'Unit ', 'Blok '].includes(namePrefix)) {
+      setNamePrefix(typeConfig.defaultBatchPrefix);
+    }
+  }, [typeConfig.defaultBatchPrefix, initialData]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -116,15 +134,20 @@ export default function UnitFormModal({
         setTenantPhone(initialData.tenantPhone || '');
         setCheckInDate(initialData.checkInDate ? initialData.checkInDate.split('T')[0] : '');
       } else {
-        setPropertyId(initialPropertyId || properties[0]?.id || '');
+        const resolvedPropId = initialPropertyId || properties[0]?.id || '';
+        setPropertyId(resolvedPropId);
+        const currentProp = properties.find((p) => p.id === resolvedPropId);
+        const resolvedConfig = getPropertyTypeConfig(currentProp);
+
         setName('');
+        setNamePrefix(resolvedConfig.defaultBatchPrefix);
         setStatus('Available');
         setFacilities([]);
         setInventoryIds([]);
         setSelectedInventoryRefs([]);
         setDescription('');
-        setMaxPersons(1);
-        setDimensions('3x4 m');
+        setMaxPersons(resolvedConfig.type === 'KONTRAKAN' ? 4 : resolvedConfig.type === 'RUKO' ? 5 : 1);
+        setDimensions(resolvedConfig.type === 'KONTRAKAN' ? '6x10 m' : resolvedConfig.type === 'RUKO' ? '5x15 m' : '3x4 m');
         setPriceMonthly('');
         setPriceDaily('');
         setPriceDeposit('');
@@ -138,12 +161,14 @@ export default function UnitFormModal({
 
   if (!isOpen) return null;
 
-  // Generate preview unit names for batch mode
+  // Generate preview unit names for batch mode with clean space between prefix and number
   const getBatchPreviewNames = () => {
     const names: string[] = [];
     const count = Math.min(Math.max(1, batchCount), 50);
+    const cleanPrefix = namePrefix.trim();
+    const formattedPrefix = cleanPrefix ? `${cleanPrefix} ` : '';
     for (let i = 0; i < count; i++) {
-      names.push(`${namePrefix.trim()}${startNumber + i}`);
+      names.push(`${formattedPrefix}${startNumber + i}`);
     }
     return names;
   };
@@ -270,24 +295,29 @@ export default function UnitFormModal({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border dark:border-border pb-3 mb-4">
           <div>
-            <h3 className="text-lg font-bold text-foreground dark:text-foreground flex items-center gap-2">
-              <Layers className="h-5 w-5 text-[#8FA28A]" />
-              {initialData
-                ? 'Ubah Informasi Unit'
-                : creationMode === 'batch'
-                ? 'Tambah Beberapa Unit Sekaligus (Batch)'
-                : 'Tambah Unit Kamar'}
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-bold text-foreground dark:text-foreground flex items-center gap-2">
+                <Layers className="h-5 w-5 text-[#8FA28A]" />
+                {initialData
+                  ? typeConfig.editUnitTitle
+                  : creationMode === 'batch'
+                  ? `Tambah Beberapa ${typeConfig.unitLabelPlural} Sekaligus (Batch)`
+                  : typeConfig.addUnitTitle}
+              </h3>
+              <span className="px-2 py-0.5 rounded-md bg-[#8FA28A]/15 text-[#8FA28A] text-[10px] font-bold uppercase tracking-wider border border-[#8FA28A]/30">
+                {typeConfig.badgeLabel}
+              </span>
+            </div>
             <p className="text-xs text-muted-foreground dark:text-muted-foreground mt-0.5">
               {creationMode === 'batch'
-                ? 'Buat beberapa unit sekaligus. Akun kamar (1 Kamar 1 Akun) otomatis di-generate.'
-                : 'Isi spesifikasi unit. Akun login kamar otomatis dibuat secara otomatis per unit.'}
+                ? `Buat beberapa ${typeConfig.unitLabel.toLowerCase()} sekaligus. Akun login otomatis di-generate secara individual.`
+                : `Isi spesifikasi ${typeConfig.unitLabel.toLowerCase()}. Akun login otomatis dibuat per unit.`}
             </p>
           </div>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -299,26 +329,26 @@ export default function UnitFormModal({
             <button
               type="button"
               onClick={() => setCreationMode('single')}
-              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 ${
+              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 creationMode === 'single'
                   ? 'bg-card text-card-foreground dark:bg-card dark:text-card-foreground shadow-sm font-black border border-border dark:border-border'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Plus className="h-4 w-4 text-[#8FA28A]" />
-              Tambah 1 Unit (Satuan)
+              Tambah 1 {typeConfig.unitLabel} (Satuan)
             </button>
             <button
               type="button"
               onClick={() => setCreationMode('batch')}
-              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 ${
+              className={`min-h-[44px] py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 creationMode === 'batch'
                   ? 'bg-[#8FA28A] text-white shadow-sm font-black'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <Sparkles className="h-4 w-4" />
-              Tambah Beberapa Unit (Batch)
+              Tambah Beberapa {typeConfig.unitLabelPlural} (Batch)
             </button>
           </div>
         )}
@@ -327,11 +357,11 @@ export default function UnitFormModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Property selection */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Pilih Properti *</label>
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Pilih Properti *</label>
             <select
               value={propertyId}
               onChange={(e) => setPropertyId(e.target.value)}
-              className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+              className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
               required
             >
               {properties.map((prop) => (
@@ -342,29 +372,39 @@ export default function UnitFormModal({
             </select>
           </div>
 
+          {/* Type-specific Helpful Hint */}
+          {typeConfig.hintText && (
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-[#8FA28A]/10 border border-[#8FA28A]/30 text-xs text-[#6A7866] dark:text-[#A9BCA4] font-medium leading-relaxed">
+              <Info className="h-4 w-4 text-[#8FA28A] shrink-0 mt-0.5" />
+              <span>{typeConfig.hintText}</span>
+            </div>
+          )}
+
           {/* SINGLE MODE: Unit Name */}
           {creationMode === 'single' ? (
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Nama / Nomor Unit *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                {typeConfig.unitNameLabel} *
+              </label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Contoh: Kamar 101, Kamar A"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                placeholder={typeConfig.unitNamePlaceholder}
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
               />
             </div>
           ) : (
             /* BATCH MODE: Quantity, Prefix, Start Number */
-            <div className="space-y-3 p-4 rounded-xl bg-white border border-[#8FA28A]/30">
+            <div className="space-y-3 p-4 rounded-xl bg-card dark:bg-card border border-[#8FA28A]/30">
               <h4 className="text-xs font-black text-[#8FA28A] uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4" /> Pengaturan Pembuatan Unit Sekaligus
+                <Sparkles className="h-4 w-4" /> Pengaturan Pembuatan {typeConfig.unitLabelPlural} Sekaligus
               </h4>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Jumlah Unit *</label>
+                  <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Jumlah Unit *</label>
                   <input
                     type="number"
                     min="1"
@@ -372,30 +412,32 @@ export default function UnitFormModal({
                     required
                     value={batchCount}
                     onChange={(e) => setBatchCount(Math.min(50, Math.max(1, Number(e.target.value))))}
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Awalan Nama (Prefix)</label>
+                  <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Awalan Nama ({typeConfig.unitLabel})
+                  </label>
                   <input
                     type="text"
                     value={namePrefix}
                     onChange={(e) => setNamePrefix(e.target.value)}
-                    placeholder="Contoh: Kamar , Suite "
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    placeholder={`Contoh: ${typeConfig.defaultBatchPrefix}`}
+                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Nomor Awal *</label>
+                  <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Nomor Awal *</label>
                   <input
                     type="number"
                     min="1"
                     required
                     value={startNumber}
                     onChange={(e) => setStartNumber(Math.max(1, Number(e.target.value)))}
-                    className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                    className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3 py-1.5 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
                   />
                 </div>
               </div>
@@ -403,11 +445,11 @@ export default function UnitFormModal({
               {/* Preview generated unit names */}
               <div className="pt-2">
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                  Pratinjau {batchCount} Unit yang Akan Dibuat:
+                  Pratinjau {batchCount} {typeConfig.unitLabelPlural} yang Akan Dibuat:
                 </span>
-                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-2 bg-muted/40 rounded-lg border border-border">
                   {getBatchPreviewNames().slice(0, 10).map((previewName, idx) => (
-                    <span key={idx} className="bg-white border border-[#8FA28A]/40 text-[#6A7866] text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    <span key={idx} className="bg-card border border-[#8FA28A]/40 text-[#6A7866] dark:text-[#A9BCA4] text-[10px] font-bold px-2 py-0.5 rounded-md shadow-2xs">
                       {previewName}
                     </span>
                   ))}
@@ -424,11 +466,11 @@ export default function UnitFormModal({
           {/* Shared Status & Capacity */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Status Awal *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Status Awal *</label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as UnitStatus)}
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
               >
                 {STATUS_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -439,26 +481,30 @@ export default function UnitFormModal({
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Kapasitas Maks (Orang) *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                {typeConfig.capacityLabel} *
+              </label>
               <input
                 type="number"
                 min="1"
                 required
                 value={maxPersons}
                 onChange={(e) => setMaxPersons(Math.max(1, Number(e.target.value)))}
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Dimensi Kamar *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                {typeConfig.dimensionsLabel} *
+              </label>
               <input
                 type="text"
                 required
                 value={dimensions}
                 onChange={(e) => setDimensions(e.target.value)}
-                placeholder="Contoh: 3x4 m, 4x5 m"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                placeholder={typeConfig.dimensionsPlaceholder}
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
               />
             </div>
           </div>
@@ -466,7 +512,7 @@ export default function UnitFormModal({
           {/* Pricing Structures */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 border-t border-[#C7D3C0]/30 pt-3">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Harga per Bulan (Rp) *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Harga per Bulan (Rp) *</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -477,12 +523,12 @@ export default function UnitFormModal({
                   setPriceMonthly(clean ? Number(clean) : '');
                 }}
                 placeholder="Contoh: 1.500.000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Harga Harian (Rp) (Opsional)</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Harga Harian (Rp) (Opsional)</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -492,12 +538,12 @@ export default function UnitFormModal({
                   setPriceDaily(clean ? Number(clean) : '');
                 }}
                 placeholder="Contoh: 150.000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Deposit / Jaminan (Rp)</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Deposit / Jaminan (Rp)</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -507,25 +553,26 @@ export default function UnitFormModal({
                   setPriceDeposit(clean ? Number(clean) : '');
                 }}
                 placeholder="Contoh: 500.000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
+                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Keterangan Biaya / Utilitas</label>
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Keterangan Biaya / Utilitas</label>
             <input
               type="text"
               value={utilities}
               onChange={(e) => setUtilities(e.target.value)}
-              placeholder="Contoh: Listrik token mandiri, IPL Rp 50.000/bln"
-              className="w-full min-h-[44px] rounded-xl border border-gray-300 bg-white text-gray-800 px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+              placeholder={typeConfig.type === 'APARTEMEN' ? "Contoh: Listrik token mandiri, IPL Rp 350.000/bln" : typeConfig.type === 'RUKO' ? "Contoh: Daya listrik 4400W pascabayar, PBB ditanggung penyewa" : "Contoh: Listrik token mandiri, PDAM termasuk"}
+              className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
             />
           </div>
 
           {/* Facilities Selector */}
           <FacilitySelector
             propertyId={propertyId}
+            propertyType={typeConfig.type}
             unitId={initialData?.id}
             unitName={creationMode === 'batch' ? `Batch (${getBatchPreviewNames().length} Unit Sekaligus)` : (name || initialData?.name)}
             selectedFacilities={facilities}
@@ -542,7 +589,7 @@ export default function UnitFormModal({
             <div className="rounded-xl border border-dashed border-[#C8A96B]/50 bg-[#C8A96B]/5 p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold text-[#C8A96B] uppercase tracking-wider flex items-center gap-1.5">
-                  <span>🔒</span> Informasi Penyewa Aktif
+                  <Lock className="h-3.5 w-3.5" /> Informasi Penyewa Aktif
                 </h4>
                 <span className="text-[10px] text-muted-foreground font-medium">Terkunci via Kontrak Sewa</span>
               </div>

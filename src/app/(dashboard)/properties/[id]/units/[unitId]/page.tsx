@@ -54,21 +54,6 @@ const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   }
 };
 
-const getFacilityIcon = (name: string) => {
-  const n = name.toLowerCase();
-  if (n.includes('ac')) return '❄️';
-  if (n.includes('kasur') || n.includes('bed') || n.includes('springbed')) return '🛏️';
-  if (n.includes('mandi') || n.includes('shower')) return '🚿';
-  if (n.includes('lemari') || n.includes('pakaian')) return '🚪';
-  if (n.includes('wifi') || n.includes('internet')) return '🌐';
-  if (n.includes('tv') || n.includes('television')) return '📺';
-  if (n.includes('dapur') || n.includes('kompor')) return '🍳';
-  if (n.includes('water heater') || n.includes('pemanas')) return '🔥';
-  if (n.includes('kulkas') || n.includes('refrigerator')) return '🧊';
-  if (n.includes('meja') || n.includes('kursi')) return '🪑';
-  return '📦';
-};
-
 export default function PropertyUnitDetailPage() {
   const router = useRouter();
   const params = useParams();

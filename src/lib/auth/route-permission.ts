@@ -103,7 +103,7 @@ export async function validateRouteAccess(
     const menuItems = await getCachedMenuItems();
 
     // Find dynamic menu items matching requested path
-    const matchingMenus = menuItems.filter((item) => {
+    const matchingMenus = menuItems.filter((item: any) => {
       const menuPath = item.path.replace(/\/$/, "");
       if (cleanPath === menuPath) return true;
       if (cleanPath.startsWith(menuPath + "/")) return true;

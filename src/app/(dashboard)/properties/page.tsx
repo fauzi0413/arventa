@@ -405,7 +405,7 @@ export default function PropertiesPage() {
         <div className="flex h-60 items-center justify-center">
           <div className="text-center space-y-2">
             <div className="h-7 w-7 animate-spin rounded-full border-3 border-[#8FA28A] border-t-transparent mx-auto" />
-            <p className="text-xs text-muted-foreground font-medium">Memuat data properti dari database...</p>
+            <p className="text-xs text-muted-foreground font-medium">Memuat data properti...</p>
           </div>
         </div>
       ) : filteredProperties.length === 0 ? (

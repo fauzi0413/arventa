@@ -345,7 +345,7 @@ export async function GET(request: NextRequest) {
     const smartLockCode = "123456";
 
     return ApiResponse.success({
-      message: "Data portal kamar berhasil dimuat dari database",
+      message: "Data portal kamar berhasil dimuat",
       data: {
         unit: {
           ...formattedUnit,
@@ -400,7 +400,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Error in /api/portal/my-room:", error);
     return ApiResponse.error({
-      message: "Gagal memuat data portal kamar dari database",
+      message: "Gagal memuat data portal kamar",
       error,
     });
   }

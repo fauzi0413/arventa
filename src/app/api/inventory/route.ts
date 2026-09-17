@@ -222,7 +222,55 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Creating Master Item for Property
+    // Handle Bulk Batch Creation of Master Property Inventory
+    if (
+      (action === "BATCH_CREATE" || (Array.isArray(items) && items.length > 0)) &&
+      propertyId &&
+      !unitId
+    ) {
+      if (!Array.isArray(items) || items.length === 0) {
+        return ApiResponse.badRequest("Daftar barang inventaris tidak boleh kosong");
+      }
+
+      const validItems = items
+        .filter((i: any) => i && (i.itemName || i.name))
+        .map((i: any) => {
+          const rawName = (i.itemName || i.name || "").trim();
+          const resolvedLocType: InventoryLocationType =
+            i.locationType === "COMMON_AREA" ? "COMMON_AREA" : "UNIT";
+          return {
+            propertyId,
+            itemName: rawName,
+            locationType: resolvedLocType,
+            condition: i.condition || "Baik",
+            quantity: Number(i.quantity) || 1,
+            notes: i.notes ? String(i.notes).trim() : null,
+          };
+        })
+        .filter((i) => i.itemName.length > 0);
+
+      if (validItems.length === 0) {
+        return ApiResponse.badRequest("Tidak ada barang inventaris yang valid untuk disimpan");
+      }
+
+      // Execute batch insert in Prisma
+      await prisma.propertyInventory.createMany({
+        data: validItems,
+      });
+
+      const createdItems = await prisma.propertyInventory.findMany({
+        where: { propertyId },
+        orderBy: { createdAt: "desc" },
+        take: validItems.length,
+      });
+
+      return ApiResponse.success({
+        message: `${validItems.length} barang inventaris berhasil ditambahkan secara bersamaan`,
+        data: createdItems,
+      });
+    }
+
+    // Creating Single Master Item for Property
     if (propertyId && !unitId) {
       if (!itemName) {
         return ApiResponse.badRequest("Nama barang master wajib diisi");
@@ -375,7 +423,7 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, isUnitInventory, condition, quantity, notes, itemName } = body;
+    const { id, isUnitInventory, condition, quantity, notes, itemName, locationType } = body;
 
     if (!id) {
       return ApiResponse.badRequest("ID inventaris wajib diisi");
@@ -386,6 +434,7 @@ export async function PATCH(request: NextRequest) {
     if (quantity !== undefined) updatePayload.quantity = Number(quantity) || 1;
     if (notes !== undefined) updatePayload.notes = notes;
     if (itemName !== undefined) updatePayload.itemName = itemName;
+    if (locationType !== undefined) updatePayload.locationType = locationType;
 
     if (isUnitInventory) {
       const updated = await prisma.unitInventory.update({
@@ -424,20 +473,39 @@ export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const idsParam = searchParams.get("ids");
     const isUnitInventory = searchParams.get("isUnitInventory") === "true";
 
-    if (!id) {
+    let idsToDelete: string[] = [];
+    if (idsParam) {
+      idsToDelete = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+    } else if (id) {
+      idsToDelete = [id];
+    }
+
+    if (idsToDelete.length === 0) {
+      try {
+        const body = await request.json();
+        if (Array.isArray(body.ids)) {
+          idsToDelete = body.ids;
+        } else if (body.id) {
+          idsToDelete = [body.id];
+        }
+      } catch (e) {}
+    }
+
+    if (idsToDelete.length === 0) {
       return ApiResponse.badRequest("ID inventaris wajib diisi");
     }
 
     if (isUnitInventory) {
-      await prisma.unitInventory.delete({ where: { id } });
+      await prisma.unitInventory.deleteMany({ where: { id: { in: idsToDelete } } });
     } else {
-      await prisma.propertyInventory.delete({ where: { id } });
+      await prisma.propertyInventory.deleteMany({ where: { id: { in: idsToDelete } } });
     }
 
     return ApiResponse.success({
-      message: "Barang inventaris berhasil dihapus",
+      message: `${idsToDelete.length} barang inventaris berhasil dihapus`,
     });
   } catch (error: any) {
     console.error("DELETE /api/inventory error:", error);

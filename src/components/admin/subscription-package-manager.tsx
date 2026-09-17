@@ -1561,7 +1561,7 @@ export function SubscriptionPackageManager() {
                 Apakah Anda yakin ingin menghapus paket <strong className="font-black text-rose-700 dark:text-rose-300">"{deletingPlan.name}"</strong>?
               </p>
               <p className="text-[11px] text-muted-foreground">
-                Paket ini saat ini memiliki <strong>0 owner aktif</strong> dan dapat dihapus secara permanen dari database. Tindakan ini tidak dapat dibatalkan.
+                Paket ini saat ini memiliki <strong>0 owner aktif</strong> dan dapat dihapus secara permanen. Tindakan ini tidak dapat dibatalkan.
               </p>
             </div>
 

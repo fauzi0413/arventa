@@ -337,7 +337,7 @@ export function SaasPaymentMethodsManager() {
           {loading ? (
             <div className="flex flex-col items-center justify-center p-12 space-y-3">
               <IconLoader2 className="size-8 animate-spin text-amber-500" />
-              <p className="text-xs font-semibold text-muted-foreground">Memuat data rekening bank SaaS dari database...</p>
+              <p className="text-xs font-semibold text-muted-foreground">Memuat data rekening bank SaaS...</p>
             </div>
           ) : accounts.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-12 text-center border border-dashed rounded-2xl bg-muted/20 space-y-3">
