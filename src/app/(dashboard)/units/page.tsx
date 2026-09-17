@@ -113,7 +113,7 @@ function UnitsPageContent() {
           mappedProps = json.data.map((p: any) => ({
             id: p.id,
             name: p.name,
-            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            address: p.address,
             categoryId: typeToCat[p.type] || 'cat-1',
             statusId: 'st-1',
             totalUnits: p.units?.length || 0,

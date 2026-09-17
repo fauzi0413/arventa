@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const units = await prisma.unit.findMany({
       include: {
+        property: true,
         unitUser: true,
       },
     });
@@ -18,12 +19,48 @@ export async function GET(request: NextRequest) {
     const results = [];
 
     for (const u of units) {
-      const cleanNum = u.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, '') || `u${Date.now()}`;
-      const roomEmail = `${cleanNum}@arventa.id`;
+      const cleanProp = (u.property?.name || 'prop')
+        .toLowerCase()
+        .replace(/^(kos|kost|kontrakan|apartemen|ruko|wisma|homestay|residence)\s+/i, '')
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 16) || 'prop';
 
+      const cleanNum = u.unitNumber
+        .toLowerCase()
+        .replace(/^(kamar|unit|pintu|ruang|room)\s+/i, '')
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 16) || 'unit';
+
+      const baseCandidate = `${cleanProp}.${cleanNum}`;
+      let roomEmail = `${baseCandidate}@arventa.id`;
+
+      // Check if user already exists for another unit
       let roomUser = await prisma.user.findUnique({
         where: { email: roomEmail },
       });
+
+      if (roomUser) {
+        // If this user is already linked to another unit, find sequential suffix
+        const otherUnit = await prisma.unit.findFirst({
+          where: { unitUserId: roomUser.id, NOT: { id: u.id } },
+        });
+
+        if (otherUnit) {
+          let counter = 2;
+          let isAvailable = false;
+          while (!isAvailable && counter <= 100) {
+            const testEmail = `${baseCandidate}${counter}@arventa.id`;
+            const exists = await prisma.user.findUnique({ where: { email: testEmail } });
+            if (!exists) {
+              roomEmail = testEmail;
+              roomUser = null;
+              isAvailable = true;
+            } else {
+              counter++;
+            }
+          }
+        }
+      }
 
       if (!roomUser) {
         roomUser = await prisma.user.create({

@@ -340,7 +340,7 @@ export default function PropertyUnitDetailPage() {
                   pData = {
                     id: pRaw.id,
                     name: pRaw.name,
-                    address: `${pRaw.address}${pRaw.city ? `, ${pRaw.city}` : ''}`,
+                    address: pRaw.address,
                     categoryId: typeToCat[pRaw.type] || 'cat-1',
                     statusId: 'st-1',
                     totalUnits: pRaw.units?.length || 0,
@@ -428,8 +428,17 @@ export default function PropertyUnitDetailPage() {
       const foundUnit = loadedUnits.find((u) => u.id === unitId);
 
       if (foundUnit && (!foundUnit.roomEmail || !foundUnit.roomPassword)) {
-        const cleanName = foundUnit.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-        foundUnit.roomEmail = `${cleanName || 'kamar'}@arventa.id`;
+        const cleanProp = (foundProp?.name || 'prop')
+          .toLowerCase()
+          .replace(/^(kos|kost|kontrakan|apartemen|ruko|wisma|homestay|residence)\s+/i, '')
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 16) || 'prop';
+        const cleanName = (foundUnit.name || 'unit')
+          .toLowerCase()
+          .replace(/^(kamar|unit|pintu|ruang|room)\s+/i, '')
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 16) || 'unit';
+        foundUnit.roomEmail = `${cleanProp}.${cleanName}@arventa.id`;
         foundUnit.roomPassword = `Arv!${Math.random().toString(36).substring(2, 8)}`;
         foundUnit.roomPasswordLastReset = new Date().toISOString();
 

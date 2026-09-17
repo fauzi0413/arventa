@@ -239,9 +239,50 @@ export class UnitService {
    */
   static async createUnit(data: CreateUnitData) {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Generate unique room account email & initial password
-      const cleanNum = data.name.toLowerCase().replace(/[^a-z0-9]/g, '') || `u${Date.now()}`;
-      const roomEmail = `${cleanNum}@arventa.id`;
+      // 1. Generate clean human-readable email: [property].[unit]@arventa.id
+      const prop = await tx.property.findUnique({
+        where: { id: data.propertyId },
+        select: { name: true },
+      });
+
+      const cleanProp = (prop?.name || 'prop')
+        .toLowerCase()
+        .replace(/^(kos|kost|kontrakan|apartemen|ruko|wisma|homestay|residence)\s+/i, '')
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 16) || 'prop';
+      
+      const cleanUnit = data.name
+        .toLowerCase()
+        .replace(/^(kamar|unit|pintu|ruang|room)\s+/i, '')
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 16) || 'unit';
+
+      const baseCandidate = `${cleanProp}.${cleanUnit}`;
+      let targetEmail = `${baseCandidate}@arventa.id`;
+
+      // Check if email already taken and find next clean sequential number
+      const existingUser = await tx.user.findUnique({
+        where: { email: targetEmail },
+      });
+
+      if (existingUser) {
+        let counter = 2;
+        let isAvailable = false;
+        while (!isAvailable && counter <= 100) {
+          const testEmail = `${baseCandidate}${counter}@arventa.id`;
+          const exists = await tx.user.findUnique({ where: { email: testEmail } });
+          if (!exists) {
+            targetEmail = testEmail;
+            isAvailable = true;
+          } else {
+            counter++;
+          }
+        }
+        if (!isAvailable) {
+          targetEmail = `${baseCandidate}.${Math.random().toString(36).substring(2, 6)}@arventa.id`;
+        }
+      }
+
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let rand = "";
       for (let i = 0; i < 6; i++) {
@@ -249,22 +290,16 @@ export class UnitService {
       }
       const initialPassword = `Arv!${rand}`;
 
-      // Check if user with this room email exists, otherwise create
-      let roomUser = await tx.user.findUnique({
-        where: { email: roomEmail },
+      // Create dedicated unique room user
+      const roomUser = await tx.user.create({
+        data: {
+          fullName: `Akun Unit ${data.name}`,
+          email: targetEmail,
+          role: UserRole.TENANT,
+          phoneNumber: '0812' + Math.floor(10000000 + Math.random() * 90000000),
+          isActive: true,
+        },
       });
-
-      if (!roomUser) {
-        roomUser = await tx.user.create({
-          data: {
-            fullName: `Akun Unit ${data.name}`,
-            email: roomEmail,
-            role: UserRole.TENANT,
-            phoneNumber: '0812' + Math.floor(10000000 + Math.random() * 90000000),
-            isActive: true,
-          },
-        });
-      }
 
       // 2. Create Unit
       const unit = await tx.unit.create({
@@ -465,9 +500,26 @@ export class UnitService {
     if (!unitIds || unitIds.length === 0) return { count: 0 };
 
     if (actionType === 'delete') {
-      return prisma.unit.deleteMany({
+      const unitsToDelete = await prisma.unit.findMany({
+        where: { id: { in: unitIds } },
+        select: { id: true, unitUserId: true },
+      });
+
+      const userIdsToDelete = unitsToDelete
+        .map((u) => u.unitUserId)
+        .filter((uid): uid is string => Boolean(uid));
+
+      await prisma.unit.deleteMany({
         where: { id: { in: unitIds } },
       });
+
+      if (userIdsToDelete.length > 0) {
+        await prisma.user.deleteMany({
+          where: { id: { in: userIdsToDelete } },
+        }).catch(() => null);
+      }
+
+      return { count: unitsToDelete.length };
     }
 
     if (actionType === 'status' && input.newStatus) {

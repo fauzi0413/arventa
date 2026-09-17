@@ -130,7 +130,8 @@ export default function PropertyDetailPage() {
           const mappedProp: Property = {
             id: p.id,
             name: p.name,
-            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            address: p.address,
+            city: p.city || '',
             categoryId: typeToCat[p.type] || 'cat-1',
             statusId: computedStatusId,
             totalUnits: totalUnitsCount,
@@ -289,7 +290,7 @@ export default function PropertyDetailPage() {
             propertyId: data.propertyId,
             name: data.name,
             floor: 1,
-            basePrice: data.pricing.monthly,
+            basePrice: data.pricing.monthly || (data.pricing.yearly ? Math.round(data.pricing.yearly / 12) : 0),
             transitPrice: data.pricing.daily,
             deposit: data.pricing.deposit,
             capacity: data.capacity.maxPersons,
@@ -329,7 +330,7 @@ export default function PropertyDetailPage() {
         const mapped = batchData.map((d) => ({
           propertyId: d.propertyId,
           name: d.name,
-          basePrice: d.pricing.monthly,
+          basePrice: d.pricing.monthly || (d.pricing.yearly ? Math.round(d.pricing.yearly / 12) : 0),
           transitPrice: d.pricing.daily,
           deposit: d.pricing.deposit,
           capacity: d.capacity.maxPersons,
@@ -519,6 +520,7 @@ export default function PropertyDetailPage() {
         body: JSON.stringify({
           name: data.name,
           address: data.address,
+          city: data.city,
           type: catToType[data.categoryId] || 'KOS',
           description: data.description,
           coverImage: data.imageUrl,
@@ -706,7 +708,10 @@ export default function PropertyDetailPage() {
                 <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold text-foreground">Alamat Properti:</span>
-                  <p className="mt-0.5 text-muted-foreground">{property.address}</p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    {property.address}
+                    {property.city && `, ${property.city}`}
+                  </p>
                 </div>
               </div>
 

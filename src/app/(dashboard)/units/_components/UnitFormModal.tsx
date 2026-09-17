@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, Loader2, Plus, Layers, Sparkles, Info, HelpCircle, Lock } from 'lucide-react';
+import { X, Loader2, Plus, Layers, Sparkles, Info, HelpCircle, Lock, Calculator } from 'lucide-react';
 import { Unit, UnitStatus, UnitPricing, UnitCapacity } from '../_types';
 import FacilitySelector, { SelectedInventoryRef } from './FacilitySelector';
 import { Property } from '../../properties/_types';
@@ -77,6 +77,9 @@ export default function UnitFormModal({
   const [dimensions, setDimensions] = useState(initialData?.capacity?.dimensions || '3x4 m');
 
   // Pricing states (blank by default when adding a new unit)
+  const [priceYearly, setPriceYearly] = useState<number | ''>(
+    initialData?.pricing?.yearly ?? (initialData?.pricing?.monthly ? initialData.pricing.monthly * 12 : '')
+  );
   const [priceMonthly, setPriceMonthly] = useState<number | ''>(initialData?.pricing?.monthly ?? '');
   const [priceDaily, setPriceDaily] = useState<number | ''>(initialData?.pricing?.daily ?? '');
   const [priceDeposit, setPriceDeposit] = useState<number | ''>(initialData?.pricing?.deposit ?? '');
@@ -125,8 +128,9 @@ export default function UnitFormModal({
         setInventoryIds(initialInvIds);
         setDescription(initialData.description || '');
         setMaxPersons(initialData.capacity?.maxPersons || 1);
-        setDimensions(initialData.capacity?.dimensions || '3x4 m');
-        setPriceMonthly(initialData.pricing?.monthly ?? '');
+        const initYearly = initialData.pricing?.yearly ?? (initialData.pricing?.monthly ? initialData.pricing.monthly * 12 : '');
+        setPriceYearly(initYearly);
+        setPriceMonthly(initialData.pricing?.monthly ?? (initialData.pricing?.yearly ? Math.round(initialData.pricing.yearly / 12) : ''));
         setPriceDaily(initialData.pricing?.daily ?? '');
         setPriceDeposit(initialData.pricing?.deposit ?? '');
         setUtilities(initialData.pricing?.utilities || '');
@@ -148,6 +152,7 @@ export default function UnitFormModal({
         setDescription('');
         setMaxPersons(resolvedConfig.type === 'KONTRAKAN' ? 4 : resolvedConfig.type === 'RUKO' ? 5 : 1);
         setDimensions(resolvedConfig.type === 'KONTRAKAN' ? '6x10 m' : resolvedConfig.type === 'RUKO' ? '5x15 m' : '3x4 m');
+        setPriceYearly('');
         setPriceMonthly('');
         setPriceDaily('');
         setPriceDeposit('');
@@ -173,18 +178,40 @@ export default function UnitFormModal({
     return names;
   };
 
+  // Direct price handlers without aggressive keystroke race conditions
+  const handleYearlyPriceChange = (val: string) => {
+    const clean = val.replace(/\D/g, '');
+    setPriceYearly(clean ? Number(clean) : '');
+  };
+
+  const handleMonthlyPriceChange = (val: string) => {
+    const clean = val.replace(/\D/g, '');
+    setPriceMonthly(clean ? Number(clean) : '');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!propertyId || !dimensions.trim()) return;
 
+    const resolvedMonthly = priceMonthly !== '' ? Number(priceMonthly) : (priceYearly !== '' ? Math.round(Number(priceYearly) / 12) : 0);
+    const resolvedYearly = priceYearly !== '' ? Number(priceYearly) : (priceMonthly !== '' ? Number(priceMonthly) * 12 : undefined);
+
+    if (!resolvedMonthly && !resolvedYearly) {
+      alert('Silakan isi minimal Harga per Tahun atau Harga per Bulan');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      const isYearlyPreferred = (typeConfig.type === 'KONTRAKAN' || typeConfig.type === 'RUKO') && priceYearly !== '';
       const pricing: UnitPricing = {
-        monthly: Number(priceMonthly),
+        monthly: resolvedMonthly,
+        yearly: resolvedYearly,
         daily: priceDaily ? Number(priceDaily) : undefined,
-        deposit: Number(priceDeposit),
+        deposit: Number(priceDeposit) || 0,
         utilities: utilities.trim() || undefined,
+        billingScheme: isYearlyPreferred ? 'yearly' : 'monthly',
       };
 
       const capacity: UnitCapacity = {
@@ -193,8 +220,18 @@ export default function UnitFormModal({
       };
 
       const generateRoomCredentials = (unitName: string) => {
-        const cleanName = unitName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const email = `${cleanName || 'kamar'}@arventa.id`;
+        const propName = selectedProperty?.name || properties.find((p) => p.id === propertyId)?.name || 'prop';
+        const cleanProp = propName
+          .toLowerCase()
+          .replace(/^(kos|kost|kontrakan|apartemen|ruko|wisma|homestay|residence)\s+/i, '')
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 16) || 'prop';
+        const cleanUnit = (unitName || 'unit')
+          .toLowerCase()
+          .replace(/^(kamar|unit|pintu|ruang|room)\s+/i, '')
+          .replace(/[^a-z0-9]/g, '')
+          .slice(0, 16) || 'unit';
+        const email = `${cleanProp}.${cleanUnit}@arventa.id`;
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let rand = '';
         for (let i = 0; i < 6; i++) {
@@ -291,7 +328,7 @@ export default function UnitFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 backdrop-blur-sm transition-opacity">
-      <div className="relative w-full max-w-2xl bg-card dark:bg-card border border-border dark:border-border text-card-foreground dark:text-card-foreground rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
+      <div className="relative w-full max-w-3xl bg-card dark:bg-card border border-border dark:border-border text-card-foreground dark:text-card-foreground rounded-t-3xl sm:rounded-2xl p-6 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border dark:border-border pb-3 mb-4">
           <div>
@@ -355,21 +392,23 @@ export default function UnitFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Property selection */}
+          {/* Property display (Read-only / Disabled information) */}
           <div>
-            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Pilih Properti *</label>
-            <select
-              value={propertyId}
-              onChange={(e) => setPropertyId(e.target.value)}
-              className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
-              required
-            >
-              {properties.map((prop) => (
-                <option key={prop.id} value={prop.id}>
-                  {prop.name}
-                </option>
-              ))}
-            </select>
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+              Properti
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                readOnly
+                disabled
+                value={selectedProperty?.name || properties.find((p) => p.id === propertyId)?.name || 'Properti'}
+                className="w-full min-h-[44px] rounded-xl border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/40 text-gray-700 dark:text-gray-300 px-3.5 py-2 text-xs font-bold cursor-not-allowed select-none focus:outline-none pr-10"
+              />
+              <div className="absolute inset-y-0 right-3.5 flex items-center pointer-events-none text-gray-400 dark:text-gray-500">
+                <Lock className="h-4 w-4" />
+              </div>
+            </div>
           </div>
 
           {/* Type-specific Helpful Hint */}
@@ -380,20 +419,39 @@ export default function UnitFormModal({
             </div>
           )}
 
-          {/* SINGLE MODE: Unit Name */}
+          {/* SINGLE MODE: Unit Name & Initial Status (2 Columns) */}
           {creationMode === 'single' ? (
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                {typeConfig.unitNameLabel} *
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={typeConfig.unitNamePlaceholder}
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  {typeConfig.unitNameLabel} <span className="text-red-500 font-bold ml-0.5">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={typeConfig.unitNamePlaceholder}
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Status Awal <span className="text-red-500 font-bold ml-0.5">*</span>
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as UnitStatus)}
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                >
+                  {STATUS_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           ) : (
             /* BATCH MODE: Quantity, Prefix, Start Number */
@@ -404,7 +462,9 @@ export default function UnitFormModal({
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Jumlah Unit *</label>
+                  <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Jumlah Unit <span className="text-red-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="number"
                     min="1"
@@ -430,7 +490,9 @@ export default function UnitFormModal({
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">Nomor Awal *</label>
+                  <label className="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Nomor Awal <span className="text-red-500 font-bold ml-0.5">*</span>
+                  </label>
                   <input
                     type="number"
                     min="1"
@@ -463,10 +525,12 @@ export default function UnitFormModal({
             </div>
           )}
 
-          {/* Shared Status & Capacity */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {/* In Batch Mode: Status Awal */}
+          {creationMode === 'batch' && (
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Status Awal *</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                Status Awal <span className="text-red-500 font-bold ml-0.5">*</span>
+              </label>
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as UnitStatus)}
@@ -479,10 +543,13 @@ export default function UnitFormModal({
                 ))}
               </select>
             </div>
+          )}
 
+          {/* Capacity & Dimensions (2 Columns) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                {typeConfig.capacityLabel} *
+                {typeConfig.capacityLabel} <span className="text-red-500 font-bold ml-0.5">*</span>
               </label>
               <input
                 type="number"
@@ -496,7 +563,7 @@ export default function UnitFormModal({
 
             <div>
               <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                {typeConfig.dimensionsLabel} *
+                {typeConfig.dimensionsLabel} <span className="text-red-500 font-bold ml-0.5">*</span>
               </label>
               <input
                 type="text"
@@ -510,51 +577,155 @@ export default function UnitFormModal({
           </div>
 
           {/* Pricing Structures */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 border-t border-[#C7D3C0]/30 pt-3">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Harga per Bulan (Rp) *</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                required
-                value={priceMonthly !== '' && priceMonthly !== undefined && priceMonthly !== null ? new Intl.NumberFormat('id-ID').format(Number(priceMonthly)) : ''}
-                onChange={(e) => {
-                  const clean = e.target.value.replace(/\D/g, '');
-                  setPriceMonthly(clean ? Number(clean) : '');
-                }}
-                placeholder="Contoh: 1.500.000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
-              />
+          <div className="border-t border-[#C7D3C0]/30 pt-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+                Struktur Harga & Biaya Sewa
+              </label>
+              {(typeConfig.type === 'KONTRAKAN' || typeConfig.type === 'RUKO') && (
+                <span className="text-[10px] font-bold text-[#8FA28A] bg-[#8FA28A]/10 px-2.5 py-0.5 rounded-full border border-[#8FA28A]/25">
+                  Tipe {typeConfig.badgeLabel}: Skema Tahunan Tersedia
+                </span>
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Harga Harian (Rp) (Opsional)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={priceDaily !== '' && priceDaily !== undefined && priceDaily !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDaily)) : ''}
-                onChange={(e) => {
-                  const clean = e.target.value.replace(/\D/g, '');
-                  setPriceDaily(clean ? Number(clean) : '');
-                }}
-                placeholder="Contoh: 150.000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
-              />
-            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {/* Harga per Tahun */}
+              <div>
+                <div className="flex items-center justify-between mb-1 gap-1.5">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 truncate">
+                    Harga per Tahun (Rp)
+                    {(typeConfig.type === 'KONTRAKAN' || typeConfig.type === 'RUKO') && (
+                      <span className="text-red-500 font-bold ml-0.5">*</span>
+                    )}
+                  </label>
+                  {priceMonthly !== '' && Number(priceMonthly) > 0 && priceYearly === '' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const calculated = Number(priceMonthly) * 12;
+                        setPriceYearly(calculated);
+                      }}
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      title="Hitung estimasi harga tahunan (Bulanan × 12)"
+                    >
+                      <Calculator className="h-3 w-3" />
+                      Hitung (×12)
+                    </button>
+                  ) : (typeConfig.type === 'KONTRAKAN' || typeConfig.type === 'RUKO') ? (
+                    <span className="text-[9px] font-bold text-[#8FA28A] uppercase bg-[#8FA28A]/10 px-1.5 py-0.5 rounded shrink-0">Utama</span>
+                  ) : null}
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={priceYearly !== '' && priceYearly !== undefined && priceYearly !== null ? new Intl.NumberFormat('id-ID').format(Number(priceYearly)) : ''}
+                  onChange={(e) => handleYearlyPriceChange(e.target.value)}
+                  placeholder={typeConfig.type === 'KONTRAKAN' ? "Contoh: 25.000.000" : typeConfig.type === 'RUKO' ? "Contoh: 45.000.000" : "Contoh: 18.000.000"}
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                />
+              </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Deposit / Jaminan (Rp)</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={priceDeposit !== '' && priceDeposit !== undefined && priceDeposit !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDeposit)) : ''}
-                onChange={(e) => {
-                  const clean = e.target.value.replace(/\D/g, '');
-                  setPriceDeposit(clean ? Number(clean) : '');
-                }}
-                placeholder="Contoh: 500.000"
-                className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none font-semibold"
-              />
+              {/* Harga per Bulan */}
+              <div>
+                <div className="flex items-center justify-between mb-1 gap-1.5">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 truncate">
+                    Harga per Bulan (Rp)
+                    {typeConfig.type !== 'KONTRAKAN' && typeConfig.type !== 'RUKO' && (
+                      <span className="text-red-500 font-bold ml-0.5">*</span>
+                    )}
+                  </label>
+                  {priceYearly !== '' && Number(priceYearly) > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const calculated = Math.round(Number(priceYearly) / 12);
+                        setPriceMonthly(calculated);
+                      }}
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      title="Hitung estimasi harga bulanan dari harga tahunan (dibagi 12)"
+                    >
+                      <Calculator className="h-3 w-3" />
+                      Hitung dari Tahunan (÷12)
+                    </button>
+                  ) : typeConfig.type === 'KOS' ? (
+                    <span className="text-[9px] font-bold text-[#8FA28A] uppercase bg-[#8FA28A]/10 px-1.5 py-0.5 rounded shrink-0">Utama</span>
+                  ) : null}
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={priceMonthly !== '' && priceMonthly !== undefined && priceMonthly !== null ? new Intl.NumberFormat('id-ID').format(Number(priceMonthly)) : ''}
+                  onChange={(e) => handleMonthlyPriceChange(e.target.value)}
+                  placeholder="Contoh: 1.500.000"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                />
+              </div>
+
+              {/* Harga Harian */}
+              <div>
+                <div className="flex items-center justify-between mb-1 gap-1.5">
+                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 truncate">
+                    Harga Harian (Rp) <span className="text-gray-400 font-normal">(Opsional)</span>
+                  </label>
+                  {priceMonthly !== '' && Number(priceMonthly) > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const calculated = Math.round(Number(priceMonthly) / 30);
+                        setPriceDaily(calculated);
+                      }}
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      title="Hitung estimasi harga harian dari harga bulanan (dibagi 30 hari)"
+                    >
+                      <Calculator className="h-3 w-3" />
+                      Hitung (÷30 hari)
+                    </button>
+                  ) : priceYearly !== '' && Number(priceYearly) > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const calculated = Math.round(Number(priceYearly) / 365);
+                        setPriceDaily(calculated);
+                      }}
+                      className="text-[10px] font-bold text-[#8FA28A] hover:text-white hover:bg-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer border border-[#8FA28A]/30 shrink-0"
+                      title="Hitung estimasi harga harian dari harga tahunan (dibagi 365 hari)"
+                    >
+                      <Calculator className="h-3 w-3" />
+                      Hitung (÷365 hari)
+                    </button>
+                  ) : null}
+                </div>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={priceDaily !== '' && priceDaily !== undefined && priceDaily !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDaily)) : ''}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/\D/g, '');
+                    setPriceDaily(clean ? Number(clean) : '');
+                  }}
+                  placeholder="Contoh: 150.000"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                />
+              </div>
+
+              {/* Deposit / Jaminan */}
+              <div>
+                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                  Deposit / Jaminan (Rp)
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={priceDeposit !== '' && priceDeposit !== undefined && priceDeposit !== null ? new Intl.NumberFormat('id-ID').format(Number(priceDeposit)) : ''}
+                  onChange={(e) => {
+                    const clean = e.target.value.replace(/\D/g, '');
+                    setPriceDeposit(clean ? Number(clean) : '');
+                  }}
+                  placeholder="Contoh: 500.000"
+                  className="w-full min-h-[44px] rounded-xl border border-gray-300 dark:border-border bg-white dark:bg-background text-gray-800 dark:text-foreground px-3.5 py-2 text-xs font-bold focus:border-[#8FA28A] focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 

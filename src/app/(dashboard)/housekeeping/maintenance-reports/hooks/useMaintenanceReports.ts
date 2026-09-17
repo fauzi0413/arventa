@@ -73,7 +73,7 @@ export function useMaintenanceReports() {
           loadedProps = pJson.data.map((p: any) => ({
             id: p.id,
             name: p.name,
-            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            address: p.address,
             categoryId: 'cat-1',
             statusId: 'st-1',
             totalUnits: p._count?.units || p.units?.length || 0,

@@ -379,9 +379,6 @@ export default function FacilitySelector({
         <span>
           Terpilih: <strong className="text-foreground">{selectedUnitCount}</strong> fasilitas
         </span>
-        <span className="text-[11px] text-[#8FA28A] font-semibold flex items-center gap-1">
-          <Check className="h-3 w-3" /> Otomatis tersimpan ke unit ini
-        </span>
       </div>
 
       {/* POPUP MODAL: Quick Add to Property Master Inventory */}

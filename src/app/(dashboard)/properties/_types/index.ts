@@ -14,6 +14,7 @@ export interface Property {
   id: string;
   name: string;
   address: string;
+  city?: string;
   categoryId: string;
   statusId: string;
   totalUnits: number;

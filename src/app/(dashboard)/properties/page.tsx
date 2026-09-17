@@ -53,7 +53,8 @@ function mapApiPropertyToFrontend(p: any): Property {
   return {
     id: p.id,
     name: p.name,
-    address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+    address: p.address,
+    city: p.city || '',
     categoryId,
     statusId,
     totalUnits,
@@ -162,6 +163,7 @@ export default function PropertiesPage() {
           body: JSON.stringify({
             name: data.name,
             address: data.address,
+            city: data.city,
             type: catToType[data.categoryId] || 'KOS',
             description: data.description,
             coverImage: data.imageUrl,
@@ -192,7 +194,7 @@ export default function PropertiesPage() {
           body: JSON.stringify({
             name: data.name,
             address: data.address,
-            city: 'Bandung',
+            city: data.city || '',
             type: catToType[data.categoryId] || 'KOS',
             description: data.description,
             coverImage: data.imageUrl,

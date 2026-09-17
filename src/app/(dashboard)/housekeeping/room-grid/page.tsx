@@ -44,7 +44,7 @@ export default function HousekeepingRoomGridPage() {
           loadedProps = pJson.data.map((p: any) => ({
             id: p.id,
             name: p.name,
-            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            address: p.address,
             categoryId:
               p.type === 'APARTEMEN'
                 ? 'cat-2'

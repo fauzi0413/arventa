@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { X, UploadCloud, Image as ImageIcon, Trash2, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, UploadCloud, Image as ImageIcon, Trash2, Loader2, AlertCircle, CheckCircle2, MapPin, ChevronDown, Check, Search } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import { getPropertyTypeConfig } from '@/lib/utils/propertyTypeConfig';
+import { INDONESIA_CITIES } from '@/lib/constants/indonesia-cities';
 
 interface PropertyFormModalProps {
   isOpen: boolean;
@@ -46,6 +47,7 @@ export default function PropertyFormModal({
   // Form State
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [statusId, setStatusId] = useState('');
   const [defaultLateFee, setDefaultLateFee] = useState<number | ''>(50000);
@@ -57,6 +59,10 @@ export default function PropertyFormModal({
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // City Searchable Dropdown State
+  const [isCityOpen, setIsCityOpen] = useState(false);
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
+
   // Submit / UI State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>('');
@@ -66,6 +72,33 @@ export default function PropertyFormModal({
     return getPropertyTypeConfig(null, categoryId);
   }, [categoryId]);
 
+  // Filtered cities based on user search
+  const filteredCities = useMemo(() => {
+    if (!city.trim()) {
+      return INDONESIA_CITIES.slice(0, 40);
+    }
+    const q = city.toLowerCase().trim();
+    return INDONESIA_CITIES.filter(
+      (c) =>
+        c.value.toLowerCase().includes(q) ||
+        c.province.toLowerCase().includes(q) ||
+        c.label.toLowerCase().includes(q)
+    ).slice(0, 40);
+  }, [city]);
+
+  // Close city dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target as Node)) {
+        setIsCityOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   // Reset or initialize state when opening / switching initialData
   useEffect(() => {
     if (isOpen) {
@@ -73,6 +106,7 @@ export default function PropertyFormModal({
       if (initialData) {
         setName(initialData.name || '');
         setAddress(initialData.address || '');
+        setCity(initialData.city || '');
         setCategoryId(initialData.categoryId || effectiveCategories[0]?.id || 'cat-1');
         setStatusId(initialData.statusId === 'st-4' ? defaultStatusId : (initialData.statusId || defaultStatusId));
         setDefaultLateFee(initialData.defaultLateFee ?? 50000);
@@ -83,6 +117,7 @@ export default function PropertyFormModal({
       } else {
         setName('');
         setAddress('');
+        setCity('');
         setCategoryId(effectiveCategories[0]?.id || 'cat-1');
         setStatusId(defaultStatusId);
         setDefaultLateFee(50000);
@@ -184,11 +219,12 @@ export default function PropertyFormModal({
         }
       }
 
-      setUploadStatus('Menyimpan data properti ke database...');
+      setUploadStatus('Menyimpan data properti...');
 
       await onSubmit({
         name: name.trim(),
         address: address.trim(),
+        city: city.trim(),
         categoryId,
         statusId,
         totalUnits: initialData?.totalUnits || 0,
@@ -256,19 +292,108 @@ export default function PropertyFormModal({
             />
           </div>
 
-          {/* Alamat Lengkap */}
+          {/* Alamat Jalan / Lokasi (Baris Tersendiri) */}
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
-              Alamat Lengkap <span className="text-red-500">*</span>
+              Alamat Jalan / Lokasi <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               required
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Contoh: Jl. Diponegoro No. 45, Bandung"
+              placeholder="Contoh: Jl. Diponegoro No. 45 RT 02/05"
               className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus:border-[#8FA28A] focus:outline-none shadow-2xs"
             />
+          </div>
+
+          {/* Kota / Kabupaten Dropdown (Baris Tersendiri) */}
+          <div className="relative" ref={cityDropdownRef}>
+            <label className="block text-xs font-bold uppercase tracking-wider text-foreground mb-1">
+              Kota / Kabupaten <span className="text-red-500">*</span>
+            </label>
+            <div
+              onClick={() => setIsCityOpen(true)}
+              className="relative flex items-center w-full rounded-xl border border-border bg-background text-foreground px-3.5 py-2.5 text-xs focus-within:border-[#8FA28A] shadow-2xs cursor-pointer min-h-[42px]"
+            >
+              <MapPin className="h-4 w-4 text-[#8FA28A] mr-2 shrink-0" />
+              <input
+                type="text"
+                required
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setIsCityOpen(true);
+                }}
+                onFocus={() => setIsCityOpen(true)}
+                placeholder="Pilih atau ketik nama Kota / Kabupaten..."
+                className="w-full bg-transparent text-xs font-semibold text-foreground focus:outline-none placeholder:text-muted-foreground pr-2"
+              />
+              {city && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCity('');
+                    setIsCityOpen(true);
+                  }}
+                  className="p-1 text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+                  title="Hapus pilihan"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform shrink-0 ml-1 ${isCityOpen ? 'rotate-180' : ''}`} />
+            </div>
+
+            {/* Dropdown Options Popup */}
+            {isCityOpen && (
+              <div className="absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-2xl border border-border bg-popover text-popover-foreground p-1.5 shadow-2xl animate-in fade-in-0 zoom-in-95">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1 flex items-center justify-between">
+                  <span>Daftar Wilayah Resmi Indonesia</span>
+                  <span className="text-[#8FA28A]">{filteredCities.length} ditemukan</span>
+                </div>
+
+                {filteredCities.length === 0 ? (
+                  <div className="p-3 text-center text-xs text-muted-foreground">
+                    Tidak ditemukan. Tekan luar untuk tetap memakai &quot;{city}&quot;.
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {filteredCities.map((item) => {
+                      const isSelected = city.toLowerCase() === item.value.toLowerCase() || city.toLowerCase() === item.label.toLowerCase();
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => {
+                            setCity(item.value);
+                            setIsCityOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left text-xs transition-colors cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#8FA28A]/15 text-[#8FA28A] font-bold'
+                              : 'hover:bg-muted text-foreground'
+                          }`}
+                        >
+                          <div className="flex flex-col min-w-0 pr-2">
+                            <span className="font-semibold truncate text-xs">{item.label}</span>
+                            <span className="text-[10px] text-muted-foreground truncate">{item.province}</span>
+                          </div>
+                          {isSelected ? (
+                            <Check className="h-4 w-4 text-[#8FA28A] shrink-0" />
+                          ) : (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0 uppercase">
+                              {item.type}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Kategori & Status */}

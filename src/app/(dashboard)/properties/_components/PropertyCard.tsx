@@ -88,7 +88,10 @@ export default function PropertyCard({
 
           <div className="mt-1.5 flex items-start gap-1 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-            <span className="line-clamp-1">{property.address}</span>
+            <span className="line-clamp-1">
+              {property.address}
+              {property.city ? ` • ${property.city}` : ''}
+            </span>
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground leading-relaxed min-h-[2.5rem]">
