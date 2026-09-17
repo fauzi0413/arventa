@@ -56,7 +56,7 @@ export default function HousekeepingDetailModal({
   };
 
   const handleCopyPassword = () => {
-    const passwordToCopy = staff.password || '-';
+    const passwordToCopy = staff.password || 'Housekeeping123!';
     navigator.clipboard.writeText(passwordToCopy);
     setIsPasswordCopied(true);
     setTimeout(() => setIsPasswordCopied(false), 2000);
@@ -79,7 +79,7 @@ export default function HousekeepingDetailModal({
       cleanPhone = '62' + cleanPhone.slice(1);
     }
     const currentEmail = staff.email || '-';
-    const currentPassword = staff.password || '-';
+    const currentPassword = staff.password || 'Housekeeping123!';
     const messageText = `Halo *${staff.fullName}*,
 
 Berikut adalah kredensial akun login modul Housekeeping Anda di Arventa:
@@ -186,7 +186,7 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                   <div className="min-w-0 flex-1">
                     <span className="text-[10px] text-muted-foreground block">Password Akun</span>
                     <p className="font-semibold font-mono text-foreground truncate">
-                      {showPassword ? (staff.password || '-') : '••••••••••••'}
+                      {showPassword ? (staff.password || 'Housekeeping123!') : '••••••••••••'}
                     </p>
                   </div>
                 </div>

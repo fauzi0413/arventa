@@ -238,50 +238,15 @@ export class UnitService {
    * Create a single unit and auto-generate its dedicated room user account (1 Kamar 1 Akun)
    */
   static async createUnit(data: CreateUnitData) {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Generate clean human-readable email: [property].[unit]@arventa.id
-      const prop = await tx.property.findUnique({
+    const resultUnitId = await prisma.$transaction(async (tx) => {
+      // 1. Generate unique room account email & initial password scoped to property
+      const property = await tx.property.findUnique({
         where: { id: data.propertyId },
-        select: { name: true },
+        select: { id: true, name: true },
       });
-
-      const cleanProp = (prop?.name || 'prop')
-        .toLowerCase()
-        .replace(/^(kos|kost|kontrakan|apartemen|ruko|wisma|homestay|residence)\s+/i, '')
-        .replace(/[^a-z0-9]/g, '')
-        .slice(0, 16) || 'prop';
-      
-      const cleanUnit = data.name
-        .toLowerCase()
-        .replace(/^(kamar|unit|pintu|ruang|room)\s+/i, '')
-        .replace(/[^a-z0-9]/g, '')
-        .slice(0, 16) || 'unit';
-
-      const baseCandidate = `${cleanProp}.${cleanUnit}`;
-      let targetEmail = `${baseCandidate}@arventa.id`;
-
-      // Check if email already taken and find next clean sequential number
-      const existingUser = await tx.user.findUnique({
-        where: { email: targetEmail },
-      });
-
-      if (existingUser) {
-        let counter = 2;
-        let isAvailable = false;
-        while (!isAvailable && counter <= 100) {
-          const testEmail = `${baseCandidate}${counter}@arventa.id`;
-          const exists = await tx.user.findUnique({ where: { email: testEmail } });
-          if (!exists) {
-            targetEmail = testEmail;
-            isAvailable = true;
-          } else {
-            counter++;
-          }
-        }
-        if (!isAvailable) {
-          targetEmail = `${baseCandidate}.${Math.random().toString(36).substring(2, 6)}@arventa.id`;
-        }
-      }
+      const cleanProp = property?.name?.toLowerCase().replace(/[^a-z0-9]/g, '') || `p${data.propertyId.slice(0, 6)}`;
+      const cleanNum = data.name.toLowerCase().replace(/[^a-z0-9]/g, '') || `u${Date.now()}`;
+      let roomEmail = `${cleanNum}.${cleanProp}@arventa.id`;
 
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let rand = "";
@@ -290,15 +255,45 @@ export class UnitService {
       }
       const initialPassword = `Arv!${rand}`;
 
-      // Create dedicated unique room user
-      const roomUser = await tx.user.create({
-        data: {
-          fullName: `Akun Unit ${data.name}`,
-          email: targetEmail,
-          role: UserRole.TENANT,
-          phoneNumber: '0812' + Math.floor(10000000 + Math.random() * 90000000),
-          isActive: true,
-        },
+      // Check if user with this room email exists
+      let roomUser = await tx.user.findUnique({
+        where: { email: roomEmail },
+        include: { unitAccount: true },
+      });
+
+      // If user exists and is already linked to another unit, append random suffix to guarantee a distinct account
+      if (roomUser && roomUser.unitAccount) {
+        const extraRand = Math.random().toString(36).substring(2, 6);
+        roomEmail = `${cleanNum}.${cleanProp}.${extraRand}@arventa.id`;
+        roomUser = await tx.user.findUnique({
+          where: { email: roomEmail },
+          include: { unitAccount: true },
+        });
+      }
+
+      if (!roomUser) {
+        roomUser = await tx.user.create({
+          data: {
+            fullName: `Akun Unit ${data.name}`,
+            email: roomEmail,
+            role: UserRole.TENANT,
+            phoneNumber: '0812' + Math.floor(10000000 + Math.random() * 90000000),
+            isActive: true,
+          },
+          include: { unitAccount: true },
+        });
+      } else if (roomUser.role !== UserRole.TENANT) {
+        await tx.user.update({
+          where: { id: roomUser.id },
+          data: { role: UserRole.TENANT },
+        });
+      }
+
+      // Upsert UserCredential for direct password login
+      await tx.userCredential.upsert({
+        where: { userId: roomUser.id },
+        update: { rawPassword: initialPassword },
+        create: { userId: roomUser.id, rawPassword: initialPassword },
       });
 
       // 2. Create Unit
@@ -385,8 +380,13 @@ export class UnitService {
         }
       }
 
-      return this.getUnitById(unit.id);
+      return unit.id;
+    }, {
+      maxWait: 10000,
+      timeout: 25000,
     });
+
+    const result = await this.getUnitById(resultUnitId);
 
     // Auto Welcome Post & SYSTEM_JOIN if tenant assigned
     const createdUnitNumber = (result as any)?.name || (result as any)?.unitNumber || "";
@@ -638,6 +638,12 @@ export class UnitService {
     });
 
     if (updated.unitUser) {
+      await prisma.userCredential.upsert({
+        where: { userId: updated.unitUser.id },
+        update: { rawPassword: newPassword },
+        create: { userId: updated.unitUser.id, rawPassword: newPassword },
+      }).catch((e) => console.warn("Failed to update userCredential on resetRoomPassword:", e));
+
       const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
         try {

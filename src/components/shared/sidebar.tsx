@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import packageJson from "../../../package.json";
 import {
   IconHome,
@@ -202,12 +202,12 @@ const ownerNavItems: NavItem[] = [
   { id: "owner-4", href: "/operations/maintenance-reports", label: "Pusat Laporan & Maintenance", icon: IconTools, group: "PROPERTI & OPERASIONAL" },
   {
     id: "owner-community",
-    href: "/community",
+    href: "/properti/community",
     label: "Komunitas Properti",
     icon: IconMessages,
     group: "KOMUNITAS",
     children: [
-      { id: "owner-comm-forum", href: "/community", label: "Forum Komunitas", icon: IconMessages, group: "KOMUNITAS" },
+      { id: "owner-comm-forum", href: "/properti/community", label: "Forum Komunitas", icon: IconMessages, group: "KOMUNITAS" },
       { id: "owner-comm-history", href: "/portal/community", label: "History Komunitas", icon: IconHistory, group: "KOMUNITAS" },
     ],
   },
@@ -234,7 +234,7 @@ const housekeepingNavItems: NavItem[] = [
   { id: "hk-3", href: "/housekeeping/tenants", label: "Data Penghuni Lapangan", icon: IconUserCheck, group: "LAPANGAN & UNIT" },
   { id: "hk-4", href: "/housekeeping/inventories", label: "Kondisi Perabotan & Unit", icon: IconArmchair, group: "LAPANGAN & UNIT" },
   { id: "hk-5", href: "/housekeeping/unit-expenses", label: "Keuangan & Penagihan Unit", icon: IconCash, group: "KEUANGAN & KOMUNITAS" },
-  { id: "hk-6", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "KEUANGAN & KOMUNITAS" },
+  { id: "hk-6", href: "/properti/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "KEUANGAN & KOMUNITAS" },
 ];
 
 const userNavItems: NavItem[] = [
@@ -243,12 +243,12 @@ const userNavItems: NavItem[] = [
   { id: "usr-3", href: "/portal/invoices", label: "Tagihan & Pembayaran", icon: IconReceipt, group: "PORTAL KAMAR" },
   {
     id: "usr-4",
-    href: "/community",
+    href: "/properti/community",
     label: "Komunitas Properti",
     icon: IconMessages,
     group: "KOMUNITAS",
     children: [
-      { id: "usr-comm-forum", href: "/community", label: "Forum Komunitas", icon: IconMessages, group: "KOMUNITAS" },
+      { id: "usr-comm-forum", href: "/properti/community", label: "Forum Komunitas", icon: IconMessages, group: "KOMUNITAS" },
       { id: "usr-comm-history", href: "/portal/community", label: "History Komunitas", icon: IconHistory, group: "KOMUNITAS" },
     ],
   },
@@ -282,8 +282,28 @@ function getTemplateItemsForRole(r: UserRole): NavItem[] {
   }
 }
 
+// Helper to normalize paths and support alias routes (e.g. /community -> /properti/community)
+function normalizeMenuPath(p?: string | null): string {
+  if (!p) return "";
+  const clean = p.replace(/\/$/, "");
+  if (clean === "/community") return "/properti/community";
+  return clean;
+}
+
+function isPathActive(currentPath: string, targetPath: string, isPrefix: boolean = false): boolean {
+  const normCurrent = normalizeMenuPath(currentPath);
+  const normTarget = normalizeMenuPath(targetPath);
+  if (!normCurrent || !normTarget) return false;
+  if (normCurrent === normTarget) return true;
+  if (isPrefix && normTarget !== "/" && normCurrent.startsWith(normTarget + "/")) {
+    return true;
+  }
+  return false;
+}
+
 export function Sidebar({ role: initialRole }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   // Hide sidebar on standalone pages like /owner/subscription
   if (pathname === "/owner/subscription" || pathname.startsWith("/owner/subscription")) {
@@ -343,10 +363,10 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
 
           // Helper to resolve group name from template list or item data
           const resolveGroup = (path: string, itemGroup?: string) => {
-            const matched = templateList.find((t) => t.href === path);
+            const matched = templateList.find((t) => isPathActive(t.href, path));
             if (matched?.group) return matched.group;
             for (const t of templateList) {
-              const childMatch = t.children?.find((c) => c.href === path);
+              const childMatch = t.children?.find((c) => isPathActive(c.href, path));
               if (childMatch?.group) return childMatch.group;
             }
             if (itemGroup && itemGroup !== "UTAMA") return itemGroup;
@@ -512,7 +532,9 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
     items.forEach((item) => {
       if (item.children && item.children.length > 0) {
         const hasActiveChild = item.children.some((child) =>
-          child.href === "/" ? pathname === "/" : pathname.startsWith(child.href)
+          child.href === "/"
+            ? pathname === "/"
+            : isPathActive(pathname, child.href) || isPathActive(pathname, child.href, true)
         );
         if (hasActiveChild) {
           setOpenSubmenus((prev) => ({ ...prev, [item.id]: true }));
@@ -621,8 +643,15 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                     const IconComponent = item.icon || IconRoute;
                     const hasChildren = item.children && item.children.length > 0;
                     const isParentActive =
-                      pathname === item.href ||
-                      (item.href !== "/" && pathname.startsWith(item.href));
+                      isPathActive(pathname, item.href) ||
+                      (item.href !== "/" && isPathActive(pathname, item.href, true)) ||
+                      Boolean(
+                        item.children?.some(
+                          (child) =>
+                            isPathActive(pathname, child.href) ||
+                            (child.href !== "/" && isPathActive(pathname, child.href, true))
+                        )
+                      );
                     const isOpen = Boolean(openSubmenus[item.id]);
 
                     if (hasChildren) {
@@ -630,11 +659,21 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                         <div key={item.id} className="space-y-1">
                           <button
                             type="button"
-                            onClick={() => toggleSubmenu(item.id)}
+                            onClick={() => {
+                              toggleSubmenu(item.id);
+                              // If parent was not active, also navigate to default route
+                              if (!isParentActive) {
+                                const targetRoute = item.href || item.children?.[0]?.href;
+                                if (targetRoute) {
+                                  router.push(targetRoute);
+                                  if (isMobile) setMobileMenuOpen(false);
+                                }
+                              }
+                            }}
                             className={cn(
-                              "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group text-left",
+                              "w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group text-left cursor-pointer",
                               isParentActive
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground font-bold border border-sidebar-border"
+                                ? "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100 font-bold border border-zinc-200 dark:border-zinc-700"
                                 : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                             )}
                           >
@@ -643,17 +682,28 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                                 className={cn(
                                   "h-4 w-4 shrink-0 transition-colors",
                                   isParentActive
-                                    ? "text-primary"
+                                    ? "text-zinc-900 dark:text-zinc-100 font-bold"
                                     : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
                                 )}
                               />
                               <span>{item.label}</span>
                             </div>
-                            {isOpen ? (
-                              <IconChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
-                            ) : (
-                              <IconChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                            )}
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSubmenu(item.id);
+                              }}
+                              className="p-1 -mr-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                              title={isOpen ? "Tutup submenu" : "Buka submenu"}
+                            >
+                              {isOpen ? (
+                                <IconChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                              ) : (
+                                <IconChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                              )}
+                            </div>
                           </button>
 
                           {/* Submenu Dropdown */}
@@ -662,14 +712,14 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                               {item.children?.map((child) => {
                                 const ChildIcon = child.icon || IconRoute;
                                 const isChildActive = (() => {
-                                  if (pathname === child.href) return true;
-                                  if (child.href !== "/" && pathname.startsWith(child.href + "/")) {
+                                  if (isPathActive(pathname, child.href)) return true;
+                                  if (child.href !== "/" && isPathActive(pathname, child.href, true)) {
                                     const hasMoreSpecificSiblingMatch = item.children?.some(
                                       (otherChild) =>
                                         otherChild.id !== child.id &&
-                                        (pathname === otherChild.href ||
+                                        (isPathActive(pathname, otherChild.href) ||
                                           (otherChild.href.length > child.href.length &&
-                                            pathname.startsWith(otherChild.href)))
+                                            isPathActive(pathname, otherChild.href, true)))
                                     );
                                     return !hasMoreSpecificSiblingMatch;
                                   }
@@ -721,11 +771,16 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                                     className={cn(
                                       "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 text-left",
                                       isChildActive
-                                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-sm"
                                         : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                                     )}
                                   >
-                                    <ChildIcon className="h-3.5 w-3.5 shrink-0" />
+                                    <ChildIcon
+                                      className={cn(
+                                        "h-3.5 w-3.5 shrink-0",
+                                        isChildActive ? "text-white dark:text-zinc-900" : ""
+                                      )}
+                                    />
                                     <span>{child.label}</span>
                                   </Link>
                                 );
@@ -781,7 +836,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                         className={cn(
                           "flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group",
                           isParentActive
-                            ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                            ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 font-bold shadow-sm"
                             : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                         )}
                       >
@@ -789,7 +844,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                           className={cn(
                             "h-4 w-4 shrink-0 transition-colors",
                             isParentActive
-                              ? "text-primary-foreground"
+                              ? "text-white dark:text-zinc-900"
                               : "text-muted-foreground group-hover:text-sidebar-accent-foreground"
                           )}
                         />

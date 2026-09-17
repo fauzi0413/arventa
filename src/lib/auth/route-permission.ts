@@ -147,7 +147,12 @@ export async function validateRouteAccess(
 
   // 4. Prefix fallback guard rules
   if (cleanPath.startsWith("/portal/")) {
-    if (normalizedUserRole !== "TENANT") {
+    // /portal/community (History Komunitas) is accessible to both OWNER and TENANT
+    if (cleanPath === "/portal/community") {
+      if (normalizedUserRole !== "TENANT" && normalizedUserRole !== "OWNER") {
+        return { allowed: false, redirectUrl: defaultHome };
+      }
+    } else if (normalizedUserRole !== "TENANT") {
       return { allowed: false, redirectUrl: defaultHome };
     }
   }

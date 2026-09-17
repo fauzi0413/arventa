@@ -8,16 +8,26 @@ export const revalidate = 0;
 export async function GET() {
   try {
     // 0. Smart Community Menu auto-alignment:
-    // Move "Komunitas Properti" (/community) to top under "KOMUNITAS" group
+    // Move "Komunitas Properti" (/properti/community) to top under "KOMUNITAS" group
     const communityParent = await prisma.menuItem.findFirst({
-      where: { path: "/community", parentId: null },
+      where: {
+        OR: [
+          { path: "/properti/community", parentId: null },
+          { path: "/community", parentId: null },
+        ],
+      },
     });
     if (communityParent) {
-      if (communityParent.group !== "KOMUNITAS" || communityParent.order !== 5) {
+      if (
+        communityParent.path !== "/properti/community" ||
+        communityParent.group !== "KOMUNITAS" ||
+        communityParent.order !== 5
+      ) {
         await prisma.menuItem.update({
           where: { id: communityParent.id },
           data: {
             title: "Komunitas Properti",
+            path: "/properti/community",
             group: "KOMUNITAS",
             order: 5,
           },
@@ -63,7 +73,7 @@ export async function GET() {
       }
     }
 
-    // Ensure "Forum Komunitas" submenu item exists
+    // Ensure "Forum Komunitas" submenu item exists with correct path
     let forumItem = await prisma.menuItem.findFirst({
       where: { title: "Forum Komunitas" },
     });
@@ -71,7 +81,7 @@ export async function GET() {
       forumItem = await prisma.menuItem.create({
         data: {
           title: "Forum Komunitas",
-          path: "/community",
+          path: "/properti/community",
           icon: "IconMessages",
           group: "KOMUNITAS",
           order: 6,
@@ -89,6 +99,14 @@ export async function GET() {
           },
         });
       }
+    } else if (forumItem && (forumItem.path !== "/properti/community" || (communityParent && forumItem.parentId !== communityParent.id))) {
+      await prisma.menuItem.update({
+        where: { id: forumItem.id },
+        data: {
+          path: "/properti/community",
+          parentId: communityParent ? communityParent.id : forumItem.parentId,
+        },
+      });
     }
 
     // Smart auto-alignment for submenus with correct parent IDs and sequential ordering

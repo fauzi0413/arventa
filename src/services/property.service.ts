@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { PropertyType } from "@/generated/prisma/client";
+import { PropertyType, UserRole } from "@/generated/prisma/client";
 import { CreatePropertyInput, UpdatePropertyInput } from "@/lib/validations/property.schema";
 
 export interface PropertyFilterParams {
@@ -336,7 +336,7 @@ export class PropertyService {
         data: {
           ownerId: data.ownerId!,
           name: data.name,
-          type: data.type as PropertyType,
+          type: (data.type as any === "KOST" ? PropertyType.KOS : data.type) || PropertyType.KOS,
           address: data.address,
           city: data.city || "Jakarta",
           description: data.description || "",
@@ -356,9 +356,12 @@ export class PropertyService {
         },
       });
 
-      // If totalUnits specified, automatically create initial room units in database
+      // If totalUnits specified, automatically create initial room units with dedicated room accounts & credentials
       if (totalUnitsCount > 0) {
-        const unitsToCreate = Array.from({ length: totalUnitsCount }).map((_, idx) => {
+        const cleanProp = newProperty.name.toLowerCase().replace(/[^a-z0-9]/g, "") || `p${newProperty.id.slice(0, 6)}`;
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+        for (let idx = 0; idx < totalUnitsCount; idx++) {
           const roomNum = idx + 1;
           const formattedNumber =
             data.type === "APARTEMEN"
@@ -367,29 +370,80 @@ export class PropertyService {
               ? `Ruko Blok ${String.fromCharCode(65 + Math.floor(idx / 10))}-${(idx % 10) + 1}`
               : `Kamar ${100 + roomNum}`;
 
-          return {
-            propertyId: newProperty.id,
-            unitNumber: formattedNumber,
-            floor: Math.floor(idx / 10) + 1,
-            status:
-              data.occupiedUnits && idx < data.occupiedUnits
-                ? ("OCCUPIED" as const)
-                : ("AVAILABLE" as const),
-            basePrice: 1500000,
-            deposit: data.defaultDeposit ?? 0,
-            capacity: 1,
-            dimensions: "3x4 m",
-            facilities: ["WiFi", "Kasur", "Lemari", "Kamar Mandi Dalam"],
-            description: `${newProperty.name} - ${formattedNumber}`,
-          };
-        });
+          const cleanNum = formattedNumber.toLowerCase().replace(/[^a-z0-9]/g, "") || `u${roomNum}`;
+          let roomEmail = `${cleanNum}.${cleanProp}@arventa.id`;
 
-        await tx.unit.createMany({
-          data: unitsToCreate,
-        });
+          // Generate strong initial password
+          let rand = "";
+          for (let i = 0; i < 6; i++) {
+            rand += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          const initialPassword = `Arv!${rand}`;
+
+          // Check if user already exists
+          let roomUser = await tx.user.findUnique({
+            where: { email: roomEmail },
+            include: { unitAccount: true },
+          });
+
+          // If user exists and is already assigned to a unit, append random suffix to avoid unique constraint collision
+          if (roomUser && roomUser.unitAccount) {
+            const extraRand = Math.random().toString(36).substring(2, 6);
+            roomEmail = `${cleanNum}.${cleanProp}.${extraRand}@arventa.id`;
+            roomUser = await tx.user.findUnique({
+              where: { email: roomEmail },
+              include: { unitAccount: true },
+            });
+          }
+
+          if (!roomUser) {
+            roomUser = await tx.user.create({
+              data: {
+                fullName: `Akun Unit ${formattedNumber}`,
+                email: roomEmail,
+                role: UserRole.TENANT,
+                phoneNumber: "0812" + Math.floor(10000000 + Math.random() * 90000000),
+                isActive: true,
+              },
+              include: { unitAccount: true },
+            });
+          }
+
+          // Create or update UserCredential record with rawPassword for login authentication
+          await tx.userCredential.upsert({
+            where: { userId: roomUser.id },
+            update: { rawPassword: initialPassword },
+            create: { userId: roomUser.id, rawPassword: initialPassword },
+          });
+
+          // Create Unit linked to roomUser
+          await tx.unit.create({
+            data: {
+              propertyId: newProperty.id,
+              unitUserId: roomUser.id,
+              unitNumber: formattedNumber,
+              floor: Math.floor(idx / 10) + 1,
+              status:
+                data.occupiedUnits && idx < data.occupiedUnits
+                  ? ("OCCUPIED" as const)
+                  : ("AVAILABLE" as const),
+              basePrice: 1500000,
+              deposit: data.defaultDeposit ?? 0,
+              capacity: 1,
+              dimensions: "3x4 m",
+              facilities: ["WiFi", "Kasur", "Lemari", "Kamar Mandi Dalam"],
+              description: `${newProperty.name} - ${formattedNumber}`,
+              roomPassword: initialPassword,
+              roomPasswordLastReset: new Date(),
+            },
+          });
+        }
       }
 
       return newProperty;
+    }, {
+      maxWait: 15000,
+      timeout: 30000,
     });
   }
 

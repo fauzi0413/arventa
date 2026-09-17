@@ -258,13 +258,107 @@ export class PropertyChatService {
   }
 
   /**
+   * Get accessible properties with WhatsApp-style conversation metadata (last message, unread count, resident count)
+   */
+  static async getAccessiblePropertiesSummaries(userId: string, role: string) {
+    const accessibleProperties = await this.getUserAccessibleProperties(userId, role);
+    if (accessibleProperties.length === 0) return [];
+
+    return await Promise.all(
+      accessibleProperties.map(async (prop) => {
+        // Last message
+        const lastMsg = await prisma.propertyChatMessage.findFirst({
+          where: { propertyId: prop.id },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            content: true,
+            senderName: true,
+            senderRole: true,
+            createdAt: true,
+            isDeleted: true,
+          },
+        });
+
+        // Member read timestamp
+        const memberRead = await prisma.propertyChatMemberRead.findUnique({
+          where: {
+            propertyId_userId: {
+              propertyId: prop.id,
+              userId,
+            },
+          },
+          select: { lastReadAt: true },
+        });
+
+        const unreadCount = memberRead
+          ? await prisma.propertyChatMessage.count({
+              where: {
+                propertyId: prop.id,
+                senderId: { not: userId },
+                createdAt: { gt: memberRead.lastReadAt },
+              },
+            })
+          : await prisma.propertyChatMessage.count({
+              where: {
+                propertyId: prop.id,
+                senderId: { not: userId },
+              },
+            });
+
+        const activeTenantsCount = await prisma.unit.count({
+          where: {
+            propertyId: prop.id,
+            OR: [
+              { status: "OCCUPIED" },
+              { leases: { some: { status: "ACTIVE" } } },
+            ],
+          },
+        });
+
+        return {
+          id: prop.id,
+          name: prop.name,
+          city: prop.city,
+          address: prop.address,
+          coverImage: prop.coverImage,
+          type: prop.type,
+          lastMessage: lastMsg
+            ? lastMsg.isDeleted
+              ? "🚫 Pesan telah dihapus"
+              : lastMsg.content
+            : null,
+          lastMessageAt: lastMsg ? lastMsg.createdAt.toISOString() : null,
+          lastSenderName: lastMsg ? lastMsg.senderName : null,
+          unreadCount,
+          activeTenantsCount,
+        };
+      })
+    );
+  }
+
+  /**
    * Get all active residents (tenants) and management staff for the "Daftar Warga" modal
    */
   static async getPropertyResidents(propertyId: string) {
-    // 1. Active Units & Tenants
+    // 1. Active Units & Tenants (Either active lease OR occupied status)
     const units = await prisma.unit.findMany({
-      where: { propertyId },
+      where: {
+        propertyId,
+        OR: [
+          { leases: { some: { status: "ACTIVE" } } },
+          { status: "OCCUPIED" },
+        ],
+      },
       include: {
+        unitUser: {
+          select: {
+            id: true,
+            fullName: true,
+            phoneNumber: true,
+            avatarUrl: true,
+          },
+        },
         leases: {
           where: { status: "ACTIVE" },
           include: {
@@ -286,26 +380,26 @@ export class PropertyChatService {
       orderBy: { unitNumber: "asc" },
     });
 
-    const residents = units
-      .filter((u) => u.leases && u.leases.length > 0)
-      .map((u) => {
-        const lease = u.leases[0];
-        const tenantUser = lease.tenant?.user;
-        const tenantUserId = tenantUser?.id || lease.tenant?.userId || null;
-        const name = lease.tenant?.fullName || tenantUser?.fullName || "Penghuni";
-        const phone = lease.tenant?.phoneNumber || tenantUser?.phoneNumber || null;
-        return {
-          unitId: u.id,
-          unitNumber: u.unitNumber,
-          floor: u.floor,
-          userId: tenantUserId,
-          tenantName: name,
-          tenantPhone: phone,
-          avatarUrl: tenantUser?.avatarUrl || null,
-          startDate: lease.startDate,
-          endDate: lease.endDate,
-        };
-      });
+    const residentList = units.map((u) => {
+      const lease = u.leases && u.leases.length > 0 ? u.leases[0] : null;
+      const tenantUser = lease?.tenant?.user || u.unitUser;
+      const tenantUserId = tenantUser?.id || lease?.tenant?.userId || u.unitUserId || null;
+      const name = lease?.tenant?.fullName || tenantUser?.fullName || `Penghuni Kamar ${u.unitNumber}`;
+      const phone = lease?.tenant?.phoneNumber || tenantUser?.phoneNumber || null;
+
+      return {
+        id: tenantUserId || `unit-${u.id}`,
+        name,
+        role: "TENANT",
+        displayRole: `Penghuni (Kamar ${u.unitNumber})`,
+        unitNumber: u.unitNumber,
+        phone,
+        avatarUrl: tenantUser?.avatarUrl || null,
+        leaseStartDate: lease?.startDate ? lease.startDate.toISOString() : null,
+        leaseEndDate: lease?.endDate ? lease.endDate.toISOString() : null,
+        status: "AKTIF",
+      };
+    });
 
     // 2. Managers: Property Owner & Assigned Housekeeping
     const property = await prisma.property.findUnique({
@@ -334,15 +428,19 @@ export class PropertyChatService {
       },
     });
 
-    const managers = [];
+    const managers: any[] = [];
     if (property?.owner) {
       managers.push({
         id: property.owner.id,
         name: property.owner.fullName || "Pemilik Kost",
-        phone: property.owner.phoneNumber,
-        avatarUrl: property.owner.avatarUrl,
         role: "OWNER",
-        roleLabel: "Pemilik Kost",
+        displayRole: "Pemilik Kost",
+        unitNumber: null,
+        phone: property.owner.phoneNumber || null,
+        avatarUrl: property.owner.avatarUrl || null,
+        leaseStartDate: null,
+        leaseEndDate: null,
+        status: "PENGELOLA",
       });
     }
 
@@ -352,19 +450,25 @@ export class PropertyChatService {
           managers.push({
             id: assignment.user.id,
             name: assignment.user.fullName || "Tim Operasional",
-            phone: assignment.user.phoneNumber,
-            avatarUrl: assignment.user.avatarUrl,
             role: "HOUSEKEEPING",
-            roleLabel: "Staf Housekeeping",
+            displayRole: "Staf Housekeeping",
+            unitNumber: null,
+            phone: assignment.user.phoneNumber || null,
+            avatarUrl: assignment.user.avatarUrl || null,
+            leaseStartDate: null,
+            leaseEndDate: null,
+            status: "PENGELOLA",
           });
         }
       }
     }
 
+    const allResidents = [...residentList, ...managers];
+
     return {
-      residents,
+      residents: allResidents,
       managers,
-      activeResidentsCount: residents.length,
+      activeResidentsCount: residentList.length,
       managersCount: managers.length,
     };
   }
@@ -378,56 +482,117 @@ export class PropertyChatService {
     requestedPropertyId?: string,
     limit: number = 100
   ) {
-    const accessibleProperties = await this.getUserAccessibleProperties(userId, role);
+    const accessiblePropertiesWithSummaries = await this.getAccessiblePropertiesSummaries(userId, role);
 
-    if (accessibleProperties.length === 0) {
+    if (accessiblePropertiesWithSummaries.length === 0) {
       return {
         hasAccess: false,
         error: "Tidak ada properti aktif yang dapat Anda akses.",
         availableProperties: [],
         property: null,
         residentsInfo: null,
+        activeTenantsCount: 0,
+        managementCount: 0,
+        residents: [],
         messages: [],
       };
     }
 
     // Resolve active property: either requested (if accessible) or first accessible property
-    let activeProperty = requestedPropertyId
-      ? accessibleProperties.find((p) => p.id === requestedPropertyId)
-      : accessibleProperties[0];
+    let activePropertySummary = requestedPropertyId
+      ? accessiblePropertiesWithSummaries.find((p) => p.id === requestedPropertyId)
+      : accessiblePropertiesWithSummaries[0];
 
-    if (!activeProperty) {
-      activeProperty = accessibleProperties[0];
+    if (!activePropertySummary) {
+      activePropertySummary = accessiblePropertiesWithSummaries[0];
     }
 
-    const access = await this.verifyPropertyAccess(userId, role, activeProperty.id);
+    const access = await this.verifyPropertyAccess(userId, role, activePropertySummary.id);
     if (!access.allowed) {
       return {
         hasAccess: false,
         error: access.reason || "Akses ditolak.",
-        availableProperties: accessibleProperties,
-        property: activeProperty,
+        availableProperties: accessiblePropertiesWithSummaries,
+        property: activePropertySummary,
         residentsInfo: null,
+        activeTenantsCount: 0,
+        managementCount: 0,
+        residents: [],
         messages: [],
       };
     }
 
+    // ------------------------------------------------------------------------
+    // New joiner message history restriction:
+    // Non-admin members (TENANT or HOUSEKEEPING) only see:
+    // 1. Regular messages created after their join date
+    // 2. OR any message that is pinned (isPinned: true)
+    // ------------------------------------------------------------------------
+    let messageWhereClause: any = { propertyId: activePropertySummary.id };
+
+    if (role === UserRole.TENANT || role === UserRole.USER) {
+      const activeLease = await prisma.lease.findFirst({
+        where: {
+          tenant: { userId },
+          unit: { propertyId: activePropertySummary.id },
+          status: "ACTIVE",
+        },
+        orderBy: { startDate: "asc" },
+      });
+
+      const userRecord = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { createdAt: true },
+      });
+
+      const joinDate = activeLease?.startDate || activeLease?.createdAt || userRecord?.createdAt;
+
+      if (joinDate) {
+        messageWhereClause = {
+          propertyId: activePropertySummary.id,
+          OR: [
+            { createdAt: { gte: joinDate } },
+            { isPinned: true },
+          ],
+        };
+      }
+    } else if (role === UserRole.HOUSEKEEPING) {
+      const assignment = await prisma.housekeepingAssignment.findFirst({
+        where: {
+          userId,
+          propertyId: activePropertySummary.id,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+
+      if (assignment?.createdAt) {
+        messageWhereClause = {
+          propertyId: activePropertySummary.id,
+          OR: [
+            { createdAt: { gte: assignment.createdAt } },
+            { isPinned: true },
+          ],
+        };
+      }
+    }
+    // OWNER and PLATFORM_ADMIN see all messages in the property
+
     // Fetch messages & residents in parallel
     const [messages, residentsInfo] = await Promise.all([
       prisma.propertyChatMessage.findMany({
-        where: { propertyId: activeProperty.id },
+        where: messageWhereClause,
         orderBy: { createdAt: "asc" },
         take: limit,
       }),
-      this.getPropertyResidents(activeProperty.id),
+      this.getPropertyResidents(activePropertySummary.id),
     ]);
 
     // Mark current user as having read the chat room up to now
-    await this.markUserRead(activeProperty.id, userId);
+    await this.markUserRead(activePropertySummary.id, userId);
 
     // Compute read status for each message
     const formattedMessages = await this.attachReadStatusToMessages(
-      activeProperty.id,
+      activePropertySummary.id,
       messages,
       residentsInfo
     );
@@ -442,8 +607,11 @@ export class PropertyChatService {
         role: access.senderRole,
         unitNumber: access.senderUnitNumber || null,
       },
-      property: activeProperty,
-      availableProperties: accessibleProperties,
+      property: activePropertySummary,
+      availableProperties: accessiblePropertiesWithSummaries,
+      activeTenantsCount: residentsInfo.activeResidentsCount,
+      managementCount: residentsInfo.managersCount,
+      residents: residentsInfo.residents,
       residentsInfo,
       pinnedMessages,
       messages: formattedMessages,

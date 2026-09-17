@@ -287,7 +287,7 @@ export default function CommunityHistoryPage() {
           </button>
 
           <Link
-            href="/housekeeping/community"
+            href="/properti/community"
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#8FA28A] hover:bg-[#7D9178] text-white text-xs font-bold transition-all shadow-md active:scale-95 group"
           >
             <IconMessages className="h-4 w-4 transition-transform group-hover:scale-110" />
@@ -676,7 +676,7 @@ export default function CommunityHistoryPage() {
                           Disematkan: {formatFullDateTime(pinned.pinnedAt)}
                         </span>
                         <Link
-                          href="/housekeeping/community"
+                          href="/properti/community"
                           className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8FA28A] hover:underline"
                         >
                           <span>Buka di Obrolan</span>

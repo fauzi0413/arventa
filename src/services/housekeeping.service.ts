@@ -125,7 +125,7 @@ export class HousekeepingService {
         isActive: staff.isActive,
         createdAt: staff.createdAt,
         updatedAt: staff.updatedAt,
-        password: staff.userCredential?.rawPassword || undefined,
+        password: staff.userCredential?.rawPassword || "Housekeeping123!",
         assignedProperties,
         totalPropertiesCount: assignedProperties.length,
         totalStatusLogsCount: staff._count.unitStatusLogs,
@@ -209,7 +209,7 @@ export class HousekeepingService {
 
     return {
       ...staff,
-      password: staff.userCredential?.rawPassword || undefined,
+      password: staff.userCredential?.rawPassword || "Housekeeping123!",
       assignedProperties: staff.housekeepingAssignments.map((a) => a.property),
     };
   }
@@ -612,9 +612,23 @@ export class HousekeepingService {
       };
     }
 
-    const staff = await prisma.user.findFirst({
+    let staff = await prisma.user.findFirst({
       where: whereCondition,
     });
+
+    if (!staff && !isPlatformAdmin) {
+      staff = await prisma.user.findFirst({
+        where: {
+          id: staffId,
+          role: UserRole.HOUSEKEEPING,
+          housekeepingAssignments: {
+            some: {
+              property: { ownerId },
+            },
+          },
+        },
+      });
+    }
 
     if (!staff) {
       throw new Error("Staf housekeeping tidak ditemukan atau bukan milik properti Anda.");
@@ -711,6 +725,7 @@ export class HousekeepingService {
 
     return {
       success: true,
+      newPassword: resetPass,
       message: `Password akun staf '${staff.fullName}' (${staff.email}) berhasil di-reset. Password baru siap digunakan untuk login.`,
     };
   }
