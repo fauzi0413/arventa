@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, Suspense, lazy } from 'react';
-import { ClipboardList, Sparkles, Wrench, History } from 'lucide-react';
+import React, { useState, Suspense, lazy, useEffect } from 'react';
+import { ClipboardList, Sparkles, Wrench, History, Plus, Building2 } from 'lucide-react';
 import { useMaintenanceReports } from './hooks/useMaintenanceReports';
 import ReportsOverviewCards from './components/ReportsOverviewCards';
 import DynamicFilterBar from './components/common/DynamicFilterBar';
@@ -10,6 +10,7 @@ import MaintenanceTable from './components/maintenance/MaintenanceTable';
 import AllHistoryTable from './components/history/AllHistoryTable';
 import ReportsMobileCardList from './components/ReportsMobileCardList';
 import ExportReportButton from './components/ExportReportButton';
+import ImageFileInput from './components/common/ImageFileInput';
 import { HousekeepingReport, MaintenanceReportItem } from './types';
 
 // Lazy loaded modals for optimal performance
@@ -36,6 +37,7 @@ function MaintenanceReportsContent() {
     housekeepingList,
     maintenanceList,
     properties,
+    units,
     loading,
     filters,
     metrics,
@@ -44,6 +46,7 @@ function MaintenanceReportsContent() {
     startRepair,
     resolveMaintenance,
     submitRating,
+    refreshData,
   } = useMaintenanceReports();
 
   // Modals state
@@ -54,6 +57,72 @@ function MaintenanceReportsContent() {
   const [isInspectionOpen, setIsInspectionOpen] = useState(false);
   const [isResolveOpen, setIsResolveOpen] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  // New Ticket Modal State (Housekeeping direct create)
+  const [isCreateTicketOpen, setIsCreateTicketOpen] = useState(false);
+  const [newTicketType, setNewTicketType] = useState<'HOUSEKEEPING' | 'REPAIR'>('HOUSEKEEPING');
+  const [newTicketPropId, setNewTicketPropId] = useState('');
+  const [newTicketUnitId, setNewTicketUnitId] = useState('');
+  const [newTicketServiceType, setNewTicketServiceType] = useState('DAILY_CLEAN');
+  const [newTicketTitle, setNewTicketTitle] = useState('');
+  const [newTicketDesc, setNewTicketDesc] = useState('');
+  const [newTicketPriority, setNewTicketPriority] = useState('MEDIUM');
+  const [newTicketPhotos, setNewTicketPhotos] = useState<string[]>([]);
+  const [creatingTicket, setCreatingTicket] = useState(false);
+
+  useEffect(() => {
+    if (properties.length > 0 && !newTicketPropId) {
+      setNewTicketPropId(properties[0].id);
+    }
+  }, [properties, newTicketPropId]);
+
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTicketPropId) {
+      alert('Pilih properti terlebih dahulu');
+      return;
+    }
+    if (!newTicketTitle && newTicketType === 'REPAIR') {
+      alert('Judul perbaikan wajib diisi');
+      return;
+    }
+
+    setCreatingTicket(true);
+    try {
+      const res = await fetch('/api/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          propertyId: newTicketPropId,
+          unitId: newTicketUnitId || undefined,
+          type: newTicketType,
+          serviceType: newTicketType === 'HOUSEKEEPING' ? newTicketServiceType : undefined,
+          title: newTicketTitle,
+          description: newTicketDesc,
+          priority: newTicketPriority,
+          photosBefore: newTicketPhotos,
+        }),
+      });
+
+      if (res.ok) {
+        setIsCreateTicketOpen(false);
+        setNewTicketTitle('');
+        setNewTicketDesc('');
+        setNewTicketPhotos([]);
+        await refreshData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || 'Gagal membuat tiket');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Terjadi kesalahan saat membuat tiket');
+    } finally {
+      setCreatingTicket(false);
+    }
+  };
+
+  const availableUnits = units.filter((u) => !newTicketPropId || u.propertyId === newTicketPropId);
 
   if (loading) {
     return (
@@ -80,12 +149,22 @@ function MaintenanceReportsContent() {
           </p>
         </div>
 
-        {/* CSV Export Engine */}
-        <ExportReportButton
-          housekeepingData={housekeepingList}
-          maintenanceData={maintenanceList}
-          activeTab={activeTab}
-        />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsCreateTicketOpen(true)}
+            className="flex items-center gap-2 rounded-xl bg-[#8FA28A] px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#8FA28A]/90 transition-all cursor-pointer"
+          >
+            <Plus className="h-4 w-4" />
+            <span>+ Buat Laporan / Tiket Baru</span>
+          </button>
+          {/* CSV Export Engine */}
+          <ExportReportButton
+            housekeepingData={housekeepingList}
+            maintenanceData={maintenanceList}
+            activeTab={activeTab}
+          />
+        </div>
       </div>
 
       {/* Main Tab Navigation Bar */}
@@ -249,23 +328,179 @@ function MaintenanceReportsContent() {
           />
         )}
 
-        {isDetailOpen && (selectedHousekeeping || selectedMaintenance) && (
-          <ReportDetailModal
-            isOpen={isDetailOpen}
-            onClose={() => {
-              setIsDetailOpen(false);
-              setSelectedHousekeeping(null);
-              setSelectedMaintenance(null);
-            }}
-            report={selectedHousekeeping ? selectedHousekeeping : selectedMaintenance}
-            reportType={selectedHousekeeping ? 'HOUSEKEEPING' : 'MAINTENANCE'}
-            onSubmitRating={(score, feedback) => {
-              const targetId = selectedHousekeeping?.id || selectedMaintenance?.id;
-              if (targetId) {
-                submitRating(targetId, score, feedback);
-              }
-            }}
-          />
+        {/* Housekeeping Create Ticket Modal */}
+        {isCreateTicketOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-2xl bg-card text-card-foreground border border-border p-6 shadow-xl space-y-4 animate-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <h3 className="text-base font-black text-foreground flex items-center gap-2">
+                  <Plus className="h-5 w-5 text-[#8FA28A]" />
+                  Buat Laporan / Tugas Lapangan
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setIsCreateTicketOpen(false)}
+                  className="text-muted-foreground hover:text-foreground text-lg font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateTicket} className="space-y-4 text-xs">
+                {/* Type selector */}
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Tipe Laporan</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewTicketType('HOUSEKEEPING')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                        newTicketType === 'HOUSEKEEPING'
+                          ? 'bg-[#8FA28A] text-white border-[#8FA28A] shadow-sm'
+                          : 'bg-muted/40 text-foreground border-border'
+                      }`}
+                    >
+                      <Sparkles className="h-4 w-4" /> Kebersihan (Housekeeping)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewTicketType('REPAIR')}
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${
+                        newTicketType === 'REPAIR'
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                          : 'bg-muted/40 text-foreground border-border'
+                      }`}
+                    >
+                      <Wrench className="h-4 w-4" /> Kerusakan (Repair)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Property & Unit */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Properti *</label>
+                    <select
+                      value={newTicketPropId}
+                      onChange={(e) => {
+                        setNewTicketPropId(e.target.value);
+                        setNewTicketUnitId('');
+                      }}
+                      required
+                      className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
+                    >
+                      {properties.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Kamar / Lokasi</label>
+                    <select
+                      value={newTicketUnitId}
+                      onChange={(e) => setNewTicketUnitId(e.target.value)}
+                      className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
+                    >
+                      <option value="">Area Umum / Fasilitas Gedung</option>
+                      {availableUnits.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          Kamar {u.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Service type for Housekeeping */}
+                {newTicketType === 'HOUSEKEEPING' && (
+                  <div>
+                    <label className="font-bold text-foreground block mb-1">Jenis Layanan Kebersihan</label>
+                    <select
+                      value={newTicketServiceType}
+                      onChange={(e) => setNewTicketServiceType(e.target.value)}
+                      className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
+                    >
+                      <option value="DAILY_CLEAN">Pembersihan Harian (Daily Clean)</option>
+                      <option value="DEEP_CLEAN">Pembersihan Menyeluruh (Deep Clean)</option>
+                      <option value="CHECKOUT_CLEAN">Pembersihan Selesai Sewa (Checkout Clean)</option>
+                      <option value="LINEN_CHANGE">Ganti Sprei & Linen</option>
+                      <option value="SPECIAL_REQUEST">Permintaan Khusus</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Title */}
+                <div>
+                  <label className="font-bold text-foreground block mb-1">
+                    {newTicketType === 'REPAIR' ? 'Judul Kerusakan *' : 'Nama Tugas Kebersihan'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newTicketTitle}
+                    onChange={(e) => setNewTicketTitle(e.target.value)}
+                    placeholder={newTicketType === 'REPAIR' ? 'Contoh: AC Bocor di Kamar 101' : 'Contoh: Pembersihan kamar mandi & ganti sprei'}
+                    required={newTicketType === 'REPAIR'}
+                    className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Keterangan / Rincian Pekerjaan</label>
+                  <textarea
+                    value={newTicketDesc}
+                    onChange={(e) => setNewTicketDesc(e.target.value)}
+                    rows={3}
+                    placeholder="Jelaskan detail kondisi barang atau instruksi pengerjaan..."
+                    className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none resize-none"
+                  />
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="font-bold text-foreground block mb-1">Prioritas Pengerjaan</label>
+                  <select
+                    value={newTicketPriority}
+                    onChange={(e) => setNewTicketPriority(e.target.value)}
+                    className="w-full rounded-xl border border-border p-2.5 bg-muted/40 text-foreground font-medium focus:bg-background focus:outline-none"
+                  >
+                    <option value="LOW">Rendah (Biasa)</option>
+                    <option value="MEDIUM">Sedang</option>
+                    <option value="HIGH">Tinggi (Urgent)</option>
+                    <option value="EMERGENCY">Darurat (Emergency)</option>
+                  </select>
+                </div>
+
+                {/* Upload Foto Bukti / Kerusakan */}
+                <ImageFileInput
+                  label="Unggah Foto Bukti / Kondisi Awal"
+                  images={newTicketPhotos}
+                  onChange={setNewTicketPhotos}
+                  maxFiles={4}
+                />
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateTicketOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-border text-muted-foreground font-bold hover:bg-muted hover:text-foreground cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creatingTicket}
+                    className="px-5 py-2 rounded-xl bg-[#8FA28A] text-white font-bold hover:bg-[#8FA28A]/90 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {creatingTicket ? 'Menyimpan...' : 'Simpan & Terbitkan Tiket'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
         )}
       </Suspense>
     </div>

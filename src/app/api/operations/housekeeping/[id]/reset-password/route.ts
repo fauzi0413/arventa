@@ -13,6 +13,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  console.log("HIT POST /api/operations/housekeeping/[id]/reset-password");
   try {
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {

@@ -18,16 +18,17 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
  * Generate a clean room email slug from unit number.
  * Example: "Kamar 101" -> "kamar101@arventa.id", "Apt 12B-01" -> "apt12b01@arventa.id"
  */
-function generateRoomEmail(unitNumber: string): string {
-  const cleanNumber = unitNumber.toLowerCase().replace(/[^a-z0-9]/g, "");
-  return `${cleanNumber}@arventa.id`;
+function generateRoomEmail(unitNumber: string, propertyName?: string, propertyId?: string): string {
+  const cleanNumber = unitNumber.toLowerCase().replace(/[^a-z0-9]/g, "") || "unit";
+  const cleanProp = propertyName?.toLowerCase().replace(/[^a-z0-9]/g, "") || (propertyId ? `p${propertyId.slice(0, 6)}` : "");
+  return cleanProp ? `${cleanNumber}.${cleanProp}@arventa.id` : `${cleanNumber}@arventa.id`;
 }
 
 /**
  * Helper to generate a random strong password for room accounts
  */
 function generateRandomPassword(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$";
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let password = "Arv!";
   for (let i = 0; i < 6; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -51,46 +52,91 @@ export interface CreateUnitWithAccountInput {
  */
 export async function createUnitWithAccount(input: CreateUnitWithAccountInput) {
   try {
-    const roomEmail = generateRoomEmail(input.unitNumber);
+    const property = await prisma.property.findUnique({
+      where: { id: input.propertyId },
+      select: { id: true, name: true },
+    });
+
+    let roomEmail = generateRoomEmail(input.unitNumber, property?.name, input.propertyId);
     const roomPassword = generateRandomPassword();
     const fullName = `Akun Kamar (${input.unitNumber})`;
 
+    // Check if user already exists
+    let existingUser = await prisma.user.findUnique({
+      where: { email: roomEmail },
+      include: { unitAccount: true },
+    });
+
+    // If already assigned to another unit, append random suffix
+    if (existingUser && existingUser.unitAccount) {
+      const extraRand = Math.random().toString(36).substring(2, 6);
+      const cleanNum = input.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, "") || "unit";
+      const cleanProp = property?.name?.toLowerCase().replace(/[^a-z0-9]/g, "") || input.propertyId.slice(0, 6);
+      roomEmail = `${cleanNum}.${cleanProp}.${extraRand}@arventa.id`;
+      existingUser = await prisma.user.findUnique({
+        where: { email: roomEmail },
+        include: { unitAccount: true },
+      });
+    }
+
     // Check if Supabase Auth user already exists or create new
     let supabaseAuthId: string | null = null;
-    const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
-    const existingAuthUser = listData?.users?.find((u) => u.email === roomEmail);
+    if (supabaseAdmin) {
+      try {
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        const existingAuthUser = listData?.users?.find((u) => u.email === roomEmail);
 
-    if (existingAuthUser) {
-      supabaseAuthId = existingAuthUser.id;
-    } else {
-      const { data: createData, error } = await supabaseAdmin.auth.admin.createUser({
-        email: roomEmail,
-        password: roomPassword,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
-      });
+        if (existingAuthUser) {
+          supabaseAuthId = existingAuthUser.id;
+          await supabaseAdmin.auth.admin.updateUserById(existingAuthUser.id, {
+            password: roomPassword,
+            email_confirm: true,
+          });
+        } else {
+          const { data: createData, error } = await supabaseAdmin.auth.admin.createUser({
+            email: roomEmail,
+            password: roomPassword,
+            email_confirm: true,
+            user_metadata: { full_name: fullName, role: UserRole.TENANT },
+          });
 
-      if (error) {
-        throw new Error(`Failed to create Supabase Auth account: ${error.message}`);
+          if (!error && createData?.user) {
+            supabaseAuthId = createData.user.id;
+          }
+        }
+      } catch (authErr) {
+        console.warn("Supabase Auth sync warning in createUnitWithAccount:", authErr);
       }
-      supabaseAuthId = createData.user.id;
     }
 
     // Create or find public User record for the room account
-    let roomUser = await prisma.user.findUnique({
-      where: { email: roomEmail },
-    });
-
+    let roomUser = existingUser;
     if (!roomUser) {
       roomUser = await prisma.user.create({
         data: {
           email: roomEmail,
           fullName,
-          role: UserRole.USER,
+          role: UserRole.TENANT,
+          phoneNumber: "0812" + Math.floor(10000000 + Math.random() * 90000000),
+          isActive: true,
           supabaseAuthId,
         },
+        include: { unitAccount: true },
+      });
+    } else if (roomUser.role !== UserRole.TENANT) {
+      roomUser = await prisma.user.update({
+        where: { id: roomUser.id },
+        data: { role: UserRole.TENANT },
+        include: { unitAccount: true },
       });
     }
+
+    // Upsert UserCredential for direct password login
+    await prisma.userCredential.upsert({
+      where: { userId: roomUser.id },
+      update: { rawPassword: roomPassword },
+      create: { userId: roomUser.id, rawPassword: roomPassword },
+    });
 
     // Create the Unit linked to the room User account
     const unit = await prisma.unit.create({
@@ -105,6 +151,8 @@ export async function createUnitWithAccount(input: CreateUnitWithAccountInput) {
         capacity: input.capacity || 1,
         facilities: input.facilities || [],
         unitUserId: roomUser.id,
+        roomPassword,
+        roomPasswordLastReset: new Date(),
       },
       include: {
         unitUser: true,
@@ -144,14 +192,30 @@ export async function resetRoomPassword(unitId: string) {
 
     const newPassword = generateRandomPassword();
 
-    if (unit.unitUser.supabaseAuthId) {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(
-        unit.unitUser.supabaseAuthId,
-        { password: newPassword }
-      );
+    // Update Unit record
+    await prisma.unit.update({
+      where: { id: unitId },
+      data: {
+        roomPassword: newPassword,
+        roomPasswordLastReset: new Date(),
+      },
+    });
 
-      if (error) {
-        throw new Error(`Failed to reset password in Supabase Auth: ${error.message}`);
+    // Upsert UserCredential
+    await prisma.userCredential.upsert({
+      where: { userId: unit.unitUser.id },
+      update: { rawPassword: newPassword },
+      create: { userId: unit.unitUser.id, rawPassword: newPassword },
+    });
+
+    if (unit.unitUser.supabaseAuthId && supabaseAdmin) {
+      try {
+        await supabaseAdmin.auth.admin.updateUserById(
+          unit.unitUser.supabaseAuthId,
+          { password: newPassword, email_confirm: true }
+        );
+      } catch (authErr) {
+        console.warn("Supabase Auth sync warning in resetRoomPassword:", authErr);
       }
     }
 

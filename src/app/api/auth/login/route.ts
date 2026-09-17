@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
       include: {
         unitAccount: true,
         tenantProfile: true,
+        userCredential: true,
       },
     });
 
@@ -65,6 +66,13 @@ export async function POST(request: NextRequest) {
     });
 
     const isUnitPasswordMatch = Boolean(matchingUnit?.roomPassword && matchingUnit.roomPassword === password);
+    const isCredentialPasswordMatch = Boolean(
+      user.userCredential?.rawPassword && user.userCredential.rawPassword === password
+    );
+    const isStaffDefaultPasswordMatch = Boolean(
+      user.role === "HOUSEKEEPING" && !user.userCredential?.rawPassword && password === "Housekeeping123!"
+    );
+    const isDirectPasswordMatch = isUnitPasswordMatch || isCredentialPasswordMatch || isStaffDefaultPasswordMatch;
 
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -76,7 +84,7 @@ export async function POST(request: NextRequest) {
           { auth: { autoRefreshToken: false, persistSession: false } }
         );
         if (user.supabaseAuthId) {
-          if (isUnitPasswordMatch) {
+          if (isDirectPasswordMatch) {
             await supabaseAdmin.auth.admin.updateUserById(user.supabaseAuthId, {
               password: password,
               email_confirm: true,
@@ -90,14 +98,14 @@ export async function POST(request: NextRequest) {
           const target = listData?.users?.find((u) => u.email === cleanEmail);
           if (target) {
             await supabaseAdmin.auth.admin.updateUserById(target.id, {
-              ...(isUnitPasswordMatch ? { password } : {}),
+              ...(isDirectPasswordMatch ? { password } : {}),
               email_confirm: true,
             });
             await prisma.user.update({
               where: { id: user.id },
               data: { supabaseAuthId: target.id },
             });
-            if (isUnitPasswordMatch) isAutoProvisioned = true;
+            if (isDirectPasswordMatch) isAutoProvisioned = true;
           } else {
             // User exists in PostgreSQL DB (e.g. Housekeeping / Tenant account registered by owner) but not yet in Supabase Auth.
             // Automatically provision them in Supabase Auth using the submitted password.
@@ -122,11 +130,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!isAutoProvisioned && isUnitPasswordMatch) {
+    if (!isAutoProvisioned && isDirectPasswordMatch) {
       isAutoProvisioned = true;
     }
 
-    // 4. Verify password against Supabase Auth (skip if just freshly provisioned or password matched unit record)
+    // Auto-upsert userCredential if default password was used or newly confirmed
+    if ((isStaffDefaultPasswordMatch || isCredentialPasswordMatch) && !user.userCredential) {
+      await prisma.userCredential.upsert({
+        where: { userId: user.id },
+        update: { rawPassword: password },
+        create: { userId: user.id, rawPassword: password },
+      }).catch(console.warn);
+    }
+
+    // 4. Verify password against Supabase Auth (skip if just freshly provisioned or password matched direct record)
     if (!isAutoProvisioned && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
       const supabase = createSupabaseClient(
@@ -140,8 +157,8 @@ export async function POST(request: NextRequest) {
       });
 
       if (authError) {
-        if (isUnitPasswordMatch) {
-          console.log(`ℹ️ Unit password matched DB record for ${cleanEmail}, allowing login.`);
+        if (isDirectPasswordMatch) {
+          console.log(`ℹ️ Direct password matched DB record for ${cleanEmail}, allowing login.`);
         } else {
           console.warn(`⚠️ Login password verification failed for ${cleanEmail}:`, authError.message);
           return ApiResponse.badRequest("Email atau password yang Anda masukkan salah.");

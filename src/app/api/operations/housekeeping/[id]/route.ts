@@ -13,6 +13,7 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  console.log("HIT GET /api/operations/housekeeping/[id]");
   try {
     const authUser = await getAuthenticatedUser(request);
     if (!authUser) {

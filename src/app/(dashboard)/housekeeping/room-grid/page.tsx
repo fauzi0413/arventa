@@ -189,9 +189,10 @@ export default function HousekeepingRoomGridPage() {
     }
   };
 
-  const handleCheckout = (unitId: string) => {
+  const handleCheckout = async (unitId: string) => {
     const targetUnit = units.find((u) => u.id === unitId);
 
+    // Optimistic UI update
     const updated = units.map((u) => {
       if (u.id === unitId) {
         const { tenantName, tenantPhone, checkInDate, ...rest } = u;
@@ -203,81 +204,58 @@ export default function HousekeepingRoomGridPage() {
       return u;
     });
     saveUnits(updated);
-
-    if (targetUnit) {
-      // Auto push Housekeeping Request for Checkout Clean to Admin Housekeeping
-      const checkoutCall = {
-        id: `hk-auto-${Date.now()}`,
-        unitId: targetUnit.id,
-        unitName: targetUnit.name,
-        serviceType: 'Checkout Clean (Selesai Sewa)',
-        scheduledDate: new Date().toISOString().split('T')[0],
-        timeSlot: 'Pagi (09:00 - 11:00 WIB)',
-        notes: `Otomatis dibuat oleh sistem setelah penyewa (${targetUnit.tenantName || 'Penghuni'}) selesai masa sewa (Check-out).`,
-        status: 'Diproses',
-        createdAt: new Date().toISOString(),
-      };
-
-      const storedCalls = localStorage.getItem('arventa_housekeeping_requests');
-      let calls = storedCalls ? JSON.parse(storedCalls) : [];
-      calls.unshift(checkoutCall);
-      localStorage.setItem('arventa_housekeeping_requests', JSON.stringify(calls));
-
-      // Also push to arventa_housekeeping_reports_v4
-      const storedReports = localStorage.getItem('arventa_housekeeping_reports_v4');
-      let reports = storedReports ? JSON.parse(storedReports) : [];
-      reports.unshift({
-        id: checkoutCall.id,
-        ticketNumber: `HK-CO-${Date.now().toString().slice(-4)}`,
-        propertyId: targetUnit.propertyId || 'prop-1',
-        propertyName: getPropName(targetUnit.propertyId),
-        unitId: targetUnit.id,
-        unitNumber: targetUnit.name,
-        serviceType: 'CHECKOUT_CLEAN',
-        status: 'REQUESTED',
-        reportedBy: { id: 'sys-auto', name: 'Sistem Auto Check-out', role: 'STAFF' },
-        notes: checkoutCall.notes,
-        photos: { before: [], after: [] },
-        rating: null,
-        timeline: [
-          {
-            id: `hist-co-${Date.now()}`,
-            reportId: checkoutCall.id,
-            timestamp: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            status: 'REQUESTED',
-            performerName: 'Sistem Auto Check-out',
-            performerRole: 'System',
-            notes: 'Panggilan kebersihan Checkout Clean dipicu otomatis saat Check-out.',
-          },
-        ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
-      localStorage.setItem('arventa_housekeeping_reports_v4', JSON.stringify(reports));
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('arventa_task_updated'));
-      }
-    }
-
-    const storedCreds = localStorage.getItem('arventa_tenants');
-    if (storedCreds) {
-      const creds: Record<string, TenantCredential> = JSON.parse(storedCreds);
-      if (creds[unitId]) {
-        delete creds[unitId];
-        localStorage.setItem('arventa_tenants', JSON.stringify(creds));
-      }
-    }
-
     setIsUpdateOpen(false);
     setSelectedUnit(null);
+
+    try {
+      // 1. Terminate active lease in DB
+      const leaseRes = await fetch(`/api/units/${unitId}/lease`, {
+        method: 'DELETE',
+      }).catch(() => null);
+
+      if (!leaseRes || !leaseRes.ok) {
+        // Fallback: update status directly if lease termination not applicable
+        await fetch('/api/operations/update-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            unitId,
+            newStatus: 'CLEANING',
+            notes: 'Check-out penyewa (Housekeeping Portal). Kamar siap dibersihkan.',
+          }),
+        }).catch(console.warn);
+      }
+
+      // 2. Create official maintenance housekeeping ticket
+      if (targetUnit) {
+        await fetch('/api/maintenance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId: targetUnit.propertyId,
+            unitId: targetUnit.id,
+            type: 'HOUSEKEEPING',
+            serviceType: 'CHECKOUT_CLEAN',
+            title: `Pembersihan Check-out (Unit ${targetUnit.name})`,
+            description: `Penghuni (${targetUnit.tenantName || 'Penghuni'}) selesai masa sewa / Check-out. Kamar siap dibersihkan.`,
+            priority: 'HIGH',
+          }),
+        }).catch(console.warn);
+      }
+
+      // Reload fresh state from DB
+      await loadData();
+    } catch (err) {
+      console.error('Error executing checkout in DB:', err);
+    }
   };
 
-  const handleTransfer = (sourceUnitId: string, targetUnitId: string) => {
+  const handleTransfer = async (sourceUnitId: string, targetUnitId: string) => {
     const sourceUnit = units.find((u) => u.id === sourceUnitId);
     const targetUnit = units.find((u) => u.id === targetUnitId);
     if (!sourceUnit || !targetUnit) return;
 
+    // Optimistic UI update
     const updated = units.map((u) => {
       if (u.id === sourceUnitId) {
         const { tenantName, tenantPhone, checkInDate, ...rest } = u;
@@ -297,16 +275,25 @@ export default function HousekeepingRoomGridPage() {
 
     saveUnits(updated);
 
-    const storedCreds = localStorage.getItem('arventa_tenants');
-    if (storedCreds) {
-      const creds: Record<string, TenantCredential> = JSON.parse(storedCreds);
-      if (creds[sourceUnitId]) {
-        const userCred = creds[sourceUnitId];
-        userCred.wifiSsid = `WiFi_${getPropName(targetUnit.propertyId).replace(/\s+/g, '')}_${targetUnit.name.replace(/\s+/g, '')}`;
-        creds[targetUnitId] = userCred;
-        delete creds[sourceUnitId];
-        localStorage.setItem('arventa_tenants', JSON.stringify(creds));
+    try {
+      const res = await fetch('/api/operations/transfer-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceUnitId,
+          targetUnitId,
+          notes: `Transfer kamar oleh tim Housekeeping: dari ${sourceUnit.name} ke ${targetUnit.name}`,
+        }),
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        console.warn('Notice from transfer room API:', errJson.message);
       }
+
+      await loadData();
+    } catch (err) {
+      console.error('Error executing room transfer:', err);
     }
   };
 

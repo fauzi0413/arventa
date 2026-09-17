@@ -238,10 +238,16 @@ export class UnitService {
    * Create a single unit and auto-generate its dedicated room user account (1 Kamar 1 Akun)
    */
   static async createUnit(data: CreateUnitData) {
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Generate unique room account email & initial password
+    const resultUnitId = await prisma.$transaction(async (tx) => {
+      // 1. Generate unique room account email & initial password scoped to property
+      const property = await tx.property.findUnique({
+        where: { id: data.propertyId },
+        select: { id: true, name: true },
+      });
+      const cleanProp = property?.name?.toLowerCase().replace(/[^a-z0-9]/g, '') || `p${data.propertyId.slice(0, 6)}`;
       const cleanNum = data.name.toLowerCase().replace(/[^a-z0-9]/g, '') || `u${Date.now()}`;
-      const roomEmail = `${cleanNum}@arventa.id`;
+      let roomEmail = `${cleanNum}.${cleanProp}@arventa.id`;
+
       const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       let rand = "";
       for (let i = 0; i < 6; i++) {
@@ -249,10 +255,21 @@ export class UnitService {
       }
       const initialPassword = `Arv!${rand}`;
 
-      // Check if user with this room email exists, otherwise create
+      // Check if user with this room email exists
       let roomUser = await tx.user.findUnique({
         where: { email: roomEmail },
+        include: { unitAccount: true },
       });
+
+      // If user exists and is already linked to another unit, append random suffix to guarantee a distinct account
+      if (roomUser && roomUser.unitAccount) {
+        const extraRand = Math.random().toString(36).substring(2, 6);
+        roomEmail = `${cleanNum}.${cleanProp}.${extraRand}@arventa.id`;
+        roomUser = await tx.user.findUnique({
+          where: { email: roomEmail },
+          include: { unitAccount: true },
+        });
+      }
 
       if (!roomUser) {
         roomUser = await tx.user.create({
@@ -263,8 +280,21 @@ export class UnitService {
             phoneNumber: '0812' + Math.floor(10000000 + Math.random() * 90000000),
             isActive: true,
           },
+          include: { unitAccount: true },
+        });
+      } else if (roomUser.role !== UserRole.TENANT) {
+        await tx.user.update({
+          where: { id: roomUser.id },
+          data: { role: UserRole.TENANT },
         });
       }
+
+      // Upsert UserCredential for direct password login
+      await tx.userCredential.upsert({
+        where: { userId: roomUser.id },
+        update: { rawPassword: initialPassword },
+        create: { userId: roomUser.id, rawPassword: initialPassword },
+      });
 
       // 2. Create Unit
       const unit = await tx.unit.create({
@@ -350,8 +380,13 @@ export class UnitService {
         }
       }
 
-      return this.getUnitById(unit.id);
+      return unit.id;
+    }, {
+      maxWait: 10000,
+      timeout: 25000,
     });
+
+    const result = await this.getUnitById(resultUnitId);
 
     // Auto Welcome Post & SYSTEM_JOIN if tenant assigned
     const createdUnitNumber = (result as any)?.name || (result as any)?.unitNumber || "";
@@ -586,6 +621,12 @@ export class UnitService {
     });
 
     if (updated.unitUser) {
+      await prisma.userCredential.upsert({
+        where: { userId: updated.unitUser.id },
+        update: { rawPassword: newPassword },
+        create: { userId: updated.unitUser.id, rawPassword: newPassword },
+      }).catch((e) => console.warn("Failed to update userCredential on resetRoomPassword:", e));
+
       const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       if (supabaseServiceRoleKey && process.env.NEXT_PUBLIC_SUPABASE_URL) {
         try {
