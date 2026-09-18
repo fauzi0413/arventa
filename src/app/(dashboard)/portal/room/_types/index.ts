@@ -2,9 +2,23 @@ import { Unit } from '@/app/(dashboard)/units/_types';
 import { Property, InventoryItem } from '@/app/(dashboard)/properties/_types';
 
 export interface EmergencyContact {
+  id?: string;
+  name: string;
+  rawName?: string;
+  role: string;
+  phone: string;
+  email?: string;
+  avatarUrl?: string;
+  type?: 'OWNER' | 'HOUSEKEEPING' | string;
+}
+
+export interface HousekeepingMember {
+  id: string;
   name: string;
   role: string;
   phone: string;
+  email?: string;
+  avatarUrl?: string;
 }
 
 export interface TenantBillingSummary {
@@ -59,6 +73,7 @@ export interface TenantRoomDetails {
   inventories: InventoryItem[];
   houseRules: string[];
   emergencyContacts: EmergencyContact[];
+  housekeepingTeam?: HousekeepingMember[];
   billingSummary?: TenantBillingSummary | null;
   complaints?: TenantComplaint[];
   housekeepingRequests?: HousekeepingRequest[];

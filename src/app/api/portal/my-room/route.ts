@@ -287,32 +287,54 @@ export async function GET(request: NextRequest) {
     const ownerPhone = owner?.phoneNumber || null;
     const ownerEmail = owner?.email || null;
 
-    // Real Housekeeping: ONLY if assigned to this specific property!
-    const hkAssignment = await prisma.housekeepingAssignment.findFirst({
+    // Real Housekeeping: ALL active staff assigned to this specific property!
+    const hkAssignments = await prisma.housekeepingAssignment.findMany({
       where: {
         propertyId: unit.propertyId,
         user: { isActive: true },
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            phoneNumber: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
       },
     });
 
     const emergencyContacts: any[] = [];
     if (ownerName && ownerPhone) {
       emergencyContacts.push({
+        id: owner?.id,
         name: ownerName,
+        rawName: owner?.fullName || "Pemilik Properti",
         role: "Pemilik Properti",
         phone: ownerPhone,
+        email: ownerEmail || undefined,
+        type: "OWNER",
       });
     }
 
-    if (hkAssignment?.user) {
-      emergencyContacts.push({
-        name: `${hkAssignment.user.fullName} (Housekeeping)`,
-        role: "Tim Lapangan & Bersih-Bersih",
-        phone: hkAssignment.user.phoneNumber || ownerPhone || "-",
-      });
+    for (const assignment of hkAssignments) {
+      if (assignment.user) {
+        emergencyContacts.push({
+          id: assignment.user.id,
+          name: `${assignment.user.fullName} (Housekeeping)`,
+          rawName: assignment.user.fullName,
+          role: "Tim Lapangan & Bersih-Bersih",
+          phone: assignment.user.phoneNumber || "-",
+          email: assignment.user.email || undefined,
+          avatarUrl: assignment.user.avatarUrl || undefined,
+          type: "HOUSEKEEPING",
+        });
+      }
     }
 
     // Real House Rules from Property Contract Template
@@ -413,7 +435,7 @@ export async function GET(request: NextRequest) {
           description: unit.property.description || "",
           type: unit.property.type,
           hasCleaningService: unit.property.hasCleaningService,
-          hasHousekeepingStaff: Boolean(hkAssignment),
+          hasHousekeepingStaff: hkAssignments.length > 0,
           hasWifi: Boolean(unit.property.hasWifi),
           hasSmartLock: Boolean(unit.property.hasSmartLock),
           ownerName: ownerName || undefined,
@@ -421,7 +443,15 @@ export async function GET(request: NextRequest) {
           ownerEmail: ownerEmail || undefined,
         },
         hasActiveTenant: Boolean(activeLease),
-        hasHousekeepingStaff: Boolean(hkAssignment),
+        hasHousekeepingStaff: hkAssignments.length > 0,
+        housekeepingTeam: hkAssignments.map((ha) => ({
+          id: ha.user.id,
+          name: ha.user.fullName,
+          role: "Housekeeping & Tim Lapangan",
+          phone: ha.user.phoneNumber || "-",
+          email: ha.user.email || undefined,
+          avatarUrl: ha.user.avatarUrl || undefined,
+        })),
         inventories: mappedInventories,
         houseRules,
         emergencyContacts,

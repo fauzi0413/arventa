@@ -41,6 +41,7 @@ export default function PortalRoomPage() {
             inventories: apiData.inventories || [],
             houseRules: apiData.houseRules || [],
             emergencyContacts: apiData.emergencyContacts || [],
+            housekeepingTeam: apiData.housekeepingTeam || [],
             billingSummary: apiData.billingSummary || null,
             wifiSsid: apiData.wifiSsid,
             wifiPassword: apiData.wifiPassword,
@@ -297,6 +298,7 @@ export default function PortalRoomPage() {
           property={details.property}
           emergencyContacts={details.emergencyContacts}
           houseRules={details.houseRules}
+          housekeepingTeam={details.housekeepingTeam}
         />
       </div>
 
