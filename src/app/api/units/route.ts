@@ -107,6 +107,7 @@ export async function POST(request: NextRequest) {
       tenantPhone: body.tenantPhone,
       checkInDate: body.checkInDate,
       inventoryIds: body.inventoryIds,
+      smartLockPin: body.smartLockPin || body.smartLockCode || undefined,
     });
 
     return ApiResponse.success({

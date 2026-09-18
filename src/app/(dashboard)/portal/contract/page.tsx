@@ -158,24 +158,31 @@ export default function TenantContractPortalPage() {
         const apiData = json.data;
 
         if (apiData && apiData.unit && apiData.property) {
+          // If there is no active lease/contract in the database, show empty state
+          if (!apiData.contractNumber && !apiData.contractId) {
+            setContractDetails(null);
+            setLoading(false);
+            return;
+          }
+
           const unit = apiData.unit;
           const property = apiData.property;
-          const tenantName = apiData.tenantName || 'Siti Rahmawati';
-          const tenantPhone = apiData.tenantPhone || '081444444444';
+          const tenantName = apiData.tenantName || 'Penyewa';
+          const tenantPhone = apiData.tenantPhone || '-';
           const tenantEmail = userEmail;
-          const checkInDate = apiData.checkInDate || '2026-08-23';
+          const checkInDate = apiData.checkInDate || new Date().toISOString().split('T')[0];
 
           // Format dates
           const startDateObj = new Date(checkInDate);
           const endDateObj = new Date(startDateObj);
           endDateObj.setFullYear(endDateObj.getFullYear() + 1);
 
-          const contractNumber = apiData.contractNumber || 'KTR/ARV/01F378';
+          const contractNumber = apiData.contractNumber;
           const startDateFormatted = apiData.startDate || startDateObj.toISOString().split('T')[0];
           const endDateFormatted = apiData.endDate || endDateObj.toISOString().split('T')[0];
 
           const contractItem: ContractItem = {
-            id: apiData.contractId || `contract-${unit.id || '01'}`,
+            id: apiData.contractId || `contract-${unit.id}`,
             contractNumber,
             scope: 'UNIT',
             status: 'ACTIVE',

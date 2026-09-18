@@ -198,6 +198,7 @@ const adminNavItems: NavItem[] = [
 const ownerNavItems: NavItem[] = [
   { id: "owner-1", href: "/owner/dashboard", label: "Dashboard Utama", icon: IconHome, group: "UTAMA" },
   { id: "owner-2", href: "/properties", label: "Properti & Manajemen Unit", icon: IconBuilding, group: "PROPERTI & OPERASIONAL" },
+  { id: "owner-units", href: "/units", label: "Unit", icon: IconDoor, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-3", href: "/operations/housekeeping-team", label: "Tim Operasional & Housekeeping", icon: IconSparkles, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-4", href: "/operations/maintenance-reports", label: "Pusat Laporan & Maintenance", icon: IconTools, group: "PROPERTI & OPERASIONAL" },
   {
@@ -389,8 +390,8 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
             return {
               id: root.id,
               href: root.path,
-              label: root.title,
-              icon: ICON_MAP[root.icon] || IconRoute,
+              label: root.title === "Unit Kamar" ? "Unit" : root.title,
+              icon: root.path === "/units" ? IconDoor : (ICON_MAP[root.icon] || IconRoute),
               group: rootGroup,
               order: root.order,
               parentId: null,

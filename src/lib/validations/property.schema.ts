@@ -18,6 +18,10 @@ export const createPropertySchema = z.object({
   hasCleaningService: z.boolean().optional().default(true),
   defaultLateFee: z.number().min(0, "Denda keterlambatan tidak boleh negatif").optional().default(50000),
   defaultDeposit: z.number().min(0, "Deposit default tidak boleh negatif").optional().default(0),
+  hasWifi: z.boolean().optional().default(false),
+  wifiSsid: z.string().optional().or(z.literal("")),
+  wifiPassword: z.string().optional().or(z.literal("")),
+  hasSmartLock: z.boolean().optional().default(false),
   totalUnits: z.number().int().min(0).optional(),
   occupiedUnits: z.number().int().min(0).optional(),
 });

@@ -255,94 +255,131 @@ export async function GET(request: NextRequest) {
         });
       });
 
-    // Fallback if completely empty
-    if (mappedInventories.length === 0) {
-      const defaultItems = ["Kasur Springbed", "AC LG 1PK", "Lemari Pakaian"];
-      defaultItems.forEach((name, idx) => {
-        mappedInventories.push({
-          id: `inv-def-${idx}`,
-          inventory_id: `inv-def-${idx}`,
-          propertyInventoryId: null,
-          name,
-          category: "Dalam Unit",
-          locationType: "UNIT",
-          condition: "Baik",
-          unitId: unit.id,
-          location: `Unit ${unit.unitNumber}`,
-        });
-      });
-    }
+    const monthlyPrice = Number(unit.basePrice) || 0;
+    const utilitiesCost = 0;
 
-    const monthlyPrice = Number(unit.basePrice) || 1500000;
-    const utilitiesCost = 100000;
+    const activeLease = unit.leases && unit.leases.length > 0 ? unit.leases[0] : null;
 
-    const activeLease = unit.leases && unit.leases[0];
     const contractNumber = activeLease
       ? (activeLease.contractUrl && !activeLease.contractUrl.startsWith('http') && !activeLease.contractUrl.includes('/storage/') ? activeLease.contractUrl : `KTR/ARV/${activeLease.id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()}`)
-      : `KTR/ARV/${unit.unitNumber.replace(/\D/g, '') || '01F378'}`;
+      : null;
 
     const checkInDate = activeLease
       ? new Date(activeLease.startDate).toISOString().split("T")[0]
-      : (unit.createdAt ? new Date(unit.createdAt).toISOString().split("T")[0] : "2026-08-28");
+      : null;
 
     const endDate = activeLease
       ? new Date(activeLease.endDate).toISOString().split("T")[0]
-      : "2027-08-28";
+      : null;
 
-    const tenantName =
-      activeLease?.tenant?.fullName ||
-      activeLease?.tenant?.user?.fullName ||
-      unit.unitUser?.fullName ||
-      (unit.tenantName || "Siti Rahmawati");
+    // Real Tenant: Only if an active lease exists
+    const tenantName = activeLease
+      ? (activeLease.tenant?.fullName || activeLease.tenant?.user?.fullName || null)
+      : null;
 
-    const tenantPhone =
-      activeLease?.tenant?.phoneNumber ||
-      activeLease?.tenant?.user?.phoneNumber ||
-      unit.unitUser?.phoneNumber ||
-      (unit.tenantPhone || "0812-3456-7890");
+    const tenantPhone = activeLease
+      ? (activeLease.tenant?.phoneNumber || activeLease.tenant?.user?.phoneNumber || null)
+      : null;
 
-    // Fetch real Owner & Housekeeping contacts for this property
-    const owner = unit.property?.owner || await prisma.user.findFirst({ where: { role: UserRole.OWNER } });
-    const housekeepingStaff = await prisma.user.findFirst({
-      where: { role: UserRole.HOUSEKEEPING, isActive: true },
-      orderBy: { createdAt: "desc" },
+    // Real Owner Contact
+    const owner = unit.property?.owner || (await prisma.user.findFirst({ where: { id: unit.property.ownerId } }));
+    const ownerName = owner?.fullName ? `${owner.fullName} (Owner)` : null;
+    const ownerPhone = owner?.phoneNumber || null;
+    const ownerEmail = owner?.email || null;
+
+    // Real Housekeeping: ONLY if assigned to this specific property!
+    const hkAssignment = await prisma.housekeepingAssignment.findFirst({
+      where: {
+        propertyId: unit.propertyId,
+        user: { isActive: true },
+      },
+      include: {
+        user: true,
+      },
     });
 
-    const ownerName = owner?.fullName ? `${owner.fullName} (Owner)` : "Pemilik Properti (Owner)";
-    const ownerPhone = owner?.phoneNumber || "+62 812-3456-7890";
-    const ownerEmail = owner?.email || "owner@arventa.id";
+    const emergencyContacts: any[] = [];
+    if (ownerName && ownerPhone) {
+      emergencyContacts.push({
+        name: ownerName,
+        role: "Pemilik Properti",
+        phone: ownerPhone,
+      });
+    }
 
-    const hkName = housekeepingStaff?.fullName
-      ? `${housekeepingStaff.fullName} (Housekeeping)`
-      : "Tim Lapangan & Bersih-Bersih";
-    const hkPhone = housekeepingStaff?.phoneNumber || ownerPhone;
+    if (hkAssignment?.user) {
+      emergencyContacts.push({
+        name: `${hkAssignment.user.fullName} (Housekeeping)`,
+        role: "Tim Lapangan & Bersih-Bersih",
+        phone: hkAssignment.user.phoneNumber || ownerPhone || "-",
+      });
+    }
 
-    const emergencyContacts = [
-      { name: ownerName, role: "Pemilik Properti", phone: ownerPhone },
-      { name: hkName, role: "Tim Lapangan & Bersih-Bersih", phone: hkPhone },
-    ];
+    // Real House Rules from Property Contract Template
+    const contractTemplate = await prisma.propertyContractTemplate.findUnique({
+      where: { propertyId: unit.propertyId },
+    });
 
-    const houseRules = [
-      `Dilarang membawa tamu lawan jenis menginap tanpa izin pengelola ${unit.property.name}.`,
-      "Menjaga ketenangan bersama dan menghormati hak privasi penghuni lain.",
-      "Batas waktu berkunjung tamu luar maksimal pukul 22.00 WIB.",
-      "Dilarang merokok di dalam kamar ber-AC.",
-      "Sampah wajib dikemas kantong plastik dan dibuang ke tempat pembuangan luar.",
-    ];
+    let houseRules: string[] = [];
+    if (contractTemplate?.rules) {
+      try {
+        const parsed = JSON.parse(contractTemplate.rules);
+        if (Array.isArray(parsed)) {
+          houseRules = parsed.filter((r: any) => typeof r === 'string' && r.trim().length > 0);
+        } else if (typeof parsed === 'string' && parsed.trim().length > 0) {
+          houseRules = [parsed.trim()];
+        }
+      } catch {
+        if (typeof contractTemplate.rules === 'string' && contractTemplate.rules.trim()) {
+          houseRules = contractTemplate.rules.split('\n').map(s => s.trim()).filter(Boolean);
+        }
+      }
+    }
+    if (contractTemplate?.customClauses && Array.isArray(contractTemplate.customClauses)) {
+      houseRules = [...houseRules, ...contractTemplate.customClauses];
+    }
 
-    const billingSummary = {
-      invoiceNumber: `INV-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}-${unit.unitNumber.replace(/\D/g, "") || "001"}`,
-      billingMonth: new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" }),
-      monthlyRent: monthlyPrice,
-      utilitiesCost: utilitiesCost,
-      totalAmount: monthlyPrice + utilitiesCost,
-      dueDate: `25 ${new Date().toLocaleDateString("id-ID", { month: "long", year: "numeric" })}`,
-      paymentStatus: "Pending",
-    };
+    // Real Billing Summary: Only if there is an invoice in DB for this active lease
+    let billingSummary: any = null;
+    if (activeLease) {
+      const latestInvoice = await prisma.invoice.findFirst({
+        where: { leaseId: activeLease.id },
+        orderBy: { createdAt: "desc" },
+      });
 
-    const wifiSsid = `WiFi-${unit.unitNumber.replace(/\s+/g, "")}`;
-    const wifiPassword = unit.roomPassword || "Arv!789210";
-    const smartLockCode = "123456";
+      if (latestInvoice) {
+        const dueDateFormatted = new Date(latestInvoice.dueDate).toLocaleDateString("id-ID", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+        const billingMonthFormatted = new Date(latestInvoice.dueDate).toLocaleDateString("id-ID", {
+          month: "long",
+          year: "numeric",
+        });
+
+        const statusMap: Record<string, 'Lunas' | 'Jatuh Tempo' | 'Pending'> = {
+          PAID: 'Lunas',
+          OVERDUE: 'Jatuh Tempo',
+          PENDING: 'Pending',
+          UNPAID: 'Pending',
+        };
+
+        billingSummary = {
+          invoiceNumber: latestInvoice.invoiceNumber,
+          billingMonth: billingMonthFormatted,
+          monthlyRent: Number(latestInvoice.amount),
+          utilitiesCost: 0,
+          totalAmount: Number(latestInvoice.amount),
+          dueDate: dueDateFormatted,
+          paymentStatus: statusMap[latestInvoice.status] || 'Pending',
+        };
+      }
+    }
+
+    const wifiSsid = unit.property?.hasWifi ? (unit.property.wifiSsid || null) : null;
+    const wifiPassword = unit.property?.hasWifi ? (unit.property.wifiPassword || null) : null;
+    const smartLockCode = unit.property?.hasSmartLock ? (unit.smartLockPin || null) : null;
 
     return ApiResponse.success({
       message: "Data portal kamar berhasil dimuat",
@@ -352,23 +389,22 @@ export async function GET(request: NextRequest) {
           name: unit.unitNumber,
           floor: unit.floor,
           status: formattedUnit.status,
-          tenantName,
-          tenantPhone,
-          checkInDate,
+          tenantName: tenantName || undefined,
+          tenantPhone: tenantPhone || undefined,
+          checkInDate: checkInDate || undefined,
+          smartLockPin: unit.smartLockPin || undefined,
           pricing: {
             monthly: monthlyPrice,
             transit: unit.transitPrice ? Number(unit.transitPrice) : undefined,
             deposit: Number(unit.deposit) || 0,
-            utilities: true,
+            utilities: false,
           },
           specs: {
             capacity: unit.capacity || 1,
-            dimensions: unit.dimensions || "3x4 m",
+            dimensions: unit.dimensions || "-",
             allowedPeriod: unit.allowedPeriod || "MONTHLY",
           },
-          facilities: unit.facilities && unit.facilities.length > 0
-            ? unit.facilities
-            : ["AC", "WiFi", "Kamar Mandi Dalam", "Kasur Springbed", "Lemari Pakaian"],
+          facilities: Array.isArray(unit.facilities) ? unit.facilities : [],
         },
         property: {
           id: unit.property.id,
@@ -377,15 +413,20 @@ export async function GET(request: NextRequest) {
           description: unit.property.description || "",
           type: unit.property.type,
           hasCleaningService: unit.property.hasCleaningService,
-          ownerName,
-          ownerPhone,
-          ownerEmail,
+          hasHousekeepingStaff: Boolean(hkAssignment),
+          hasWifi: Boolean(unit.property.hasWifi),
+          hasSmartLock: Boolean(unit.property.hasSmartLock),
+          ownerName: ownerName || undefined,
+          ownerPhone: ownerPhone || undefined,
+          ownerEmail: ownerEmail || undefined,
         },
+        hasActiveTenant: Boolean(activeLease),
+        hasHousekeepingStaff: Boolean(hkAssignment),
         inventories: mappedInventories,
         houseRules,
         emergencyContacts,
         contractNumber,
-        contractId: activeLease?.id || `lease-${unit.id}`,
+        contractId: activeLease?.id || null,
         startDate: checkInDate,
         endDate,
         tenantName,

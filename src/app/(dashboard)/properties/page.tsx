@@ -53,7 +53,8 @@ function mapApiPropertyToFrontend(p: any): Property {
   return {
     id: p.id,
     name: p.name,
-    address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+    address: p.address,
+    city: p.city || '',
     categoryId,
     statusId,
     totalUnits,
@@ -63,6 +64,10 @@ function mapApiPropertyToFrontend(p: any): Property {
     hasCleaningService: p.hasCleaningService ?? true,
     defaultLateFee: Number(p.defaultLateFee || 50000),
     defaultDeposit: Number(p.defaultDeposit || 0),
+    hasWifi: Boolean(p.hasWifi),
+    wifiSsid: p.wifiSsid || '',
+    wifiPassword: p.wifiPassword || '',
+    hasSmartLock: Boolean(p.hasSmartLock),
     createdAt: p.createdAt || new Date().toISOString(),
     ownerName: p.owner?.fullName || p.ownerName,
     ownerPhone: p.owner?.phoneNumber || p.ownerPhone,
@@ -162,12 +167,17 @@ export default function PropertiesPage() {
           body: JSON.stringify({
             name: data.name,
             address: data.address,
+            city: data.city,
             type: catToType[data.categoryId] || 'KOS',
             description: data.description,
             coverImage: data.imageUrl,
             hasCleaningService: data.hasCleaningService,
             defaultLateFee: data.defaultLateFee,
             defaultDeposit: data.defaultDeposit,
+            hasWifi: data.hasWifi,
+            wifiSsid: data.wifiSsid,
+            wifiPassword: data.wifiPassword,
+            hasSmartLock: data.hasSmartLock,
           }),
         });
 
@@ -192,7 +202,7 @@ export default function PropertiesPage() {
           body: JSON.stringify({
             name: data.name,
             address: data.address,
-            city: 'Bandung',
+            city: data.city || '',
             type: catToType[data.categoryId] || 'KOS',
             description: data.description,
             coverImage: data.imageUrl,
@@ -201,6 +211,10 @@ export default function PropertiesPage() {
             defaultDeposit: data.defaultDeposit,
             totalUnits: data.totalUnits,
             occupiedUnits: data.occupiedUnits,
+            hasWifi: data.hasWifi,
+            wifiSsid: data.wifiSsid,
+            wifiPassword: data.wifiPassword,
+            hasSmartLock: data.hasSmartLock,
           }),
         });
 

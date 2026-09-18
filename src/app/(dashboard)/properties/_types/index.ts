@@ -14,6 +14,7 @@ export interface Property {
   id: string;
   name: string;
   address: string;
+  city?: string;
   categoryId: string;
   statusId: string;
   totalUnits: number;
@@ -23,6 +24,10 @@ export interface Property {
   hasCleaningService?: boolean;
   defaultLateFee?: number;
   defaultDeposit?: number;
+  hasWifi?: boolean;
+  wifiSsid?: string | null;
+  wifiPassword?: string | null;
+  hasSmartLock?: boolean;
   createdAt: string;
   ownerName?: string;
   ownerPhone?: string;

@@ -103,14 +103,25 @@ export default function UnitCard({
         {/* Pricing Detail Indicator */}
         <div className="flex items-center justify-between gap-1 bg-muted/50 dark:bg-muted/40 rounded-xl p-2.5 border border-border dark:border-border">
           <div className="flex items-center gap-1.5">
-            <Receipt className="h-4 w-4 text-[#8FA28A]" />
-            <span className="text-sm font-black text-foreground dark:text-foreground">
-              {formatRupiah(unit.pricing.monthly)}
-              <span className="text-[10px] font-bold text-muted-foreground">/bln</span>
-            </span>
+            <Receipt className="h-4 w-4 text-[#8FA28A] shrink-0" />
+            <div className="flex flex-col">
+              <span className="text-sm font-black text-foreground dark:text-foreground leading-tight">
+                {unit.pricing.yearly && unit.pricing.billingScheme === 'yearly'
+                  ? formatRupiah(unit.pricing.yearly)
+                  : formatRupiah(unit.pricing.monthly)}
+                <span className="text-[10px] font-bold text-muted-foreground ml-0.5">
+                  {unit.pricing.yearly && unit.pricing.billingScheme === 'yearly' ? '/thn' : '/bln'}
+                </span>
+              </span>
+              {unit.pricing.yearly && unit.pricing.billingScheme === 'yearly' && unit.pricing.monthly > 0 && (
+                <span className="text-[10px] font-medium text-muted-foreground">
+                  ≈ {formatRupiah(unit.pricing.monthly)}/bln
+                </span>
+              )}
+            </div>
           </div>
           {unit.roomEmail && (
-            <span className="text-[10px] font-bold text-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-md">
+            <span className="text-[10px] font-bold text-[#8FA28A] bg-[#8FA28A]/10 px-2 py-0.5 rounded-md shrink-0">
               1 Kamar 1 Akun
             </span>
           )}

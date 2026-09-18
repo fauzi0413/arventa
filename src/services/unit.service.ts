@@ -29,6 +29,7 @@ export interface CreateUnitData {
   tenantPhone?: string;
   checkInDate?: string;
   inventoryIds?: string[];
+  smartLockPin?: string;
 }
 
 export interface BulkActionInput {
@@ -70,6 +71,7 @@ export class UnitService {
       facilities: unit.facilities || [],
       description: unit.description || '',
       imageUrl: unit.imageUrl || '',
+      smartLockPin: unit.smartLockPin || undefined,
       roomEmail: unit.unitUser?.email || `${unit.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`,
       roomPassword: unit.roomPassword || 'Arv!789210',
       roomPasswordLastReset: unit.roomPasswordLastReset?.toISOString?.() || (typeof unit.roomPasswordLastReset === 'string' ? unit.roomPasswordLastReset : unit.createdAt?.toISOString?.() || new Date().toISOString()),
@@ -194,6 +196,10 @@ export class UnitService {
             hasCleaningService: true,
             defaultDeposit: true,
             defaultLateFee: true,
+            hasWifi: true,
+            wifiSsid: true,
+            wifiPassword: true,
+            hasSmartLock: true,
           },
         },
         unitUser: {
@@ -296,6 +302,17 @@ export class UnitService {
         create: { userId: roomUser.id, rawPassword: initialPassword },
       });
 
+      // Cek fitur WiFi dan Smart Lock pada properti induk
+      const parentProp = await tx.property.findUnique({
+        where: { id: data.propertyId },
+        include: { inventories: true },
+      });
+
+      const resolvedFacilities = Array.isArray(data.facilities) ? [...data.facilities] : [];
+      if ((parentProp?.hasSmartLock || data.smartLockPin) && !resolvedFacilities.some((f) => f.toLowerCase().includes('smart lock'))) {
+        resolvedFacilities.push('Smart Lock Pintu');
+      }
+
       // 2. Create Unit
       const unit = await tx.unit.create({
         data: {
@@ -310,11 +327,12 @@ export class UnitService {
           deposit: data.deposit || 0,
           capacity: data.capacity || 1,
           dimensions: data.dimensions || "3x4 m",
-          facilities: data.facilities || [],
+          facilities: resolvedFacilities,
           description: data.description || null,
           imageUrl: data.imageUrl || null,
           roomPassword: initialPassword,
           roomPasswordLastReset: new Date(),
+          smartLockPin: data.smartLockPin || null,
         },
         include: {
           property: true,
@@ -322,9 +340,30 @@ export class UnitService {
         },
       });
 
-      // 3. If master inventoryIds provided, sync UnitInventory records
-      if (data.inventoryIds && Array.isArray(data.inventoryIds) && data.inventoryIds.length > 0) {
-        const uniqueIds = Array.from(new Set(data.inventoryIds));
+      // 3. If master inventoryIds provided or Smart Lock enabled, sync UnitInventory records
+      const syncInventoryIds = Array.isArray(data.inventoryIds) ? [...data.inventoryIds] : [];
+
+      if (parentProp?.hasSmartLock || data.smartLockPin) {
+        let lockMaster = parentProp?.inventories?.find((i) => i.itemName.toLowerCase().includes('smart lock'));
+        if (!lockMaster) {
+          lockMaster = await tx.propertyInventory.create({
+            data: {
+              propertyId: data.propertyId,
+              itemName: 'Smart Lock Pintu',
+              locationType: 'UNIT',
+              quantity: 1,
+              condition: 'Baik',
+              notes: 'Fasilitas Kunci Digital Smart Lock Pintu Unit',
+            },
+          });
+        }
+        if (lockMaster && !syncInventoryIds.includes(lockMaster.id)) {
+          syncInventoryIds.push(lockMaster.id);
+        }
+      }
+
+      if (syncInventoryIds.length > 0) {
+        const uniqueIds = Array.from(new Set(syncInventoryIds));
         const masterItems = await tx.propertyInventory.findMany({
           where: { id: { in: uniqueIds } },
         });
@@ -426,7 +465,7 @@ export class UnitService {
    * Update existing unit
    */
   static async updateUnit(id: string, data: Partial<CreateUnitData>) {
-    const result = await prisma.$transaction(async (tx) => {
+    const updatedUnitId = await prisma.$transaction(async (tx) => {
       if (data.status && data.status !== 'OCCUPIED') {
         await tx.lease.updateMany({
           where: { unitId: id, status: LeaseStatus.ACTIVE },
@@ -449,6 +488,7 @@ export class UnitService {
           ...(data.facilities !== undefined && { facilities: data.facilities }),
           ...(data.description !== undefined && { description: data.description }),
           ...(data.imageUrl !== undefined && { imageUrl: data.imageUrl }),
+          ...(data.smartLockPin !== undefined && { smartLockPin: data.smartLockPin || null }),
         },
       });
 
@@ -476,8 +516,10 @@ export class UnitService {
         }
       }
 
-      return this.getUnitById(updated.id);
+      return updated.id;
     });
+
+    const result = await this.getUnitById(id);
 
     const updatedUnitNumber = (result as any)?.name || (result as any)?.unitNumber || "";
     if (data.tenantName && result?.propertyId && updatedUnitNumber) {
@@ -500,9 +542,26 @@ export class UnitService {
     if (!unitIds || unitIds.length === 0) return { count: 0 };
 
     if (actionType === 'delete') {
-      return prisma.unit.deleteMany({
+      const unitsToDelete = await prisma.unit.findMany({
+        where: { id: { in: unitIds } },
+        select: { id: true, unitUserId: true },
+      });
+
+      const userIdsToDelete = unitsToDelete
+        .map((u) => u.unitUserId)
+        .filter((uid): uid is string => Boolean(uid));
+
+      await prisma.unit.deleteMany({
         where: { id: { in: unitIds } },
       });
+
+      if (userIdsToDelete.length > 0) {
+        await prisma.user.deleteMany({
+          where: { id: { in: userIdsToDelete } },
+        }).catch(() => null);
+      }
+
+      return { count: unitsToDelete.length };
     }
 
     if (actionType === 'status' && input.newStatus) {

@@ -3,6 +3,7 @@ import { ApiResponse } from "@/lib/api-response";
 import { PropertyService } from "@/services/property.service";
 import { TenantService } from "@/services/tenant.service";
 import { updatePropertySchema } from "@/lib/validations/property.schema";
+import { createClient } from "@/lib/supabase/server";
 
 interface RouteParams {
   params: Promise<{
@@ -87,6 +88,23 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const existingProperty = await PropertyService.getPropertyById(id);
     if (!existingProperty) {
       return ApiResponse.notFound(`Property with ID '${id}' not found`);
+    }
+
+    // Clean up cover image from Supabase storage if exists
+    if (existingProperty.coverImage && existingProperty.coverImage.includes("property-images/")) {
+      try {
+        const supabase = await createClient();
+        const parts = existingProperty.coverImage.split("property-images/");
+        if (parts.length > 1) {
+          const fileName = decodeURIComponent(parts[1].split("?")[0]);
+          if (fileName) {
+            await supabase.storage.from("property-images").remove([fileName]);
+            console.log(`[Supabase Storage] Deleted property cover image on property removal: ${fileName}`);
+          }
+        }
+      } catch (storageErr) {
+        console.warn("[Supabase Storage Notice] Failed to remove property cover image on delete:", storageErr);
+      }
     }
 
     await PropertyService.deleteProperty(id);

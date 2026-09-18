@@ -80,6 +80,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       description: body.description,
       imageUrl: body.imageUrl,
       inventoryIds: body.inventoryIds,
+      smartLockPin: body.smartLockPin !== undefined ? (body.smartLockPin || null) : (body.smartLockCode !== undefined ? (body.smartLockCode || null) : undefined),
     });
 
     return ApiResponse.success({

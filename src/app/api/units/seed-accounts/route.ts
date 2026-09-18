@@ -12,15 +12,15 @@ export async function GET(request: NextRequest) {
   try {
     const units = await prisma.unit.findMany({
       include: {
-        unitUser: {
-          include: {
-            userCredential: true,
-          },
-        },
         property: {
           select: {
             id: true,
             name: true,
+          },
+        },
+        unitUser: {
+          include: {
+            userCredential: true,
           },
         },
       },
@@ -33,8 +33,10 @@ export async function GET(request: NextRequest) {
     for (const u of units) {
       const cleanProp = u.property?.name?.toLowerCase().replace(/[^a-z0-9]/g, "") || `p${u.propertyId.slice(0, 6)}`;
       const cleanNum = u.unitNumber.toLowerCase().replace(/[^a-z0-9]/g, "") || `u${Date.now()}`;
-      let roomEmail = `${cleanNum}.${cleanProp}@arventa.id`;
+      const baseCandidate = `${cleanNum}.${cleanProp}`;
+      let roomEmail = `${baseCandidate}@arventa.id`;
 
+      // Check if user already exists for another unit
       let targetPassword = u.roomPassword;
       if (!targetPassword) {
         let rand = "";
@@ -45,6 +47,29 @@ export async function GET(request: NextRequest) {
       }
 
       let roomUser = u.unitUser;
+
+      if (roomUser) {
+        // If this user is already linked to another unit, find sequential suffix
+        const otherUnit = await prisma.unit.findFirst({
+          where: { unitUserId: roomUser.id, NOT: { id: u.id } },
+        });
+
+        if (otherUnit) {
+          let counter = 2;
+          let isAvailable = false;
+          while (!isAvailable && counter <= 100) {
+            const testEmail = `${baseCandidate}${counter}@arventa.id`;
+            const exists = await prisma.user.findUnique({ where: { email: testEmail } });
+            if (!exists) {
+              roomEmail = testEmail;
+              roomUser = null;
+              isAvailable = true;
+            } else {
+              counter++;
+            }
+          }
+        }
+      }
 
       if (!roomUser) {
         // Find existing user with default property-scoped email

@@ -14,7 +14,8 @@ interface CreatePinnedAnnouncementModalProps {
   onClose: () => void;
   propertyId: string;
   propertyName?: string;
-  onSuccess: () => void;
+  onSuccess?: () => void;
+  onAnnouncementCreated?: () => void;
 }
 
 export function CreatePinnedAnnouncementModal({
@@ -23,6 +24,7 @@ export function CreatePinnedAnnouncementModal({
   propertyId,
   propertyName,
   onSuccess,
+  onAnnouncementCreated,
 }: CreatePinnedAnnouncementModalProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -61,7 +63,8 @@ export function CreatePinnedAnnouncementModal({
 
       setTitle("");
       setContent("");
-      onSuccess();
+      onSuccess?.();
+      onAnnouncementCreated?.();
       onClose();
     } catch (err: any) {
       setError(err?.message || "Terjadi kesalahan jaringan.");

@@ -174,6 +174,18 @@ export default function InventoryManager({ propertyId, propertyName, propertyTyp
 
   useEffect(() => {
     loadInventory();
+
+    const handleInventoryRefresh = () => {
+      loadInventory();
+    };
+
+    window.addEventListener('arventa_inventory_updated', handleInventoryRefresh);
+    window.addEventListener('storage', handleInventoryRefresh);
+
+    return () => {
+      window.removeEventListener('arventa_inventory_updated', handleInventoryRefresh);
+      window.removeEventListener('storage', handleInventoryRefresh);
+    };
   }, [loadInventory]);
 
   const saveItems = (updatedItems: InventoryItem[]) => {

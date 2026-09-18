@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     let fileName = "";
     let contentType = "image/jpeg";
     let bucketName = "ktp-documents";
-    let oldKtpUrl = "";
+    let oldFileUrl = "";
     let tenantId = "";
 
     const contentTypeHeader = request.headers.get("content-type") || "";
@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
       const formData = await request.formData();
       const file = formData.get("file") as File | null;
       const customBucket = formData.get("bucket") as string | null;
-      oldKtpUrl = (formData.get("oldKtpUrl") as string | null) || "";
+      oldFileUrl = (formData.get("oldFileUrl") as string | null) || 
+                   (formData.get("oldKtpUrl") as string | null) || 
+                   (formData.get("oldImageUrl") as string | null) || "";
       tenantId = (formData.get("tenantId") as string | null) || "";
 
       if (customBucket) bucketName = customBucket;
@@ -47,15 +49,23 @@ export async function POST(request: NextRequest) {
       const isPdfFile = contentType === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
       const ext = file.name.split(".").pop()?.toLowerCase() || (isPdfFile ? "pdf" : "jpg");
       const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const prefix = bucketName === "receipts" ? "receipt" : tenantId ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` : "doc";
+      const prefix = bucketName === "receipts" 
+        ? "receipt" 
+        : bucketName === "property-images" 
+          ? "prop" 
+          : tenantId 
+            ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` 
+            : "doc";
       fileName = `${prefix}_${uniqueSuffix}.${ext}`;
     } else {
       // JSON Base64 payload fallback
       const body = await request.json();
-      const { image, bucket, oldKtpUrl: rawOldUrl, tenantId: rawTenantId } = body;
+      const { image, bucket, oldFileUrl: rawOldFile, oldKtpUrl: rawOldUrl, oldImageUrl: rawOldImg, tenantId: rawTenantId } = body;
 
       if (bucket) bucketName = bucket;
-      if (rawOldUrl) oldKtpUrl = rawOldUrl;
+      if (rawOldFile || rawOldUrl || rawOldImg) {
+        oldFileUrl = rawOldFile || rawOldUrl || rawOldImg || "";
+      }
       if (rawTenantId) tenantId = rawTenantId;
 
       if (!image) {
@@ -74,7 +84,13 @@ export async function POST(request: NextRequest) {
       const isPdfFile = contentType === "application/pdf" || contentType.includes("pdf");
       const ext = isPdfFile ? "pdf" : contentType.split("/")[1] || "jpeg";
       const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const prefix = bucketName === "receipts" ? "receipt" : tenantId ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` : "doc";
+      const prefix = bucketName === "receipts" 
+        ? "receipt" 
+        : bucketName === "property-images" 
+          ? "prop" 
+          : tenantId 
+            ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` 
+            : "doc";
       fileName = `${prefix}_${uniqueSuffix}.${ext}`;
     }
 
@@ -95,19 +111,23 @@ export async function POST(request: NextRequest) {
     try {
       const supabase = await getStorageClient();
 
-      // Clean up / Delete old KTP image if exists and replaced
-      if (oldKtpUrl && !oldKtpUrl.startsWith("data:")) {
+      // Clean up / Delete old file if exists and replaced
+      if (oldFileUrl && !oldFileUrl.startsWith("data:")) {
         try {
-          const urlParts = oldKtpUrl.split(`${bucketName}/`);
+          const urlParts = oldFileUrl.split(`${bucketName}/`);
           if (urlParts.length > 1) {
             const oldFileName = decodeURIComponent(urlParts[1].split("?")[0]);
             if (oldFileName && oldFileName !== fileName) {
-              await supabase.storage.from(bucketName).remove([oldFileName]);
-              console.log(`[Supabase Storage Cleanup] Deleted old KTP file: ${oldFileName}`);
+              const { error: removeErr } = await supabase.storage.from(bucketName).remove([oldFileName]);
+              if (removeErr) {
+                console.warn(`[Supabase Storage Cleanup Notice] Failed to remove old file (${oldFileName}):`, removeErr.message);
+              } else {
+                console.log(`[Supabase Storage Cleanup] Successfully deleted replaced old file: ${oldFileName} from ${bucketName}`);
+              }
             }
           }
         } catch (cleanupErr) {
-          console.warn("[Supabase Storage Cleanup Notice] Failed to remove old KTP:", cleanupErr);
+          console.warn("[Supabase Storage Cleanup Notice] Failed to remove old file:", cleanupErr);
         }
       }
 
@@ -128,7 +148,7 @@ export async function POST(request: NextRequest) {
             fileName,
             bucket: bucketName,
             isFallback: true,
-            notice: `Pastikan Public Bucket '${bucketName}' sudah diberi RLS Insert policy di Supabase Dashboard.`,
+            notice: `Pastikan Public Bucket '${bucketName}' sudah dibuat dan diberi RLS Insert policy di Supabase Dashboard.`,
           },
         });
       }
@@ -139,7 +159,7 @@ export async function POST(request: NextRequest) {
         .getPublicUrl(fileName);
 
       return ApiResponse.success({
-        message: "File KTP berhasil di-upload secara unik ke Supabase Storage (KTP lama ditimpa/dihapus)",
+        message: "File berhasil di-upload secara unik ke Supabase Storage (file lama yang ditumpuk telah dihapus)",
         data: {
           url: publicUrlData.publicUrl,
           fileName,
@@ -163,5 +183,39 @@ export async function POST(request: NextRequest) {
       message: "Gagal mengunggah file ke server",
       error,
     });
+  }
+}
+
+/**
+ * DELETE /api/upload?bucket=property-images&url=...
+ * Deletes a file from Supabase storage
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const url = searchParams.get("url");
+    const bucket = searchParams.get("bucket") || "property-images";
+
+    if (!url || url.startsWith("data:")) {
+      return ApiResponse.badRequest("URL file tidak valid.");
+    }
+
+    const supabase = await getStorageClient();
+    const urlParts = url.split(`${bucket}/`);
+    if (urlParts.length > 1) {
+      const fileName = decodeURIComponent(urlParts[1].split("?")[0]);
+      if (fileName) {
+        const { error } = await supabase.storage.from(bucket).remove([fileName]);
+        if (error) {
+          console.warn(`[Supabase Storage Delete Notice]`, error.message);
+        } else {
+          console.log(`[Supabase Storage Delete] Successfully deleted file: ${fileName} from ${bucket}`);
+        }
+      }
+    }
+
+    return ApiResponse.success({ message: "File lama berhasil dihapus dari storage." });
+  } catch (error: any) {
+    return ApiResponse.error({ message: "Gagal menghapus file dari storage", error });
   }
 }

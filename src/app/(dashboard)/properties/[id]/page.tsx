@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package, Plus, Sparkles, ArrowRight, Check, FileText, Settings, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, MapPin, Edit3, Trash2, Home, Layers, Calendar, Info, Users, ShieldAlert, Package, Plus, Sparkles, ArrowRight, Check, FileText, Settings, AlertTriangle, Loader2, UserPlus, Phone } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import PropertyFormModal from '../_components/PropertyFormModal';
 import PropertyContractTemplateModal from '../_components/PropertyContractTemplateModal';
@@ -40,6 +40,7 @@ export default function PropertyDetailPage() {
   const [statuses, setStatuses] = useState<PropertyStatus[]>(DEFAULT_STATUSES);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [inventoryKey, setInventoryKey] = useState(0);
 
   // Contract template state
   const [contractTemplate, setContractTemplate] = useState<{
@@ -61,6 +62,28 @@ export default function PropertyDetailPage() {
     } catch (e) {
       console.warn('Failed to fetch property contract template');
     }
+  };
+
+  // Housekeeping staff state
+  const [housekeepingStaff, setHousekeepingStaff] = useState<any[]>([]);
+  const [loadingHousekeeping, setLoadingHousekeeping] = useState(true);
+
+  const fetchHousekeeping = async () => {
+    setLoadingHousekeeping(true);
+    try {
+      const res = await fetch(`/api/operations/housekeeping?propertyId=${id}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json.data)) {
+          setHousekeepingStaff(json.data);
+          setLoadingHousekeeping(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch property housekeeping staff:', e);
+    }
+    setLoadingHousekeeping(false);
   };
 
   // Units state
@@ -87,6 +110,10 @@ export default function PropertyDetailPage() {
         const json = await res.json();
         const p = json.data;
         if (p) {
+          if (Array.isArray(p.housekeepingStaff)) {
+            setHousekeepingStaff(p.housekeepingStaff);
+            setLoadingHousekeeping(false);
+          }
           const typeToCat: Record<string, string> = {
             KOS: 'cat-1',
             APARTEMEN: 'cat-2',
@@ -130,7 +157,8 @@ export default function PropertyDetailPage() {
           const mappedProp: Property = {
             id: p.id,
             name: p.name,
-            address: `${p.address}${p.city ? `, ${p.city}` : ''}`,
+            address: p.address,
+            city: p.city || '',
             categoryId: typeToCat[p.type] || 'cat-1',
             statusId: computedStatusId,
             totalUnits: totalUnitsCount,
@@ -140,6 +168,10 @@ export default function PropertyDetailPage() {
             hasCleaningService: p.hasCleaningService ?? true,
             defaultLateFee: Number(p.defaultLateFee || 50000),
             defaultDeposit: Number(p.defaultDeposit || 0),
+            hasWifi: Boolean(p.hasWifi),
+            wifiSsid: p.wifiSsid || '',
+            wifiPassword: p.wifiPassword || '',
+            hasSmartLock: Boolean(p.hasSmartLock),
             createdAt: p.createdAt || new Date().toISOString(),
             ownerName: p.owner?.fullName || p.ownerName,
             ownerPhone: p.owner?.phoneNumber || p.ownerPhone,
@@ -246,6 +278,7 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     loadData();
     fetchContractTemplate();
+    fetchHousekeeping();
   }, [id]);
 
   const saveAllUnits = (allUnits: Unit[]) => {
@@ -289,7 +322,7 @@ export default function PropertyDetailPage() {
             propertyId: data.propertyId,
             name: data.name,
             floor: 1,
-            basePrice: data.pricing.monthly,
+            basePrice: data.pricing.monthly || (data.pricing.yearly ? Math.round(data.pricing.yearly / 12) : 0),
             transitPrice: data.pricing.daily,
             deposit: data.pricing.deposit,
             capacity: data.capacity.maxPersons,
@@ -300,6 +333,7 @@ export default function PropertyDetailPage() {
             tenantPhone: data.tenantPhone,
             checkInDate: data.checkInDate,
             inventoryIds: data.inventoryIds,
+            smartLockPin: data.smartLockPin,
           }),
         });
       } catch (e) {
@@ -329,7 +363,7 @@ export default function PropertyDetailPage() {
         const mapped = batchData.map((d) => ({
           propertyId: d.propertyId,
           name: d.name,
-          basePrice: d.pricing.monthly,
+          basePrice: d.pricing.monthly || (d.pricing.yearly ? Math.round(d.pricing.yearly / 12) : 0),
           transitPrice: d.pricing.daily,
           deposit: d.pricing.deposit,
           capacity: d.capacity.maxPersons,
@@ -519,15 +553,25 @@ export default function PropertyDetailPage() {
         body: JSON.stringify({
           name: data.name,
           address: data.address,
+          city: data.city,
           type: catToType[data.categoryId] || 'KOS',
           description: data.description,
           coverImage: data.imageUrl,
           hasCleaningService: data.hasCleaningService,
+          hasWifi: data.hasWifi,
+          wifiSsid: data.wifiSsid,
+          wifiPassword: data.wifiPassword,
+          hasSmartLock: data.hasSmartLock,
         }),
       });
 
       if (res.ok) {
         await loadData();
+        setInventoryKey((prev) => prev + 1);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('arventa_inventory_updated'));
+          window.dispatchEvent(new Event('storage'));
+        }
         setIsFormOpen(false);
         return;
       } else {
@@ -706,7 +750,10 @@ export default function PropertyDetailPage() {
                 <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                 <div>
                   <span className="font-semibold text-foreground">Alamat Properti:</span>
-                  <p className="mt-0.5 text-muted-foreground">{property.address}</p>
+                  <p className="mt-0.5 text-muted-foreground">
+                    {property.address}
+                    {property.city && `, ${property.city}`}
+                  </p>
                 </div>
               </div>
 
@@ -730,7 +777,7 @@ export default function PropertyDetailPage() {
                   }`}
               >
                 <Home className="h-4 w-4" />
-                Kamar / Unit ({units.length})
+                Unit ({units.length})
               </button>
               <button
                 onClick={() => setActiveTab('inventory')}
@@ -761,7 +808,7 @@ export default function PropertyDetailPage() {
                 <div>
                   <h3 className="text-base font-bold text-foreground flex items-center gap-1.5">
                     <Home className="h-5 w-5 text-[#8FA28A]" />
-                    Daftar Kamar / Unit
+                    Daftar Unit
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Total {units.length} Unit terdaftar di properti ini</p>
                 </div>
@@ -807,7 +854,7 @@ export default function PropertyDetailPage() {
                       }}
                       className="text-xs font-bold text-[#8FA28A] hover:underline"
                     >
-                      Tambah Unit Kamar
+                      Tambah Unit
                     </button>
                   </div>
                 </div>
@@ -981,6 +1028,7 @@ export default function PropertyDetailPage() {
           ) : (
             <div className="animate-in fade-in duration-200">
               <InventoryManager
+                key={inventoryKey}
                 propertyId={property.id}
                 propertyName={property.name}
                 propertyType={property.categoryId || (property as any).type}
@@ -1076,6 +1124,89 @@ export default function PropertyDetailPage() {
                 <span className="font-semibold text-[#8FA28A]">Pemilik Properti</span>
               </div>
             </div>
+          </div>
+
+          {/* Tim Housekeeping Bertugas Card */}
+          <div className="rounded-2xl border border-border bg-card text-card-foreground p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-[#8FA28A]" />
+                Housekeeping Bertugas
+              </h3>
+              {housekeepingStaff.length > 0 && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#8FA28A]/15 text-[#8FA28A]">
+                  {housekeepingStaff.length} Petugas
+                </span>
+              )}
+            </div>
+
+            {loadingHousekeeping ? (
+              <div className="flex items-center justify-center py-4 text-xs text-muted-foreground gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-[#8FA28A]" />
+                <span>Memuat data petugas...</span>
+              </div>
+            ) : housekeepingStaff.length > 0 ? (
+              <div className="space-y-3">
+                <div className="divide-y divide-border">
+                  {housekeepingStaff.map((staff) => (
+                    <div key={staff.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative h-9 w-9 rounded-xl bg-[#8FA28A]/15 text-[#8FA28A] font-black text-xs flex items-center justify-center shrink-0 overflow-hidden border border-[#8FA28A]/30">
+                          {staff.avatarUrl ? (
+                            <img src={staff.avatarUrl} alt={staff.fullName} className="h-full w-full object-cover" />
+                          ) : (
+                            <span>{staff.fullName ? staff.fullName.charAt(0).toUpperCase() : 'H'}</span>
+                          )}
+                          <span className={`absolute bottom-0 right-0 h-2 w-2 rounded-full ring-2 ring-card ${staff.isActive !== false ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-foreground truncate">{staff.fullName}</p>
+                          <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
+                            <span>{staff.phoneNumber || staff.email || '-'}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 ${
+                        staff.isActive !== false
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {staff.isActive !== false ? 'Aktif' : 'Nonaktif'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link
+                  href={`/operations/housekeeping-team`}
+                  className="w-full py-2 px-3 rounded-xl bg-muted/60 hover:bg-muted text-foreground font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 border border-border"
+                >
+                  <span>Kelola di Tim Housekeeping</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground" />
+                </Link>
+              </div>
+            ) : (
+              /* Empty State when no housekeeping is assigned */
+              <div className="space-y-3 text-center py-2">
+                <div className="h-10 w-10 rounded-2xl bg-[#8FA28A]/10 text-[#8FA28A] flex items-center justify-center mx-auto">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">Belum Ada Housekeeping</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    Belum ada petugas housekeeping yang ditugaskan di properti ini.
+                  </p>
+                </div>
+                <Link
+                  href={`/operations/housekeeping-team`}
+                  className="w-full py-2.5 px-3 rounded-xl bg-[#8FA28A] hover:bg-[#7D9178] text-white font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  <span>Tambah Tim Housekeeping</span>
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Property Contract Template Card */}
@@ -1188,7 +1319,7 @@ export default function PropertyDetailPage() {
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div>
-                <h4 className="text-base font-bold text-foreground">Hapus Unit Kamar?</h4>
+                <h4 className="text-base font-bold text-foreground">Hapus Unit?</h4>
                 <p className="text-xs text-muted-foreground">Tindakan ini tidak dapat dibatalkan</p>
               </div>
             </div>

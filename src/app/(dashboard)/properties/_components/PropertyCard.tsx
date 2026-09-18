@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { MapPin, BedDouble, Edit3, Trash2, ArrowRight } from 'lucide-react';
+import { MapPin, DoorClosed, Edit3, Trash2, ArrowRight } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 
 interface PropertyCardProps {
@@ -88,7 +88,10 @@ export default function PropertyCard({
 
           <div className="mt-1.5 flex items-start gap-1 text-xs text-muted-foreground">
             <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-            <span className="line-clamp-1">{property.address}</span>
+            <span className="line-clamp-1">
+              {property.address}
+              {property.city ? ` • ${property.city}` : ''}
+            </span>
           </div>
 
           <p className="mt-3 text-xs text-muted-foreground leading-relaxed min-h-[2.5rem]">
@@ -105,11 +108,11 @@ export default function PropertyCard({
           <div className="mt-4 pt-4 border-t border-border space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-muted-foreground flex items-center gap-1">
-                <BedDouble className="h-3.5 w-3.5 text-[#8FA28A]" />
-                Keterisian Kamar
+                <DoorClosed className="h-3.5 w-3.5 text-[#8FA28A]" />
+                Keterisian Unit
               </span>
               <span className="font-bold text-foreground">
-                {occupiedUnits}/{totalUnits} Kamar ({occupancyRate}%)
+                {occupiedUnits}/{totalUnits} Unit ({occupancyRate}%)
               </span>
             </div>
 
