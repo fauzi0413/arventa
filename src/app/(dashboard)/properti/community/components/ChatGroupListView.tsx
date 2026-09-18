@@ -10,6 +10,7 @@ import {
   IconArrowRight,
   IconCheck,
   IconChecks,
+  IconMapPin,
 } from "@tabler/icons-react";
 import { AvailablePropertyOption, ChatCurrentUser } from "../types/chat";
 
@@ -228,15 +229,17 @@ export function ChatGroupListView({
                   </div>
 
                   {/* Property Meta Chips */}
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                     {prop.city && (
-                      <span className="px-2 py-0.5 rounded-md bg-muted text-[10px] font-semibold text-muted-foreground">
-                        📍 {prop.city}
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#8FA28A]/15 text-[#4E624A] dark:text-[#B5C7B2] border border-[#8FA28A]/30 shadow-2xs tracking-tight">
+                        <IconMapPin className="h-3 w-3 text-[#C8A96B] shrink-0" />
+                        <span>{prop.city}</span>
                       </span>
                     )}
                     {(prop.activeTenantsCount ?? 0) > 0 && (
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold">
-                        👥 {prop.activeTenantsCount} Penghuni
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#C8A96B]/15 text-[#85672E] dark:text-[#E2CE9F] border border-[#C8A96B]/30 shadow-2xs tracking-tight">
+                        <IconUsers className="h-3 w-3 text-[#C8A96B] shrink-0" />
+                        <span>{prop.activeTenantsCount} Penghuni</span>
                       </span>
                     )}
                   </div>

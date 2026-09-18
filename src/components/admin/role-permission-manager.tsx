@@ -13,7 +13,7 @@ import {
   IconUsers,
   IconBuilding,
   IconCash,
-  IconSparkles,
+  IconSpray,
   IconFileText,
   IconSettings,
   IconSearch,
@@ -313,7 +313,7 @@ export function RolePermissionManager() {
       case "finance":
         return { label: "Keuangan & OpEx", icon: IconCash };
       case "operations":
-        return { label: "Operasional & Housekeeping", icon: IconSparkles };
+        return { label: "Operasional & Housekeeping", icon: IconSpray };
       case "tenants":
         return { label: "Penyewa & Kontrak", icon: IconUsers };
       case "reports":

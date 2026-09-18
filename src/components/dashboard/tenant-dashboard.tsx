@@ -11,8 +11,9 @@ import {
   IconMessages,
   IconBrandWhatsapp,
   IconDownload,
-  IconSparkles,
+  IconUserCheck,
   IconBell,
+  IconPhone,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -390,7 +391,7 @@ export function TenantDashboard({ data }: TenantDashboardProps) {
           <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2 text-[#2F332E] dark:text-white">
-                <IconSparkles className="size-5 text-[#8FA28A]" />
+                <IconUserCheck className="size-5 text-[#8FA28A]" />
                 Kontak Staf Housekeeping Penanggung Jawab
               </CardTitle>
             </CardHeader>
@@ -399,7 +400,7 @@ export function TenantDashboard({ data }: TenantDashboardProps) {
                 <div key={hk.email} className="flex items-center justify-between border border-[#C7D3C0]/40 dark:border-[#383E36] p-4 rounded-2xl">
                   <div>
                     <p className="font-bold text-[#2F332E] dark:text-white text-sm">{hk.fullName}</p>
-                    <p className="text-gray-500 dark:text-gray-400">📱 {hk.phoneNumber}</p>
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5"><IconPhone className="size-3 text-[#8FA28A] shrink-0" /> {hk.phoneNumber}</p>
                   </div>
                   <a
                     href={`https://wa.me/${hk.phoneNumber.replace(/[^0-9]/g, "")}?text=Halo%20Staf%20Housekeeping%20${encodeURIComponent(hk.fullName)},%20saya%20penghuni%20Unit%20${unit?.unitNumber || ""}`}

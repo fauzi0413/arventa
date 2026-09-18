@@ -89,6 +89,18 @@ import {
   IconGlobe,
   IconApi,
   IconCode,
+  IconSpray,
+  IconBrush,
+  IconVacuumCleaner,
+  IconBriefcase,
+  IconLayoutNavbar,
+  IconLayoutGrid,
+  IconReceiptRefund,
+  IconReportMoney,
+  IconFileCheck,
+  IconFileCertificate,
+  IconBoxSeam,
+  IconPackages,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -124,12 +136,20 @@ const ICON_OPTIONS = [
   // --- DASHBOARD & UTAMA ---
   { code: "IconHome", name: "Dashboard / Home", icon: IconHome },
   { code: "IconHome2", name: "Dashboard Alternatif / Real Estate", icon: IconHome2 },
-  { code: "IconBuildingStore", name: "Owner / SaaS Management", icon: IconBuildingStore },
+  { code: "IconBriefcase", name: "Owner Management / Bisnis", icon: IconBriefcase },
+  { code: "IconPackages", name: "Paket Berlangganan & SaaS", icon: IconPackages },
+  { code: "IconLayoutNavbar", name: "Dynamic Menu Management / Navbar", icon: IconLayoutNavbar },
+  { code: "IconBuildingStore", name: "Minimarket / Retail Store", icon: IconBuildingStore },
   { code: "IconBuilding", name: "Properti & Klaster", icon: IconBuilding },
   { code: "IconBuildingCommunity", name: "Kawasan & Kompleks Properti", icon: IconBuildingCommunity },
   { code: "IconBuildingSkyscraper", name: "Apartemen / Gedung Tinggi", icon: IconBuildingSkyscraper },
   
   // --- OPERASIONAL & UNIT ---
+  { code: "IconSpray", name: "Tim Housekeeping & Pembersihan (Spray)", icon: IconSpray },
+  { code: "IconBrush", name: "Sikat Pembersih / Housekeeping", icon: IconBrush },
+  { code: "IconVacuumCleaner", name: "Vacuum Cleaner / Sanitasi Kamar", icon: IconVacuumCleaner },
+  { code: "IconLayoutGrid", name: "Status Kamar Grid", icon: IconLayoutGrid },
+  { code: "IconBoxSeam", name: "Kondisi Perabotan & Unit (Box)", icon: IconBoxSeam },
   { code: "IconBed", name: "Kamar / Unit Kost", icon: IconBed },
   { code: "IconDoor", name: "Pintu / Akses Kamar", icon: IconDoor },
   { code: "IconBath", name: "Fasilitas Kamar Mandi", icon: IconBath },
@@ -161,6 +181,8 @@ const ICON_OPTIONS = [
   // --- KEUANGAN, BILLING & SAAS ---
   { code: "IconCash", name: "Keuangan & Penagihan", icon: IconCash },
   { code: "IconReceipt", name: "Tagihan & Invoice", icon: IconReceipt },
+  { code: "IconReceiptRefund", name: "Pengeluaran Operasional (OpEx)", icon: IconReceiptRefund },
+  { code: "IconReportMoney", name: "Laporan Arus Kas & Finansial", icon: IconReportMoney },
   { code: "IconReceiptTax", name: "Faktur Pajak / PPN", icon: IconReceiptTax },
   { code: "IconWallet", name: "Dompet Digital & Kas", icon: IconWallet },
   { code: "IconCreditCard", name: "Kartu Kredit / Debit", icon: IconCreditCard },
@@ -171,6 +193,8 @@ const ICON_OPTIONS = [
   { code: "IconUpload", name: "Upload Struk / Bukti Transfer", icon: IconUpload },
 
   // --- ANALITYCS, LAPORAN & DOKUMEN ---
+  { code: "IconFileCheck", name: "Verifikasi Pembayaran & Rekening", icon: IconFileCheck },
+  { code: "IconFileCertificate", name: "Kontrak Penyewa & Dokumen Legal", icon: IconFileCertificate },
   { code: "IconChartBar", name: "Laporan & Analytics Bar", icon: IconChartBar },
   { code: "IconChartPie", name: "Analisa Distribusi Pie", icon: IconChartPie },
   { code: "IconChartLine", name: "Grafik Tren & Pertumbuhan", icon: IconChartLine },
@@ -699,7 +723,7 @@ export function DynamicMenuManager() {
       <div className="flex flex-wrap gap-2 border-b border-[#C7D3C0]/40 pb-3">
         {[
           { id: "menus", label: "Master Menu per Role (Dengan Grup Header)", icon: IconRoute },
-          { id: "flags", label: "Feature Flags Toggles", icon: IconSparkles },
+          { id: "flags", label: "Feature Flags Toggles", icon: IconAdjustmentsHorizontal },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
           return (
@@ -978,7 +1002,7 @@ export function DynamicMenuManager() {
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <IconSparkles className="size-5 text-amber-500" />
+                <IconAdjustmentsHorizontal className="size-5 text-amber-500" />
                 Dynamic Feature Flags ({featureFlags.length} Flags)
               </CardTitle>
               <CardDescription>

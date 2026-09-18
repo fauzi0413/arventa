@@ -10,8 +10,8 @@ import {
   IconAlertCircle,
   IconPlus,
   IconFilePlus,
-  IconBuildingStore,
-  IconSparkles,
+  IconBuildingSkyscraper,
+  IconSpray,
   IconKey,
   IconBrandWhatsapp,
   IconTrendingUp,
@@ -19,6 +19,7 @@ import {
   IconUserCheck,
   IconTransfer,
   IconDownload,
+  IconPhone,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -99,7 +100,7 @@ export function OwnerDashboard({ data }: OwnerDashboardProps) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Badge className="bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40 text-xs tracking-wider uppercase font-bold px-3 py-1 rounded-full">
-                <IconBuildingStore className="mr-1 size-3.5 text-[#C8A96B]" /> PROPERTY OWNER WORKSPACE
+                <IconBuildingSkyscraper className="mr-1 size-3.5 text-[#C8A96B]" /> PROPERTY OWNER WORKSPACE
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
@@ -138,7 +139,7 @@ export function OwnerDashboard({ data }: OwnerDashboardProps) {
         {[
           { id: "overview", label: "Dashboard Utama & AI Insight", icon: IconTrendingUp },
           { id: "units", label: "Properti & Manajemen Unit", icon: IconBuilding },
-          { id: "team", label: "Tim Housekeeping & Assignment", icon: IconSparkles },
+          { id: "team", label: "Tim Housekeeping & Assignment", icon: IconSpray },
           { id: "tenants", label: "Penyewa & OCR Check-In", icon: IconUsers },
           { id: "finance", label: "Keuangan & Laporan OpEx", icon: IconCash },
         ].map((tab) => {
@@ -325,7 +326,7 @@ export function OwnerDashboard({ data }: OwnerDashboardProps) {
         <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2 text-[#2F332E] dark:text-white">
-              <IconSparkles className="size-5 text-[#C8A96B]" />
+              <IconSpray className="size-5 text-[#C8A96B]" />
               Penugasan Tim Housekeeping (Property Assignment)
             </CardTitle>
             <CardDescription>Mapping staf Housekeeping A → Properti X / Unit Y & Monitoring Lapangan.</CardDescription>
@@ -335,7 +336,7 @@ export function OwnerDashboard({ data }: OwnerDashboardProps) {
               <div key={hk.id} className="flex items-center justify-between border border-[#C7D3C0]/40 dark:border-[#383E36] p-3.5 rounded-xl text-xs">
                 <div>
                   <p className="font-bold text-[#2F332E] dark:text-white text-sm">{hk.name}</p>
-                  <p className="text-gray-500 dark:text-gray-400">📱 {hk.phone} • Assigned: <span className="font-bold text-[#8FA28A]">{hk.propertyName}</span></p>
+                  <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5"><IconPhone className="size-3 text-[#8FA28A] shrink-0" /> {hk.phone} • Assigned: <span className="font-bold text-[#8FA28A]">{hk.propertyName}</span></p>
                 </div>
                 <Button size="sm" variant="outline" className="text-xs h-8 rounded-xl border-[#383E36]">
                   Ubah Mapping Properti

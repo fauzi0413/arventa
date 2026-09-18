@@ -14,7 +14,7 @@ import {
   IconPencil,
   IconCheck,
   IconLock,
-  IconBuildingStore,
+  IconBuildingSkyscraper,
 } from "@tabler/icons-react";
 import { useTheme } from "@/components/providers/theme-provider";
 import { useUIStore } from "@/store/use-ui-store";
@@ -196,7 +196,7 @@ export function Header() {
         <Link href="/owner/dashboard" className="flex items-center gap-2.5 group">
           <div className="h-8 w-8 rounded-lg bg-gradient-to-tr from-[#8FA28A] to-[#C8A96B] p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200 shrink-0">
             <div className="h-full w-full bg-background rounded-[6px] flex items-center justify-center">
-              <IconBuildingStore className="h-4 w-4 text-[#C8A96B]" />
+              <IconBuildingSkyscraper className="h-4 w-4 text-[#C8A96B]" />
             </div>
           </div>
           <span className="text-sm font-black tracking-wide text-foreground leading-none">

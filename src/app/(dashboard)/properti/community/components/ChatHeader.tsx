@@ -10,6 +10,7 @@ import {
   IconSpeakerphone,
   IconCheck,
   IconArrowLeft,
+  IconMapPin,
 } from "@tabler/icons-react";
 import {
   ChatRoomProperty,
@@ -143,8 +144,9 @@ export function ChatHeader({
                               <div className="truncate pr-2">
                                 <p className="font-semibold truncate">{p.name}</p>
                                 {p.city && (
-                                  <p className="text-[11px] text-muted-foreground truncate">
-                                    {p.city}
+                                  <p className="text-[11px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                                    <IconMapPin className="h-3 w-3 text-[#C8A96B] shrink-0" />
+                                    <span>{p.city}</span>
                                   </p>
                                 )}
                               </div>
@@ -166,9 +168,15 @@ export function ChatHeader({
             )}
 
             {/* Kost Badge */}
-            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide bg-[#8FA28A]/15 text-[#8FA28A] border border-[#8FA28A]/30">
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-[#8FA28A]/15 text-[#8FA28A] border border-[#8FA28A]/30">
               Grup Warga Kost
             </span>
+            {property?.city && (
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#8FA28A]/15 text-[#4E624A] dark:text-[#B5C7B2] border border-[#8FA28A]/30 shadow-2xs">
+                <IconMapPin className="h-3 w-3 text-[#C8A96B] shrink-0" />
+                <span>{property.city}</span>
+              </span>
+            )}
           </div>
 
           {/* Subtitle count */}

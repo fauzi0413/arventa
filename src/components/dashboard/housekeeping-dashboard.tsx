@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   IconClipboardCheck,
-  IconSparkles,
+  IconBrush,
   IconTools,
   IconCheck,
   IconBed,
@@ -17,6 +17,7 @@ import {
   IconCash,
   IconMessages,
   IconPlus,
+  IconPhone,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -137,7 +138,7 @@ export function HousekeepingDashboard({ data }: HousekeepingDashboardProps) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Badge className="bg-[#8FA28A]/20 text-[#8FA28A] border-[#8FA28A]/40 text-xs tracking-wider uppercase font-bold px-3 py-1 rounded-full">
-                <IconSparkles className="mr-1 size-3.5 text-[#C8A96B]" /> HOUSEKEEPING OPERATIONAL HUB
+                <IconBrush className="mr-1 size-3.5 text-[#C8A96B]" /> HOUSEKEEPING OPERATIONAL HUB
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
@@ -207,7 +208,7 @@ export function HousekeepingDashboard({ data }: HousekeepingDashboardProps) {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Perlu Dibersihkan</span>
                   <div className="rounded-xl bg-[#C8A96B]/15 p-2.5 text-[#C8A96B]">
-                    <IconSparkles className="size-5" />
+                    <IconBrush className="size-5" />
                   </div>
                 </div>
                 <div className="mt-3">
@@ -351,7 +352,7 @@ export function HousekeepingDashboard({ data }: HousekeepingDashboardProps) {
                             onClick={() => handleUpdateStatus(u.id, "CLEANING")}
                             className="w-full text-xs h-9 gap-1.5 rounded-xl border-[#383E36] font-bold"
                           >
-                            {isUpdating ? <IconLoader2 className="size-3.5 animate-spin" /> : <IconSparkles className="size-3.5 text-[#C8A96B]" />}
+                            {isUpdating ? <IconLoader2 className="size-3.5 animate-spin" /> : <IconBrush className="size-3.5 text-[#C8A96B]" />}
                             Mulai Pembersihan (Set CLEANING)
                           </Button>
                         )}
@@ -384,7 +385,7 @@ export function HousekeepingDashboard({ data }: HousekeepingDashboardProps) {
               <div key={u.id} className="flex justify-between items-center border border-[#C7D3C0]/40 dark:border-[#383E36] p-4 rounded-2xl">
                 <div>
                   <span className="font-bold text-sm text-[#2F332E] dark:text-white">Unit {u.unitNumber} • {u.tenantName}</span>
-                  <p className="text-gray-500 dark:text-gray-400">📱 {u.tenantPhone || "081444444444"}</p>
+                  <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-0.5"><IconPhone className="size-3 text-[#8FA28A] shrink-0" /> {u.tenantPhone || "081444444444"}</p>
                 </div>
                 <a
                   href={`https://wa.me/${u.tenantPhone || "6281444444444"}`}

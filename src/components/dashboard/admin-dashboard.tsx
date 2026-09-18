@@ -8,14 +8,16 @@ import {
   IconShieldCheck,
   IconUsers,
   IconActivity,
-  IconBuildingStore,
+  IconBriefcase,
+  IconPackages,
   IconLock,
-  IconRoute,
+  IconLayoutNavbar,
   IconSettings,
   IconCpu,
   IconKey,
   IconMail,
   IconUserPlus,
+  IconPhone,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -145,10 +147,10 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
       <div className="flex flex-wrap gap-2 border-b border-[#C7D3C0]/40 pb-3">
         {[
           { id: "overview", label: "Executive Dashboard", icon: IconActivity },
-          { id: "owners", label: "Owner Management", icon: IconBuildingStore },
-          { id: "subscriptions", label: "Subscriptions & Billing", icon: IconReceipt },
+          { id: "owners", label: "Owner Management", icon: IconBriefcase },
+          { id: "subscriptions", label: "Subscriptions & Billing", icon: IconPackages },
           { id: "roles", label: "Roles & Permissions", icon: IconLock },
-          { id: "menus", label: "Dynamic Menus & Feature Flags", icon: IconRoute },
+          { id: "menus", label: "Dynamic Menus & Feature Flags", icon: IconLayoutNavbar },
           { id: "settings", label: "Platform & API Settings", icon: IconSettings },
         ].map((tab) => {
           const isActive = activeTab === tab.id;
@@ -342,7 +344,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <IconBuildingStore className="size-5 text-[#8FA28A]" />
+                <IconBriefcase className="size-5 text-[#8FA28A]" />
                 Daftar Owner Properti Terdaftar
               </CardTitle>
               <CardDescription>Kelola status akun, onboarding owner baru, dan suspend/unsuspend.</CardDescription>
@@ -362,7 +364,11 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
                         {o.isActive ? "Aktif" : "Suspended"}
                       </Badge>
                     </div>
-                    <p className="text-gray-500 dark:text-gray-400">{o.email} • 📱 {o.phoneNumber || "081222222222"}</p>
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5 flex-wrap">
+                      <span>{o.email}</span>
+                      <span>•</span>
+                      <span className="inline-flex items-center gap-1"><IconPhone className="size-3 text-[#8FA28A] shrink-0" /> {o.phoneNumber || "081222222222"}</span>
+                    </p>
                     <span className="text-[11px] font-bold text-[#8FA28A]">Dimiliki: {o.propertyCount} Properti</span>
                   </div>
 
@@ -477,7 +483,7 @@ export function AdminDashboard({ data }: AdminDashboardProps) {
         <Card className="rounded-2xl border border-[#C7D3C0]/40 bg-white dark:bg-[#242823] dark:border-[#383E36] shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-bold flex items-center gap-2">
-              <IconRoute className="size-5 text-[#C8A96B]" />
+              <IconLayoutNavbar className="size-5 text-[#C8A96B]" />
               Dynamic Feature Flags & Menu Access Toggles
             </CardTitle>
           </CardHeader>

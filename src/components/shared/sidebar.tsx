@@ -85,6 +85,18 @@ import {
   IconChevronRight,
   IconSparkles,
   IconX,
+  IconSpray,
+  IconBrush,
+  IconVacuumCleaner,
+  IconBriefcase,
+  IconLayoutNavbar,
+  IconLayoutGrid,
+  IconReceiptRefund,
+  IconReportMoney,
+  IconFileCheck,
+  IconFileCertificate,
+  IconBoxSeam,
+  IconPackages,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useUIStore } from "@/store/use-ui-store";
@@ -184,14 +196,26 @@ const ICON_MAP: Record<string, any> = {
   IconSparkles,
   IconRoute,
   IconPlus,
+  IconSpray,
+  IconBrush,
+  IconVacuumCleaner,
+  IconBriefcase,
+  IconLayoutNavbar,
+  IconLayoutGrid,
+  IconReceiptRefund,
+  IconReportMoney,
+  IconFileCheck,
+  IconFileCertificate,
+  IconBoxSeam,
+  IconPackages,
 };
 
 const adminNavItems: NavItem[] = [
   { id: "admin-1", href: "/platform/dashboard", label: "Executive Dashboard", icon: IconHome, group: "UTAMA" },
-  { id: "admin-2", href: "/platform/owners", label: "Owner Management", icon: IconBuildingStore, group: "MANAJEMEN SAAS" },
-  { id: "admin-3", href: "/platform/subscriptions", label: "Subscriptions & Billing", icon: IconCash, group: "MANAJEMEN SAAS" },
+  { id: "admin-2", href: "/platform/owners", label: "Owner Management", icon: IconBriefcase, group: "MANAJEMEN SAAS" },
+  { id: "admin-3", href: "/platform/subscriptions", label: "Subscriptions & Billing", icon: IconPackages, group: "MANAJEMEN SAAS" },
   { id: "admin-4", href: "/platform/roles", label: "Role & Permission Management", icon: IconLock, group: "SISTEM & KONFIGURASI" },
-  { id: "admin-5", href: "/platform/menus", label: "Dynamic Menu Management", icon: IconRoute, group: "SISTEM & KONFIGURASI" },
+  { id: "admin-5", href: "/platform/menus", label: "Dynamic Menu Management", icon: IconLayoutNavbar, group: "SISTEM & KONFIGURASI" },
   { id: "admin-6", href: "/platform/settings", label: "Platform Settings & Integrasi", icon: IconSettings, group: "SISTEM & KONFIGURASI" },
 ];
 
@@ -199,7 +223,7 @@ const ownerNavItems: NavItem[] = [
   { id: "owner-1", href: "/owner/dashboard", label: "Dashboard Utama", icon: IconHome, group: "UTAMA" },
   { id: "owner-2", href: "/properties", label: "Properti & Manajemen Unit", icon: IconBuilding, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-units", href: "/units", label: "Unit", icon: IconDoor, group: "PROPERTI & OPERASIONAL" },
-  { id: "owner-3", href: "/operations/housekeeping-team", label: "Tim Operasional & Housekeeping", icon: IconSparkles, group: "PROPERTI & OPERASIONAL" },
+  { id: "owner-3", href: "/operations/housekeeping-team", label: "Tim Operasional & Housekeeping", icon: IconSpray, group: "PROPERTI & OPERASIONAL" },
   { id: "owner-4", href: "/operations/maintenance-reports", label: "Pusat Laporan & Maintenance", icon: IconTools, group: "PROPERTI & OPERASIONAL" },
   {
     id: "owner-community",
@@ -212,7 +236,17 @@ const ownerNavItems: NavItem[] = [
       { id: "owner-comm-history", href: "/portal/community", label: "History Komunitas", icon: IconHistory, group: "KOMUNITAS" },
     ],
   },
-  { id: "owner-5", href: "/tenants", label: "Penyewa & Kontrak", icon: IconUsers, group: "PENYEWA & KEUANGAN" },
+  {
+    id: "owner-5",
+    href: "/tenants",
+    label: "Penyewa & Kontrak",
+    icon: IconUsers,
+    group: "PENYEWA & KEUANGAN",
+    children: [
+      { id: "owner-5-contract", href: "/tenant-contract", label: "Kontrak Penyewa", icon: IconFileCertificate, group: "PENYEWA & KEUANGAN" },
+      { id: "owner-5-mgmt", href: "/tenants", label: "Manajemen Penyewa", icon: IconId, group: "PENYEWA & KEUANGAN" },
+    ],
+  },
   {
     id: "owner-6",
     href: "/finance",
@@ -221,8 +255,8 @@ const ownerNavItems: NavItem[] = [
     group: "PENYEWA & KEUANGAN",
     children: [
       { id: "owner-6-1", href: "/finance", label: "Manajemen Invoice", icon: IconReceipt, group: "PENYEWA & KEUANGAN" },
-      { id: "owner-6-2", href: "/finance/verification", label: "Verifikasi & Rekening", icon: IconUserCheck, group: "PENYEWA & KEUANGAN" },
-      { id: "owner-6-3", href: "/finance/expenses", label: "Pengeluaran Operasional (OpEx)", icon: IconReceipt, group: "PENYEWA & KEUANGAN" },
+      { id: "owner-6-2", href: "/finance/verification", label: "Verifikasi & Rekening", icon: IconFileCheck, group: "PENYEWA & KEUANGAN" },
+      { id: "owner-6-3", href: "/finance/expenses", label: "Pengeluaran Operasional (OpEx)", icon: IconReceiptRefund, group: "PENYEWA & KEUANGAN" },
       { id: "owner-6-4", href: "/reports", label: "Laporan & Analytics", icon: IconChartBar, group: "PENYEWA & KEUANGAN" },
     ],
   },
@@ -230,17 +264,17 @@ const ownerNavItems: NavItem[] = [
 ];
 
 const housekeepingNavItems: NavItem[] = [
-  { id: "hk-1", href: "/housekeeping/room-grid", label: "Status Kamar Grid", icon: IconClipboardCheck, group: "LAPANGAN & UNIT" },
+  { id: "hk-1", href: "/housekeeping/room-grid", label: "Status Kamar Grid", icon: IconLayoutGrid, group: "LAPANGAN & UNIT" },
   { id: "hk-2", href: "/housekeeping/maintenance-reports", label: "Laporan & Tugas Lapangan", icon: IconTools, group: "LAPANGAN & UNIT" },
   { id: "hk-3", href: "/housekeeping/tenants", label: "Data Penghuni Lapangan", icon: IconUserCheck, group: "LAPANGAN & UNIT" },
-  { id: "hk-4", href: "/housekeeping/inventories", label: "Kondisi Perabotan & Unit", icon: IconArmchair, group: "LAPANGAN & UNIT" },
+  { id: "hk-4", href: "/housekeeping/inventories", label: "Kondisi Perabotan & Unit", icon: IconBoxSeam, group: "LAPANGAN & UNIT" },
   { id: "hk-5", href: "/housekeeping/unit-expenses", label: "Keuangan & Penagihan Unit", icon: IconCash, group: "KEUANGAN & KOMUNITAS" },
   { id: "hk-6", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "KEUANGAN & KOMUNITAS" },
 ];
 
 const userNavItems: NavItem[] = [
   { id: "usr-1", href: "/portal/room", label: "Info Kamar Saya", icon: IconBed, group: "PORTAL KAMAR" },
-  { id: "usr-2", href: "/portal/contract", label: "Kontrak & Dokumen", icon: IconFileText, group: "PORTAL KAMAR" },
+  { id: "usr-2", href: "/portal/contract", label: "Kontrak & Dokumen", icon: IconFileCertificate, group: "PORTAL KAMAR" },
   { id: "usr-3", href: "/portal/invoices", label: "Tagihan & Pembayaran", icon: IconReceipt, group: "PORTAL KAMAR" },
   { id: "usr-4", href: "/portal/community", label: "Komunitas Penghuni", icon: IconMessages, group: "PORTAL KAMAR" },
 ];
@@ -278,6 +312,8 @@ function normalizeMenuPath(p?: string | null): string {
   if (!p) return "";
   const clean = p.replace(/\/$/, "");
   if (clean === "/community") return "/properti/community";
+  if (clean === "/tenant-&-contract") return "/tenants";
+  if (clean === "/platform/subscription-&-billing") return "/platform/subscriptions";
   return clean;
 }
 
@@ -295,11 +331,6 @@ function isPathActive(currentPath: string, targetPath: string, isPrefix: boolean
 export function Sidebar({ role: initialRole }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-
-  // Hide sidebar on standalone pages like /owner/subscription
-  if (pathname === "/owner/subscription" || pathname.startsWith("/owner/subscription")) {
-    return null;
-  }
 
   const [currentRole, setCurrentRole] = useState<UserRole>(initialRole || UserRole.OWNER);
   const [dynamicNavItems, setDynamicNavItems] = useState<NavItem[] | null>(null);
@@ -585,7 +616,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
           >
             <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-[#8FA28A] to-[#C8A96B] p-0.5 shadow-md group-hover:scale-105 transition-transform duration-200 shrink-0">
               <div className="h-full w-full bg-sidebar rounded-[10px] flex items-center justify-center">
-                <IconBuildingStore className="h-5 w-5 text-[#C8A96B]" />
+                <IconBuildingSkyscraper className="h-5 w-5 text-[#C8A96B]" />
               </div>
             </div>
             <div className="min-w-0 flex-1">
@@ -646,7 +677,12 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                               toggleSubmenu(item.id);
                               // If parent was not active, also navigate to default route
                               if (!isParentActive) {
-                                const targetRoute = item.href || item.children?.[0]?.href;
+                                const isHrefAChild = item.children?.some(
+                                  (c) => c.href === item.href || (item.href === "/tenants" && c.href === "/tenants")
+                                );
+                                const targetRoute = isHrefAChild
+                                  ? item.href
+                                  : (item.children?.[0]?.href || item.href);
                                 if (targetRoute) {
                                   router.push(targetRoute);
                                   if (isMobile) setMobileMenuOpen(false);
@@ -854,6 +890,11 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
       </div>
     </>
   );
+
+  // Hide sidebar on standalone pages like /owner/subscription
+  if (pathname === "/owner/subscription" || pathname.startsWith("/owner/subscription")) {
+    return null;
+  }
 
   return (
     <>
