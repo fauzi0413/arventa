@@ -152,7 +152,7 @@ export default function HousekeepingTenantsPage() {
             <RefreshCw
               className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
             />
-            <span>{refreshing ? 'Memperbarui...' : 'Refresh Realtime'}</span>
+            <span>{refreshing ? 'Memperbarui...' : 'Segarkan Data'}</span>
           </button>
         </div>
 

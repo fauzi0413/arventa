@@ -1,5 +1,8 @@
-import { redirect } from "next/navigation";
+"use client";
 
-export default function HousekeepingCommunityRedirectPage() {
-  redirect("/properti/community");
+import PropertyCommunityPage from "@/app/(dashboard)/properti/community/page";
+
+export default function HousekeepingCommunityPage() {
+  return <PropertyCommunityPage />;
 }
+

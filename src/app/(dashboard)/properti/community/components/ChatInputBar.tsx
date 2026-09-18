@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
 import {
   IconSend,
   IconLoader2,
-  IconSparkles,
   IconMoodSmile,
   IconArrowBackUp,
   IconX,
@@ -26,13 +25,6 @@ interface ChatInputBarProps {
   replyingTo?: ReplyToContext | null;
   onCancelReply?: () => void;
 }
-
-const QUICK_PROMPTS = [
-  "👋 Halo semuanya!",
-  "📦 Ada paket di depan ya",
-  "🙏 Terima kasih banyak!",
-  "💡 Mau tanya info jemuran",
-];
 
 const EMOJI_CATEGORIES = [
   {
@@ -141,11 +133,6 @@ export function ChatInputBar({
     }
   };
 
-  const handleQuickPrompt = (prompt: string) => {
-    setText((prev) => (prev ? `${prev} ${prompt}` : prompt));
-    textareaRef.current?.focus();
-  };
-
   // Insert emoji at cursor position
   const handleInsertEmoji = (emoji: string) => {
     if (!textareaRef.current) {
@@ -201,25 +188,7 @@ export function ChatInputBar({
         </div>
       )}
 
-      {/* 2. Quick Prompts Carousel */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground shrink-0 flex items-center gap-1 px-1">
-          <IconSparkles className="h-3 w-3 text-[#8FA28A]" />
-          <span>Sapa Cepat:</span>
-        </span>
-        {QUICK_PROMPTS.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            onClick={() => handleQuickPrompt(prompt)}
-            className="shrink-0 px-2.5 py-1 rounded-full bg-card hover:bg-[#8FA28A]/15 hover:text-[#8FA28A] border border-border/80 text-foreground text-xs font-medium transition-colors shadow-2xs"
-          >
-            {prompt}
-          </button>
-        ))}
-      </div>
-
-      {/* 3. Main Input Bar & Emoji Keyboard Picker */}
+      {/* Main Input Bar & Emoji Keyboard Picker */}
       <div className="relative flex items-end gap-2 p-2 rounded-3xl bg-card border border-border/80 shadow-md focus-within:border-[#8FA28A] focus-within:ring-2 focus-within:ring-[#8FA28A]/20 transition-all">
         {/* Emoji Button & Floating Picker */}
         <div className="relative shrink-0">

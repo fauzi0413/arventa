@@ -7,8 +7,8 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    // 0. Smart Community Menu auto-alignment:
-    // Move "Komunitas Properti" (/properti/community) to top under "KOMUNITAS" group
+    // 0. Smart Community Menu alignment:
+    // OWNER: "Komunitas Properti" (/properti/community)
     const communityParent = await prisma.menuItem.findFirst({
       where: {
         OR: [
@@ -18,93 +18,145 @@ export async function GET() {
       },
     });
     if (communityParent) {
-      if (
-        communityParent.path !== "/properti/community" ||
-        communityParent.group !== "KOMUNITAS" ||
-        communityParent.order !== 5
-      ) {
-        await prisma.menuItem.update({
-          where: { id: communityParent.id },
-          data: {
-            title: "Komunitas Properti",
-            path: "/properti/community",
-            group: "KOMUNITAS",
-            order: 5,
+      await prisma.menuItem.update({
+        where: { id: communityParent.id },
+        data: {
+          title: "Komunitas Properti",
+          path: "/properti/community",
+          group: "KOMUNITAS",
+          order: 5,
+        },
+      });
+
+      // Ensure ONLY OWNER is linked to /properti/community
+      const ownerRole = await prisma.role.findFirst({ where: { code: "OWNER" } });
+      if (ownerRole) {
+        await prisma.roleMenu.deleteMany({
+          where: {
+            menuItemId: communityParent.id,
+            role: { code: { in: ["HOUSEKEEPING", "TENANT", "USER"] } },
           },
         });
-      }
-
-      // Ensure OWNER and TENANT roles are linked to parent
-      const roles = await prisma.role.findMany({
-        where: { code: { in: ["OWNER", "TENANT"] } },
-      });
-      for (const role of roles) {
         const existing = await prisma.roleMenu.findUnique({
-          where: { roleId_menuItemId: { roleId: role.id, menuItemId: communityParent.id } },
+          where: { roleId_menuItemId: { roleId: ownerRole.id, menuItemId: communityParent.id } },
         });
         if (!existing) {
           await prisma.roleMenu.create({
-            data: { roleId: role.id, menuItemId: communityParent.id },
+            data: { roleId: ownerRole.id, menuItemId: communityParent.id },
           });
         }
       }
     }
 
-    // Rename portal/community to "History Komunitas" as sub-menu
-    const historyItem = await prisma.menuItem.findFirst({
-      where: { path: "/portal/community" },
+    // HOUSEKEEPING: Dedicated "Komunitas & Pengumuman" (/housekeeping/community)
+    let hkCommunity = await prisma.menuItem.findFirst({
+      where: { path: "/housekeeping/community" },
     });
-    if (historyItem) {
-      if (
-        historyItem.title !== "History Komunitas" ||
-        historyItem.icon !== "IconHistory" ||
-        historyItem.group !== "KOMUNITAS" ||
-        (communityParent && historyItem.parentId !== communityParent.id)
-      ) {
-        await prisma.menuItem.update({
-          where: { id: historyItem.id },
-          data: {
-            title: "History Komunitas",
-            icon: "IconHistory",
-            group: "KOMUNITAS",
-            parentId: communityParent ? communityParent.id : null,
-          },
+    if (!hkCommunity) {
+      hkCommunity = await prisma.menuItem.create({
+        data: {
+          title: "Komunitas & Pengumuman",
+          path: "/housekeeping/community",
+          icon: "IconMessages",
+          group: "KEUANGAN & KOMUNITAS",
+          order: 6,
+          parentId: null,
+        },
+      });
+    } else {
+      await prisma.menuItem.update({
+        where: { id: hkCommunity.id },
+        data: {
+          title: "Komunitas & Pengumuman",
+          path: "/housekeeping/community",
+          icon: "IconMessages",
+          group: "KEUANGAN & KOMUNITAS",
+          parentId: null,
+        },
+      });
+    }
+
+    const hkRole = await prisma.role.findFirst({ where: { code: "HOUSEKEEPING" } });
+    if (hkRole && hkCommunity) {
+      // Remove other roles from hkCommunity
+      await prisma.roleMenu.deleteMany({
+        where: {
+          menuItemId: hkCommunity.id,
+          role: { code: { not: "HOUSEKEEPING" } },
+        },
+      });
+      const existing = await prisma.roleMenu.findUnique({
+        where: { roleId_menuItemId: { roleId: hkRole.id, menuItemId: hkCommunity.id } },
+      });
+      if (!existing) {
+        await prisma.roleMenu.create({
+          data: { roleId: hkRole.id, menuItemId: hkCommunity.id },
         });
       }
     }
 
-    // Ensure "Forum Komunitas" submenu item exists with correct path
-    let forumItem = await prisma.menuItem.findFirst({
-      where: { title: "Forum Komunitas" },
+    // TENANT & USER: Dedicated "Komunitas Penghuni" (/portal/community)
+    let tenantCommunity = await prisma.menuItem.findFirst({
+      where: { path: "/portal/community", parentId: null },
     });
-    if (!forumItem && communityParent) {
-      forumItem = await prisma.menuItem.create({
+    if (!tenantCommunity) {
+      tenantCommunity = await prisma.menuItem.create({
         data: {
-          title: "Forum Komunitas",
-          path: "/properti/community",
+          title: "Komunitas Penghuni",
+          path: "/portal/community",
           icon: "IconMessages",
-          group: "KOMUNITAS",
-          order: 6,
-          parentId: communityParent.id,
+          group: "PORTAL KAMAR",
+          order: 4,
+          parentId: null,
         },
       });
-      const roles = await prisma.role.findMany({
-        where: { code: { in: ["OWNER", "TENANT"] } },
+    } else {
+      await prisma.menuItem.update({
+        where: { id: tenantCommunity.id },
+        data: {
+          title: "Komunitas Penghuni",
+          path: "/portal/community",
+          icon: "IconMessages",
+          group: "PORTAL KAMAR",
+          parentId: null,
+        },
       });
-      for (const role of roles) {
+    }
+
+    const tenantRoles = await prisma.role.findMany({
+      where: { code: { in: ["TENANT", "USER"] } },
+    });
+    for (const r of tenantRoles) {
+      const existing = await prisma.roleMenu.findUnique({
+        where: { roleId_menuItemId: { roleId: r.id, menuItemId: tenantCommunity.id } },
+      });
+      if (!existing) {
         await prisma.roleMenu.create({
-          data: {
-            roleId: role.id,
-            menuItemId: forumItem.id,
-          },
+          data: { roleId: r.id, menuItemId: tenantCommunity.id },
         });
       }
-    } else if (forumItem && (forumItem.path !== "/properti/community" || (communityParent && forumItem.parentId !== communityParent.id))) {
-      await prisma.menuItem.update({
-        where: { id: forumItem.id },
-        data: {
-          path: "/properti/community",
-          parentId: communityParent ? communityParent.id : forumItem.parentId,
+    }
+
+    // Clean up forumItem and historyItem submenus from non-owner roles
+    const forumItem = await prisma.menuItem.findFirst({
+      where: { title: "Forum Komunitas" },
+    });
+    if (forumItem) {
+      await prisma.roleMenu.deleteMany({
+        where: {
+          menuItemId: forumItem.id,
+          role: { code: { in: ["HOUSEKEEPING", "TENANT", "USER"] } },
+        },
+      });
+    }
+    const historySubmenu = await prisma.menuItem.findFirst({
+      where: { title: "History Komunitas", parentId: { not: null } },
+    });
+    if (historySubmenu) {
+      await prisma.roleMenu.deleteMany({
+        where: {
+          menuItemId: historySubmenu.id,
+          role: { code: { in: ["HOUSEKEEPING", "TENANT", "USER"] } },
         },
       });
     }

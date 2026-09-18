@@ -37,7 +37,7 @@ export function RealtimeIndicator({
 
       {/* Label */}
       <span className="font-medium">
-        {isSyncing ? "Menyinkronkan feed..." : "Realtime Aktif"}
+        {isSyncing ? "Menyinkronkan feed..." : "Tersinkronisasi"}
       </span>
 
       {/* Timestamp */}

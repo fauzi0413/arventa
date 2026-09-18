@@ -234,24 +234,14 @@ const housekeepingNavItems: NavItem[] = [
   { id: "hk-3", href: "/housekeeping/tenants", label: "Data Penghuni Lapangan", icon: IconUserCheck, group: "LAPANGAN & UNIT" },
   { id: "hk-4", href: "/housekeeping/inventories", label: "Kondisi Perabotan & Unit", icon: IconArmchair, group: "LAPANGAN & UNIT" },
   { id: "hk-5", href: "/housekeeping/unit-expenses", label: "Keuangan & Penagihan Unit", icon: IconCash, group: "KEUANGAN & KOMUNITAS" },
-  { id: "hk-6", href: "/properti/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "KEUANGAN & KOMUNITAS" },
+  { id: "hk-6", href: "/housekeeping/community", label: "Komunitas & Pengumuman", icon: IconMessages, group: "KEUANGAN & KOMUNITAS" },
 ];
 
 const userNavItems: NavItem[] = [
   { id: "usr-1", href: "/portal/room", label: "Info Kamar Saya", icon: IconBed, group: "PORTAL KAMAR" },
   { id: "usr-2", href: "/portal/contract", label: "Kontrak & Dokumen", icon: IconFileText, group: "PORTAL KAMAR" },
   { id: "usr-3", href: "/portal/invoices", label: "Tagihan & Pembayaran", icon: IconReceipt, group: "PORTAL KAMAR" },
-  {
-    id: "usr-4",
-    href: "/properti/community",
-    label: "Komunitas Properti",
-    icon: IconMessages,
-    group: "KOMUNITAS",
-    children: [
-      { id: "usr-comm-forum", href: "/properti/community", label: "Forum Komunitas", icon: IconMessages, group: "KOMUNITAS" },
-      { id: "usr-comm-history", href: "/portal/community", label: "History Komunitas", icon: IconHistory, group: "KOMUNITAS" },
-    ],
-  },
+  { id: "usr-4", href: "/portal/community", label: "Komunitas Penghuni", icon: IconMessages, group: "PORTAL KAMAR" },
 ];
 
 const ROUTE_FEATURE_MAP: Record<string, { code: string; label: string }> = {
@@ -359,17 +349,9 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
         );
 
         if (rawItems.length > 0) {
-          const templateList = getTemplateItemsForRole(roleToFetch);
-
-          // Helper to resolve group name from template list or item data
-          const resolveGroup = (path: string, itemGroup?: string) => {
-            const matched = templateList.find((t) => isPathActive(t.href, path));
-            if (matched?.group) return matched.group;
-            for (const t of templateList) {
-              const childMatch = t.children?.find((c) => isPathActive(c.href, path));
-              if (childMatch?.group) return childMatch.group;
-            }
-            if (itemGroup && itemGroup !== "UTAMA") return itemGroup;
+          // Helper to resolve group name strictly from database value
+          const resolveGroup = (itemGroup?: string | null) => {
+            if (itemGroup && itemGroup.trim() !== "") return itemGroup.trim();
             return "UTAMA";
           };
 
@@ -383,7 +365,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
 
           // Build tree hierarchy
           const tree: NavItem[] = rootItems.map((root: any) => {
-            const rootGroup = resolveGroup(root.path, root.group);
+            const rootGroup = resolveGroup(root.group);
 
             const childrenForRoot = childItems
               .filter((child: any) => {
@@ -399,7 +381,7 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                 href: child.path,
                 label: child.title,
                 icon: ICON_MAP[child.icon] || IconRoute,
-                group: resolveGroup(child.path, child.group || rootGroup),
+                group: resolveGroup(child.group || rootGroup),
                 order: child.order,
                 parentId: root.id,
               }));
@@ -437,14 +419,14 @@ export function Sidebar({ role: initialRole }: SidebarProps) {
                   href: child.path,
                   label: child.title,
                   icon: ICON_MAP[child.icon] || IconRoute,
-                  group: resolveGroup(child.path, child.group || parentRoot.group),
+                  group: resolveGroup(child.group || parentRoot.group),
                   order: child.order,
                   parentId: parentRoot.id,
                 });
               }
             } else {
               // Add as a root nav item if no parent prefix matches
-              const itemGroup = resolveGroup(child.path, child.group);
+              const itemGroup = resolveGroup(child.group);
               if (!tree.some((t) => t.id === child.id || t.href === child.path)) {
                 tree.push({
                   id: child.id,

@@ -10,7 +10,6 @@ import {
   IconArrowRight,
   IconCheck,
   IconChecks,
-  IconSparkles,
 } from "@tabler/icons-react";
 import { AvailablePropertyOption, ChatCurrentUser } from "../types/chat";
 
@@ -110,7 +109,6 @@ export function ChatGroupListView({
           </div>
 
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground self-start sm:self-auto bg-muted/60 px-3 py-1.5 rounded-xl border border-border/60">
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>
               {properties.length} {properties.length === 1 ? "Grup Kost" : "Grup Kost Tersedia"}
             </span>
@@ -251,9 +249,8 @@ export function ChatGroupListView({
 
       {/* 3. Bottom Footer Helper */}
       <div className="p-3.5 border-t border-border/80 bg-muted/20 text-center">
-        <p className="text-[11px] text-muted-foreground flex items-center justify-center gap-1.5">
-          <IconSparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Setiap pesan terisolasi aman per properti & realtime dengan warga kos.</span>
+        <p className="text-[11px] text-muted-foreground text-center">
+          Setiap percakapan terisolasi aman untuk warga properti kos ini.
         </p>
       </div>
     </div>

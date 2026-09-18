@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import PropertyCommunityPage from "@/app/(dashboard)/properti/community/page";
 import {
   IconHistory,
   IconBuildingCommunity,
@@ -140,8 +141,8 @@ export default function CommunityHistoryPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [activeTab, setActiveTab] = useState<
-    "residents" | "announcements" | "pinned" | "analytics"
-  >("residents");
+    "chat" | "residents" | "announcements" | "pinned" | "analytics"
+  >("chat");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Debounce search input
@@ -286,14 +287,17 @@ export default function CommunityHistoryPage() {
             <IconRefresh className={`h-4 w-4 ${loading ? "animate-spin text-[#8FA28A]" : ""}`} />
           </button>
 
-          <Link
-            href="/properti/community"
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#8FA28A] hover:bg-[#7D9178] text-white text-xs font-bold transition-all shadow-md active:scale-95 group"
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all shadow-md active:scale-95 group cursor-pointer ${
+              activeTab === "chat"
+                ? "bg-[#7D9178] text-white ring-2 ring-[#8FA28A]/40"
+                : "bg-[#8FA28A] hover:bg-[#7D9178] text-white"
+            }`}
           >
             <IconMessages className="h-4 w-4 transition-transform group-hover:scale-110" />
-            <span>Buka Obrolan Grup</span>
-            <IconArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
-          </Link>
+            <span>Obrolan Grup</span>
+          </button>
         </div>
       </div>
 
@@ -368,6 +372,18 @@ export default function CommunityHistoryPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/80 pb-3">
         {/* Tab Buttons */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "chat"
+                ? "bg-[#8FA28A] text-white shadow-xs"
+                : "bg-card border border-border/70 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <IconMessages className="h-4 w-4" />
+            <span>Obrolan Grup</span>
+          </button>
+
           <button
             onClick={() => setActiveTab("residents")}
             className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
@@ -484,6 +500,15 @@ export default function CommunityHistoryPage() {
         </div>
       ) : (
         <>
+          {/* ----------------------------------------------------------------- */}
+          {/* TAB 0: OBROLAN GRUP KOST (LIVE REAL-TIME ROOMCHAT) */}
+          {/* ----------------------------------------------------------------- */}
+          {activeTab === "chat" && (
+            <div className="rounded-3xl bg-card border border-border/80 p-2 sm:p-4 overflow-hidden">
+              <PropertyCommunityPage />
+            </div>
+          )}
+
           {/* ----------------------------------------------------------------- */}
           {/* TAB 1: RIWAYAT WARGA (Lifecycle: Check-in / Check-out) */}
           {/* ----------------------------------------------------------------- */}
@@ -675,13 +700,13 @@ export default function CommunityHistoryPage() {
                         <span className="text-[10px] text-muted-foreground">
                           Disematkan: {formatFullDateTime(pinned.pinnedAt)}
                         </span>
-                        <Link
-                          href="/properti/community"
-                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8FA28A] hover:underline"
+                        <button
+                          onClick={() => setActiveTab("chat")}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8FA28A] hover:underline cursor-pointer"
                         >
                           <span>Buka di Obrolan</span>
                           <IconArrowRight className="h-3 w-3" />
-                        </Link>
+                        </button>
                       </div>
                     </div>
                   ))}

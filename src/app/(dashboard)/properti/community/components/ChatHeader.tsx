@@ -92,18 +92,6 @@ export function ChatHeader({
               {initials}
             </div>
           )}
-          <span
-            className={`absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border-2 border-card ${
-              isRealtimeConnected ? "bg-emerald-500" : "bg-amber-500"
-            }`}
-            title={isRealtimeConnected ? "Realtime Aktif" : "Sinkronisasi Otomatis"}
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                isRealtimeConnected ? "bg-white animate-pulse" : "bg-white"
-              }`}
-            />
-          </span>
         </div>
 
         {/* Title & Subtitle */}
@@ -183,28 +171,13 @@ export function ChatHeader({
             </span>
           </div>
 
-          {/* Subtitle count & status */}
+          {/* Subtitle count */}
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-0.5">
             <span className="font-semibold text-foreground/90">
               {activeTenantsCount} Penghuni Aktif
             </span>
             <span>•</span>
             <span className="font-medium">{managementCount} Pengelola</span>
-            <span>•</span>
-            <span
-              className={`inline-flex items-center gap-1 font-semibold ${
-                isRealtimeConnected
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-amber-600 dark:text-amber-400"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  isRealtimeConnected ? "bg-emerald-500 animate-ping" : "bg-amber-500"
-                }`}
-              />
-              {isRealtimeConnected ? "Realtime Aktif" : "Sync Otomatis"}
-            </span>
           </div>
         </div>
       </div>

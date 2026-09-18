@@ -147,9 +147,9 @@ export async function validateRouteAccess(
 
   // 4. Prefix fallback guard rules
   if (cleanPath.startsWith("/portal/")) {
-    // /portal/community (History Komunitas) is accessible to both OWNER and TENANT
+    // /portal/community (History Komunitas) is accessible to OWNER, TENANT, and HOUSEKEEPING
     if (cleanPath === "/portal/community") {
-      if (normalizedUserRole !== "TENANT" && normalizedUserRole !== "OWNER") {
+      if (normalizedUserRole !== "TENANT" && normalizedUserRole !== "OWNER" && normalizedUserRole !== "HOUSEKEEPING") {
         return { allowed: false, redirectUrl: defaultHome };
       }
     } else if (normalizedUserRole !== "TENANT") {
@@ -172,6 +172,7 @@ export async function validateRouteAccess(
   if (
     cleanPath.startsWith("/owner/") ||
     cleanPath.startsWith("/properties") ||
+    cleanPath.startsWith("/properti") ||
     cleanPath.startsWith("/units") ||
     cleanPath.startsWith("/operations") ||
     cleanPath.startsWith("/finance") ||
