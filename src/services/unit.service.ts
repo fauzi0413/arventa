@@ -658,15 +658,18 @@ export class UnitService {
   }
 
   /**
-   * Reset room credentials password
+   * Reset room credentials password (supports custom manual password or auto-generated)
    */
-  static async resetRoomPassword(id: string) {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    let rand = "";
-    for (let i = 0; i < 6; i++) {
-      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+  static async resetRoomPassword(id: string, customPassword?: string) {
+    let newPassword = customPassword?.trim();
+    if (!newPassword) {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      let rand = "";
+      for (let i = 0; i < 6; i++) {
+        rand += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      newPassword = `Arv!${rand}`;
     }
-    const newPassword = `Arv!${rand}`;
 
     const updated = await prisma.unit.update({
       where: { id },

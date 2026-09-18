@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { X, User, Phone, Mail, FileText, Briefcase, HeartHandshake, Building, Calendar, CheckCircle2, Clock, AlertCircle, ArrowRightLeft, UserX, UserCheck } from 'lucide-react';
+import { X, User, Phone, Mail, FileText, Briefcase, HeartHandshake, Building, Calendar, CheckCircle2, Clock, AlertCircle, ArrowRightLeft, UserX, UserCheck, MessageCircle, Send } from 'lucide-react';
 import { formatIndonesianDateTime, formatIndonesianDate } from '@/lib/utils';
 import { Tenant, HistoryEventType } from '../_types';
 
@@ -123,6 +123,36 @@ export default function TenantDetailModal({
     }
   };
 
+  const handleTenantWhatsApp = () => {
+    if (!tenant.phoneNumber || tenant.phoneNumber === '-') return;
+    let cleanPhone = tenant.phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62' + cleanPhone.slice(1);
+    }
+    const msg = encodeURIComponent(`Halo ${tenant.fullName}, terkait penyewaan unit di Arventa...`);
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+  };
+
+  const handleSendTenantCredentials = () => {
+    if (!tenant.phoneNumber || tenant.phoneNumber === '-') return;
+    let cleanPhone = tenant.phoneNumber.replace(/\D/g, '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62' + cleanPhone.slice(1);
+    }
+    const currentEmail = tenant.email || (tenant.currentUnitName ? `${tenant.currentUnitName.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id` : 'penyewa@arventa.id');
+    const currentPassword = tenant.credential?.passwordPlain || 'Arv!789210';
+    const messageText = `Halo *${tenant.fullName}*,
+
+Berikut adalah kredensial akun login modul Penyewa Anda di Arventa:
+
+• *Email Login:* ${currentEmail}
+• *Password:* ${currentPassword}
+
+Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
+    const msg = encodeURIComponent(messageText);
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-xl overflow-hidden rounded-3xl bg-card text-card-foreground shadow-2xl border border-border flex flex-col max-h-[90vh]">
@@ -162,10 +192,36 @@ export default function TenantDetailModal({
               </div>
               <div>
                 <span className="text-muted-foreground block font-medium">No. Telepon / WhatsApp</span>
-                <span className="font-bold text-foreground flex items-center gap-1.5 mt-0.5">
-                  <Phone className="h-3.5 w-3.5 text-[#8FA28A]" />
-                  {tenant.phoneNumber}
-                </span>
+                <div className="flex flex-wrap items-center justify-between gap-1.5 mt-0.5">
+                  <span className="font-bold text-foreground flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-[#8FA28A]" />
+                    {tenant.phoneNumber}
+                  </span>
+                  {tenant.phoneNumber && tenant.phoneNumber !== '-' && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleTenantWhatsApp}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold transition-all shadow-2xs cursor-pointer"
+                        title="Buka Chat WhatsApp"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        <span>WA</span>
+                      </button>
+                      {tenant.status === 'AKTIF' && (
+                        <button
+                          type="button"
+                          onClick={handleSendTenantCredentials}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#8FA28A] hover:bg-[#7D9178] text-white text-[10px] font-bold transition-all shadow-2xs cursor-pointer"
+                          title="Kirim Username & Password via WhatsApp"
+                        >
+                          <Send className="h-3 w-3" />
+                          <span>Kirim Akun</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <span className="text-muted-foreground block font-medium">Email</span>

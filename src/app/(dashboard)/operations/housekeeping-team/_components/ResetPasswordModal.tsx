@@ -171,8 +171,9 @@ export default function ResetPasswordModal({
                   </label>
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={handleGenerateRandom}
-                    className="text-[11px] font-bold text-[#8FA28A] hover:underline"
+                    className="text-[11px] font-bold text-[#8FA28A] hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Acak Password
                   </button>
@@ -182,23 +183,26 @@ export default function ResetPasswordModal({
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={newPassword}
+                    disabled={isSubmitting}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Masukkan password baru..."
-                    className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 pr-20 py-2.5 text-xs font-mono focus:border-[#8FA28A] focus:outline-none transition-all"
+                    className="w-full rounded-xl border border-border bg-background text-foreground px-3.5 pr-20 py-2.5 text-xs font-mono focus:border-[#8FA28A] focus:outline-none transition-all disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/50"
                   />
                   <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5 text-muted-foreground">
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={() => setShowPassword(!showPassword)}
-                      className="hover:text-foreground transition-colors"
+                      className="hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title={showPassword ? 'Sembunyikan' : 'Tampilkan'}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                     <button
                       type="button"
+                      disabled={isSubmitting}
                       onClick={handleCopy}
-                      className="hover:text-foreground transition-colors"
+                      className="hover:text-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Salin Password"
                     >
                       {isCopied ? (

@@ -24,6 +24,9 @@ import {
   Check,
   AlertTriangle,
   Loader2,
+  MessageCircle,
+  Send,
+  X,
 } from 'lucide-react';
 import { Unit, UnitStatus } from '../_types';
 import UnitFormModal from '../_components/UnitFormModal';
@@ -43,6 +46,12 @@ export default function UnitDetailPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeletingUnit, setIsDeletingUnit] = useState(false);
   const [isAssignTenantOpen, setIsAssignTenantOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [customPasswordInput, setCustomPasswordInput] = useState('');
+  const [showCustomPassword, setShowCustomPassword] = useState(false);
+  const [isCopiedCustomPass, setIsCopiedCustomPass] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // 1 Kamar 1 Akun State
@@ -226,14 +235,48 @@ export default function UnitDetailPage() {
     }
   };
 
-  // 1 Kamar 1 Akun Password Reset Handler (Accessible by both Owner & Housekeeping)
-  const handleResetRoomPassword = async () => {
+  // 1 Kamar 1 Akun Password Reset Handlers (Accessible by both Owner & Housekeeping)
+  const handleOpenResetModal = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let rand = '';
     for (let i = 0; i < 6; i++) {
       rand += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    const newPass = `Arv!${rand}`;
+    setCustomPasswordInput(`Arv!${rand}`);
+    setShowCustomPassword(false);
+    setIsCopiedCustomPass(false);
+    setPasswordError(null);
+    setIsResetConfirmOpen(true);
+  };
+
+  const handleGenerateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let rand = '';
+    for (let i = 0; i < 6; i++) {
+      rand += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCustomPasswordInput(`Arv!${rand}`);
+    setPasswordError(null);
+  };
+
+  const handleCopyCustomPassword = () => {
+    if (!customPasswordInput) return;
+    navigator.clipboard.writeText(customPasswordInput);
+    setIsCopiedCustomPass(true);
+    setTimeout(() => setIsCopiedCustomPass(false), 2000);
+  };
+
+  const handleConfirmResetPassword = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!unit) return;
+    const cleanPass = customPasswordInput.trim();
+    if (!cleanPass || cleanPass.length < 6) {
+      setPasswordError('Password minimal 6 karakter');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setPasswordError(null);
     const nowIso = new Date().toISOString();
 
     const storedUnits = localStorage.getItem('arventa_units');
@@ -243,23 +286,61 @@ export default function UnitDetailPage() {
         u.id === unit.id
           ? {
               ...u,
-              roomPassword: newPass,
+              roomPassword: cleanPass,
               roomPasswordLastReset: nowIso,
             }
           : u
       );
       localStorage.setItem('arventa_units', JSON.stringify(updated));
-      setUnit({ ...unit, roomPassword: newPass, roomPasswordLastReset: nowIso });
-      setResetMessage(`Password akun kamar berhasil diperbarui: ${newPass}`);
+      setUnit({ ...unit, roomPassword: cleanPass, roomPasswordLastReset: nowIso });
+      setResetMessage(`Password akun kamar berhasil diperbarui: ${cleanPass}`);
       setTimeout(() => setResetMessage(null), 5000);
     }
 
     // Backend Prisma DB sync
     try {
-      await fetch(`/api/units/${unit.id}/reset-password`, { method: 'POST' });
+      await fetch(`/api/units/${unit.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: cleanPass }),
+      });
     } catch (e) {
       console.error('Failed to reset room password in database:', e);
+    } finally {
+      setIsResettingPassword(false);
+      setIsResetConfirmOpen(false);
     }
+  };
+
+  const handleTenantWhatsApp = () => {
+    if (!unit?.tenantPhone || unit.tenantPhone === '-') return;
+    let cleanPhone = unit.tenantPhone.replace(/\D/g, '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62' + cleanPhone.slice(1);
+    }
+    const msg = encodeURIComponent(`Halo ${unit.tenantName || 'Penyewa'}, terkait unit ${unit.name || ''} di Arventa...`);
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
+  };
+
+  const handleSendTenantCredentials = () => {
+    if (!unit?.tenantPhone || unit.tenantPhone === '-') return;
+    let cleanPhone = unit.tenantPhone.replace(/\D/g, '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = '62' + cleanPhone.slice(1);
+    }
+    const currentEmail = unit.roomEmail || (unit.name ? `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id` : 'tenant@arventa.id');
+    const currentPassword = unit.roomPassword || 'Arv!789210';
+    const tenantName = unit.tenantName || 'Penyewa';
+    const messageText = `Halo *${tenantName}*,
+
+Berikut adalah kredensial akun login modul Penyewa Anda di Arventa:
+
+• *Email Login:* ${currentEmail}
+• *Password:* ${currentPassword}
+
+Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
+    const msg = encodeURIComponent(messageText);
+    window.open(`https://wa.me/${cleanPhone}?text=${msg}`, '_blank');
   };
 
   // Toggle Property Housekeeping Service (Owner Action)
@@ -481,15 +562,28 @@ export default function UnitDetailPage() {
                   </div>
                 </div>
 
-                {/* Reset Password Button (Accessible by both Owner and Housekeeping) */}
-                <button
-                  type="button"
-                  onClick={handleResetRoomPassword}
-                  className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  Generate / Reset Password
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {Boolean((unit.status === 'Occupied' || (unit.status as string) === 'OCCUPIED') && unit.tenantName && unit.tenantPhone) && (
+                    <button
+                      type="button"
+                      onClick={handleSendTenantCredentials}
+                      className="min-h-[44px] px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                      title="Kirim Username & Password via WhatsApp Penyewa"
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      Kirim Akun ke WA
+                    </button>
+                  )}
+                  {/* Reset Password Button (Accessible by both Owner and Housekeeping) */}
+                  <button
+                    type="button"
+                    onClick={handleOpenResetModal}
+                    className="min-h-[44px] px-3.5 py-2 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Generate / Reset Password
+                  </button>
+                </div>
               </div>
 
               {resetMessage && (
@@ -941,6 +1035,144 @@ export default function UnitDetailPage() {
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal (Manual Input & Auto Randomize) */}
+      {unit && isResetConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card text-card-foreground shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-border px-6 py-4 bg-muted/40">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#8FA28A]/15 text-[#8FA28A] border border-[#8FA28A]/30 shadow-2xs">
+                  <KeyRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-foreground">Reset Password Unit</h2>
+                  <p className="text-xs text-muted-foreground">Kredensial Akses Unit {unit.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => !isResettingPassword && setIsResetConfirmOpen(false)}
+                className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleConfirmResetPassword} className="p-6 space-y-4">
+              <div className="rounded-2xl border border-border bg-muted/30 p-3.5 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Unit Properti:</span>
+                  <strong className="text-foreground">{property?.name || 'Properti'} • {unit.name}</strong>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Email Login:</span>
+                  <strong className="text-foreground font-mono">{unit.roomEmail || `${unit.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@arventa.id`}</strong>
+                </div>
+              </div>
+
+              {/* Password Input */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">
+                    Password Baru <span className="text-rose-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={isResettingPassword}
+                    onClick={handleGenerateRandomPassword}
+                    className="text-[11px] font-bold text-[#8FA28A] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:no-underline"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${isResettingPassword ? 'animate-spin' : ''}`} />
+                    <span>Acak Password</span>
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <input
+                    type={showCustomPassword ? 'text' : 'password'}
+                    value={customPasswordInput}
+                    disabled={isResettingPassword}
+                    onChange={(e) => {
+                      setCustomPasswordInput(e.target.value);
+                      if (passwordError) setPasswordError(null);
+                    }}
+                    placeholder="Masukkan password baru..."
+                    className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 pr-20 text-xs font-mono font-semibold text-foreground placeholder:text-muted-foreground focus:border-[#8FA28A] focus:outline-none transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-muted/50"
+                  />
+                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-muted-foreground">
+                    <button
+                      type="button"
+                      disabled={isResettingPassword}
+                      onClick={() => setShowCustomPassword(!showCustomPassword)}
+                      className="p-1 rounded-md hover:bg-muted hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={showCustomPassword ? 'Sembunyikan' : 'Lihat'}
+                    >
+                      {showCustomPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isResettingPassword}
+                      onClick={handleCopyCustomPassword}
+                      className="p-1 rounded-md hover:bg-muted hover:text-foreground transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Salin Password"
+                    >
+                      {isCopiedCustomPass ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                {passwordError && (
+                  <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1 pt-0.5">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{passwordError}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-800 dark:text-amber-300 text-xs space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-[11px]">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  Perhatian
+                </p>
+                <p className="leading-relaxed text-[11px] text-amber-700/90 dark:text-amber-300/90">
+                  Password yang disimpan akan langsung aktif untuk login kamar. Jika unit sedang dihuni, pastikan untuk membagikan password baru kepada penyewa.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  disabled={isResettingPassword}
+                  onClick={() => setIsResetConfirmOpen(false)}
+                  className="rounded-xl border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  className="flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#7D9178] px-4 py-2 text-xs font-bold text-white shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isResettingPassword ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="h-3.5 w-3.5" />
+                      <span>Simpan Password</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
