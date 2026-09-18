@@ -196,15 +196,48 @@ export async function GET(request: NextRequest) {
     // 2. OWNER STATS
     // -------------------------------------------------------------------------
     if (dbUser.role === UserRole.OWNER) {
-      const ownerProperties = await prisma.property.findMany({
+      const { searchParams } = new URL(request.url);
+      const propertyIdParam = searchParams.get("propertyId") || undefined;
+      const startDateParam = searchParams.get("startDate") || undefined;
+      const endDateParam = searchParams.get("endDate") || undefined;
+
+      const allOwnerProperties = await prisma.property.findMany({
         where: { ownerId: dbUser.id },
         include: {
           units: true,
         },
       });
 
-      const propertyIds = ownerProperties.map((p) => p.id);
-      const unitIds = ownerProperties.flatMap((p) => p.units.map((u) => u.id));
+      // Filter properties based on propertyId param if provided
+      const isFilteredProperty = propertyIdParam && propertyIdParam !== "all";
+      const targetProperties = isFilteredProperty
+        ? allOwnerProperties.filter((p) => p.id === propertyIdParam)
+        : allOwnerProperties;
+
+      const propertyIds = targetProperties.map((p) => p.id);
+      const unitIds = targetProperties.flatMap((p) => p.units.map((u) => u.id));
+
+      // Build Date Range Filter for Transactions
+      const dateFilter: any = {};
+      if (startDateParam) {
+        dateFilter.gte = new Date(startDateParam);
+      }
+      if (endDateParam) {
+        const end = new Date(endDateParam);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+      const hasDateFilter = Object.keys(dateFilter).length > 0;
+
+      const invoicePaidDateClause = hasDateFilter
+        ? {
+            OR: [
+              { paidAt: dateFilter },
+              { paidAt: null, dueDate: dateFilter },
+              { paidAt: null, createdAt: dateFilter },
+            ],
+          }
+        : {};
 
       const [activeLeasesCount, pendingInvoices, recentExpenses, statusCounts, housekeepingAssignments] =
         await Promise.all([
@@ -227,12 +260,15 @@ export async function GET(request: NextRequest) {
                 },
               },
             },
-            take: 5,
+            take: 10,
             orderBy: { dueDate: "asc" },
           }),
           prisma.expense.findMany({
-            where: { propertyId: { in: propertyIds } },
-            take: 5,
+            where: {
+              propertyId: { in: propertyIds },
+              ...(hasDateFilter ? { expenseDate: dateFilter } : {}),
+            },
+            take: 10,
             orderBy: { expenseDate: "desc" },
             include: { property: { select: { name: true } } },
           }),
@@ -255,12 +291,16 @@ export async function GET(request: NextRequest) {
         where: {
           lease: { unitId: { in: unitIds } },
           status: "PAID",
+          ...invoicePaidDateClause,
         },
       });
 
       const totalOpExSum = await prisma.expense.aggregate({
         _sum: { amount: true },
-        where: { propertyId: { in: propertyIds } },
+        where: {
+          propertyId: { in: propertyIds },
+          ...(hasDateFilter ? { expenseDate: dateFilter } : {}),
+        },
       });
 
       const pendingInvoicesSum = await prisma.invoice.aggregate({
@@ -287,21 +327,80 @@ export async function GET(request: NextRequest) {
         statusMap[sc.status] = sc._count.status;
       });
 
+      const occupiedUnitsCount = statusMap.OCCUPIED || 0;
       const occupancyRate =
         totalUnitsCount > 0
-          ? Math.round((statusMap.OCCUPIED / totalUnitsCount) * 100)
+          ? Math.round((occupiedUnitsCount / totalUnitsCount) * 100)
           : 0;
 
-      // Gemini AI Financial Insight Simulation
+      // Calculate 6-Month Historical Monthly Trend for Graphical Visualization
+      const now = new Date();
+      const monthlyTrendPromises = [];
+
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const mStart = new Date(d.getFullYear(), d.getMonth(), 1);
+        const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+        const monthLabel = mStart.toLocaleDateString("id-ID", { month: "short" });
+        const yearLabel = mStart.getFullYear();
+
+        monthlyTrendPromises.push(
+          Promise.all([
+            prisma.invoice.aggregate({
+              where: {
+                status: "PAID",
+                lease: { unitId: { in: unitIds } },
+                OR: [
+                  { paidAt: { gte: mStart, lte: mEnd } },
+                  { paidAt: null, dueDate: { gte: mStart, lte: mEnd } },
+                  { paidAt: null, createdAt: { gte: mStart, lte: mEnd } },
+                ],
+              },
+              _sum: { totalAmount: true },
+            }),
+            prisma.expense.aggregate({
+              where: {
+                propertyId: { in: propertyIds },
+                expenseDate: { gte: mStart, lte: mEnd },
+              },
+              _sum: { amount: true },
+            }),
+          ]).then(([rev, exp]) => {
+            const mRev = Number(rev._sum.totalAmount || 0);
+            const mExp = Number(exp._sum.amount || 0);
+            return {
+              month: monthLabel,
+              year: yearLabel,
+              grossRevenue: mRev,
+              expensesAmount: mExp,
+              netIncome: mRev - mExp,
+            };
+          })
+        );
+      }
+
+      const monthlyTrend = await Promise.all(monthlyTrendPromises);
+
+      // Gemini AI Financial Insight Generation
+      const targetName = isFilteredProperty && targetProperties.length > 0 ? targetProperties[0].name : "Seluruh Portofolio Properti";
+      const opexRatio = totalRevenue > 0 ? Math.round((totalOpEx / totalRevenue) * 100) : 0;
+
+      let aiTitle = "Performa Keuangan & Okupansi Sangat Baik";
+      let aiRecommendation = "Pertimbangkan penyesuaian harga sewa transit/bulanan pada unit berfasilitas lengkap untuk memaksimalkan margin keuntungan.";
+
+      if (occupancyRate < 60) {
+        aiTitle = "Perhatian: Tingkat Okupansi Perlu Ditingkatkan";
+        aiRecommendation = "Adakan promosi sewa diskon awal bulan atau integrasikan iklan ke platform penyewa untuk mempercepat pengisian unit kosong.";
+      } else if (opexRatio > 50) {
+        aiTitle = "Peringatan Rasio Biaya Operasional (OpEx) Tinggi";
+        aiRecommendation = "Audit pos pengeluaran utilitas (listrik/air) dan perawatan berkala guna menekan biaya operasional di bawah 35% pendapatan.";
+      }
+
       const aiFinancialInsight = {
-        title: "Performa Keuangan & Tingkat Okupansi Sangat Baik",
-        summary: `Okupansi saat ini mencapai ${occupancyRate}%. Rasio OpEx terhadap pendapatan adalah ${
-          totalRevenue > 0 ? Math.round((totalOpEx / totalRevenue) * 100) : 0
-        }%.`,
-        recommendation:
-          occupancyRate >= 80
-            ? "Pertimbangkan penyesuaian harga sewa transit/bulanan pada unit berfasilitas lengkap untuk memaksimalkan net profit bulan depan."
-            : "Optimalkan pemasaran kamar berseri untuk meningkatkan tingkat keterisian kamar kosong.",
+        title: aiTitle,
+        targetProperty: targetName,
+        summary: `Tingkat okupansi tercatat ${occupancyRate}% (${occupiedUnitsCount}/${totalUnitsCount} unit terisi). Rasio OpEx terhadap pendapatan adalah ${opexRatio}%. Laba bersih periode ini: Rp ${netProfit.toLocaleString("id-ID")}.`,
+        recommendation: aiRecommendation,
       };
 
       return ApiResponse.success({
@@ -313,13 +412,24 @@ export async function GET(request: NextRequest) {
           totalOpEx,
           netProfit,
           pendingAmount: Number(pendingInvoicesSum._sum.totalAmount || 0),
-          totalProperties: ownerProperties.length,
+          totalProperties: allOwnerProperties.length,
+          scopedPropertiesCount: targetProperties.length,
           totalUnits: totalUnitsCount,
+          occupiedUnitsCount,
           activeLeasesCount,
           occupancyRate,
           statusBreakdown: statusMap,
           aiInsight: aiFinancialInsight,
-          properties: ownerProperties.map((p) => ({
+          monthlyTrend,
+          allProperties: allOwnerProperties.map((p) => ({
+            id: p.id,
+            name: p.name,
+            type: p.type,
+            address: p.address,
+            totalUnits: p.units.length,
+            occupiedUnits: p.units.filter((u) => u.status === "OCCUPIED").length,
+          })),
+          properties: targetProperties.map((p) => ({
             id: p.id,
             name: p.name,
             type: p.type,
