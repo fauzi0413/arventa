@@ -808,7 +808,7 @@ export default function TenantContractPage() {
                 <th className="px-4 py-3.5">Masa Sewa</th>
                 <th className="px-4 py-3.5 text-right">Harga Sewa & Deposit</th>
                 <th className="px-4 py-3.5 text-center">Status</th>
-                <th className="px-4 py-3.5 text-center">Aksi</th>
+                <th className="px-4 py-3.5 text-left">Aksi</th>
               </tr>
             </thead>
 
@@ -892,8 +892,8 @@ export default function TenantContractPage() {
                     </td>
 
                     {/* Aksi */}
-                    <td className="px-4 py-3.5 align-top text-center whitespace-nowrap">
-                      <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+                    <td className="px-4 py-3.5 align-top text-left whitespace-nowrap">
+                      <div className="flex items-center justify-start gap-1 whitespace-nowrap">
                         {c.status === 'DRAFT' && (
                           <button
                             onClick={() => handleActivateContract(c)}

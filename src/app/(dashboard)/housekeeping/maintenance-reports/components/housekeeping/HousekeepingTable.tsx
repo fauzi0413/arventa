@@ -70,7 +70,7 @@ export default function HousekeepingTable({
             <th className="px-4 py-3.5">Checklist SOP</th>
             <th className="px-4 py-3.5">Status Kebersihan</th>
             <th className="px-4 py-3.5">Rating CSAT</th>
-            <th className="px-4 py-3.5 text-right">Aksi</th>
+            <th className="px-4 py-3.5 text-left">Aksi</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -139,7 +139,7 @@ export default function HousekeepingTable({
                 </td>
 
                 {/* Action Buttons */}
-                <td className="px-4 py-3.5 text-right space-x-1.5">
+                <td className="px-4 py-3.5 text-left space-x-1.5">
                   {!isCompleted && (
                     <button
                       onClick={() => onOpenCompleteModal(report)}

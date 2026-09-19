@@ -85,3 +85,38 @@ export function verifyJwt(token: string): JwtPayload | null {
     return null;
   }
 }
+
+export const ACCESS_TOKEN_EXPIRY = 15 * 60; // 15 minutes (short-lived)
+export const REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 * 60; // 7 days (long-lived)
+
+/**
+ * Generate standard pair of Access Token & Refresh Token (Rotation support)
+ */
+export function generateAuthTokens(user: { id: string; email: string; role: string }) {
+  const accessToken = signJwt(
+    {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      type: "access",
+    },
+    ACCESS_TOKEN_EXPIRY
+  );
+
+  const refreshToken = signJwt(
+    {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      type: "refresh",
+    },
+    REFRESH_TOKEN_EXPIRY
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_EXPIRY,
+    refreshExpiresIn: REFRESH_TOKEN_EXPIRY,
+  };
+}

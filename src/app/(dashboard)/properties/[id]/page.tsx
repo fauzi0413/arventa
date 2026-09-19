@@ -11,6 +11,7 @@ import InventoryManager from '../_components/InventoryManager';
 import { Unit, UnitStatus } from '../../units/_types';
 import UnitStatusBadgeDropdown from '../../units/_components/UnitStatusBadgeDropdown';
 import { useSafeBack } from '@/app/_hooks/useSafeBack';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 const UnitFormModal = lazy(() => import('../../units/_components/UnitFormModal'));
 const BulkActionModal = lazy(() => import('../../units/_components/BulkActionModal'));
@@ -712,16 +713,13 @@ export default function PropertyDetailPage() {
           <div className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm">
             {/* Property Hero Image */}
             <div className="relative h-72 w-full overflow-hidden bg-muted">
-              <img
+              <ImageWithSkeleton
                 src={displayImage}
+                fallbackSrc={getFallbackImage(category?.name)}
                 alt={property.name}
-                loading="lazy"
                 className="h-full w-full object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = getFallbackImage(category?.name);
-                }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80 pointer-events-none" />
 
               {/* Floating badges on detail hero */}
               <div className="absolute bottom-5 left-5 right-5 flex flex-wrap items-center justify-between gap-3">
@@ -1153,7 +1151,12 @@ export default function PropertyDetailPage() {
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className="relative h-9 w-9 rounded-xl bg-[#8FA28A]/15 text-[#8FA28A] font-black text-xs flex items-center justify-center shrink-0 overflow-hidden border border-[#8FA28A]/30">
                           {staff.avatarUrl ? (
-                            <img src={staff.avatarUrl} alt={staff.fullName} className="h-full w-full object-cover" />
+                            <ImageWithSkeleton
+                              src={staff.avatarUrl}
+                              alt={staff.fullName}
+                              className="h-full w-full object-cover"
+                              showIconPlaceholder={false}
+                            />
                           ) : (
                             <span>{staff.fullName ? staff.fullName.charAt(0).toUpperCase() : 'H'}</span>
                           )}

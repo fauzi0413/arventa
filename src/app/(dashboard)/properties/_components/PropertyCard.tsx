@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { MapPin, DoorClosed, Edit3, Trash2, ArrowRight } from 'lucide-react';
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 interface PropertyCardProps {
   property: Property;
@@ -43,23 +44,21 @@ export default function PropertyCard({
     }
   };
 
-  const displayImage = property.imageUrl || getFallbackImage(category?.name);
+  const fallbackImage = getFallbackImage(category?.name);
+  const displayImage = property.imageUrl || fallbackImage;
 
   return (
     <div className="group overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-md hover:border-[#8FA28A]/50 flex flex-col h-full">
       {/* Property Image & Badges */}
       <div className="relative h-48 w-full overflow-hidden bg-muted">
-        <img
+        <ImageWithSkeleton
           src={displayImage}
+          fallbackSrc={fallbackImage}
           alt={property.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => {
-            // If custom image fails, use standard fallback
-            e.currentTarget.src = getFallbackImage(category?.name);
-          }}
         />
         {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-70" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-70 pointer-events-none" />
 
         {/* Floating Category & Status Badges */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10">

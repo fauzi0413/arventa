@@ -69,7 +69,12 @@ export default function UnitDetailPage() {
         if (res.ok) {
           const json = await res.json();
           if (json.data) {
-            setUnit(json.data);
+            const fetchedUnit = json.data;
+            if (fetchedUnit.propertyId) {
+              router.replace(`/properties/${fetchedUnit.propertyId}/units/${id}`);
+              return;
+            }
+            setUnit(fetchedUnit);
             const storedProps = localStorage.getItem('arventa_properties');
             if (storedProps) setProperties(JSON.parse(storedProps));
             try {
@@ -98,6 +103,11 @@ export default function UnitDetailPage() {
       if (storedUnits) loadedUnits = JSON.parse(storedUnits);
 
       const found = loadedUnits.find((u) => u.id === id);
+
+      if (found?.propertyId) {
+        router.replace(`/properties/${found.propertyId}/units/${id}`);
+        return;
+      }
 
       if (found && (!found.roomEmail || !found.roomPassword)) {
         const cleanName = found.name.toLowerCase().replace(/[^a-z0-9]/g, '');

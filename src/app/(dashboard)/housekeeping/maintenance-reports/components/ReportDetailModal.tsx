@@ -15,6 +15,7 @@ import {
 import { HousekeepingReport, MaintenanceReportItem } from '../types';
 import ReportHistoryTimeline from './common/ReportHistoryTimeline';
 import RatingSection from './common/RatingSection';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 interface ReportDetailModalProps {
   isOpen: boolean;
@@ -193,13 +194,17 @@ export default function ReportDetailModal({
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {report.photos.before.map((img, i) => (
-                        <img
+                        <div
                           key={i}
-                          src={img}
-                          alt="Before"
                           onClick={() => setActiveImageZoom(img)}
-                          className="h-24 w-full object-cover rounded-xl border border-border cursor-pointer hover:opacity-90 transition-opacity"
-                        />
+                          className="h-24 w-full rounded-xl overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                        >
+                          <ImageWithSkeleton
+                            src={img}
+                            alt={`Before ${i + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -214,13 +219,17 @@ export default function ReportDetailModal({
                   ) : (
                     <div className="grid grid-cols-2 gap-2">
                       {report.photos.after.map((img, i) => (
-                        <img
+                        <div
                           key={i}
-                          src={img}
-                          alt="After"
                           onClick={() => setActiveImageZoom(img)}
-                          className="h-24 w-full object-cover rounded-xl border border-border cursor-pointer hover:opacity-90 transition-opacity"
-                        />
+                          className="h-24 w-full rounded-xl overflow-hidden border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                        >
+                          <ImageWithSkeleton
+                            src={img}
+                            alt={`After ${i + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
                       ))}
                     </div>
                   )}

@@ -25,6 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface VerificationItem {
   id: string;
@@ -694,14 +695,15 @@ export function PaymentVerificationManager() {
                 {selectedProofItem.paymentProof ? (
                   <div
                     onClick={() => setZoomImage(selectedProofItem.paymentProof || null)}
-                    className="relative rounded-xl border overflow-hidden bg-black/5 p-1 cursor-pointer group"
+                    className="relative rounded-xl border overflow-hidden bg-black/5 p-1 cursor-pointer group flex items-center justify-center"
                   >
-                    <img
+                    <ImageWithSkeleton
                       src={selectedProofItem.paymentProof}
                       alt="Bukti Transfer"
-                      className="max-h-56 w-full object-contain rounded-lg transition-all group-hover:scale-[1.01]"
+                      containerClassName="max-h-56 w-full flex items-center justify-center"
+                      className="max-h-56 w-auto object-contain rounded-lg transition-all group-hover:scale-[1.01]"
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold gap-1 text-xs">
+                    <div className="absolute inset-0 z-10 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold gap-1 text-xs">
                       <IconZoomIn className="size-5" /> Perbesar Foto
                     </div>
                   </div>
@@ -809,12 +811,17 @@ export function PaymentVerificationManager() {
           onClick={() => setZoomImage(null)}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 cursor-pointer animate-in fade-in"
         >
-          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/20">
-            <img src={zoomImage} alt="Zoomed Proof" className="max-h-[85vh] w-auto object-contain" />
+          <div className="relative max-w-4xl max-h-[90vh] min-h-[300px] min-w-[300px] overflow-hidden rounded-2xl border border-white/20 flex items-center justify-center">
+            <ImageWithSkeleton
+              src={zoomImage}
+              alt="Zoomed Proof"
+              containerClassName="max-h-[85vh] w-full flex items-center justify-center"
+              className="max-h-[85vh] w-auto object-contain mx-auto"
+            />
             <button
               type="button"
               onClick={() => setZoomImage(null)}
-              className="absolute top-3 right-3 rounded-full bg-black/60 p-2 text-white hover:bg-black"
+              className="absolute top-3 right-3 z-10 rounded-full bg-black/60 p-2 text-white hover:bg-black cursor-pointer"
             >
               <IconX className="size-6" />
             </button>

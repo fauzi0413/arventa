@@ -49,13 +49,19 @@ export async function POST(request: NextRequest) {
       const isPdfFile = contentType === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
       const ext = file.name.split(".").pop()?.toLowerCase() || (isPdfFile ? "pdf" : "jpg");
       const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const prefix = bucketName === "receipts" 
-        ? "receipt" 
-        : bucketName === "property-images" 
-          ? "prop" 
-          : tenantId 
-            ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` 
-            : "doc";
+      const prefix = bucketName === "expense-receipts"
+        ? "expense"
+        : bucketName === "tenant-receipts"
+          ? "tenant_pay"
+          : bucketName === "saas-receipts"
+            ? "saas_pay"
+            : bucketName === "receipts"
+              ? "receipt"
+              : bucketName === "property-images"
+                ? "prop"
+                : tenantId
+                  ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}`
+                  : "doc";
       fileName = `${prefix}_${uniqueSuffix}.${ext}`;
     } else {
       // JSON Base64 payload fallback
@@ -84,13 +90,19 @@ export async function POST(request: NextRequest) {
       const isPdfFile = contentType === "application/pdf" || contentType.includes("pdf");
       const ext = isPdfFile ? "pdf" : contentType.split("/")[1] || "jpeg";
       const uniqueSuffix = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-      const prefix = bucketName === "receipts" 
-        ? "receipt" 
-        : bucketName === "property-images" 
-          ? "prop" 
-          : tenantId 
-            ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}` 
-            : "doc";
+      const prefix = bucketName === "expense-receipts"
+        ? "expense"
+        : bucketName === "tenant-receipts"
+          ? "tenant_pay"
+          : bucketName === "saas-receipts"
+            ? "saas_pay"
+            : bucketName === "receipts"
+              ? "receipt"
+              : bucketName === "property-images"
+                ? "prop"
+                : tenantId
+                  ? `ktp_${tenantId.replace(/[^a-zA-Z0-9_-]/g, "")}`
+                  : "doc";
       fileName = `${prefix}_${uniqueSuffix}.${ext}`;
     }
 

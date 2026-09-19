@@ -18,11 +18,20 @@ export async function POST(request: NextRequest) {
       message: "Berhasil keluar dari sistem",
     });
 
+    // Clear all Arventa JWT & Session cookies
     response.cookies.set("arventa_access_token", "", { path: "/", maxAge: 0 });
     response.cookies.set("arventa_refresh_token", "", { path: "/", maxAge: 0 });
     response.cookies.set("arventa_session", "", { path: "/", maxAge: 0 });
     response.cookies.set("arventa_demo_role", "", { path: "/", maxAge: 0 });
     response.cookies.set("arventa_user_email", "", { path: "/", maxAge: 0 });
+
+    // Also clear any remaining Supabase auth cookies
+    const cookiesList = request.cookies.getAll();
+    cookiesList
+      .filter((c) => c.name.startsWith("sb-"))
+      .forEach((c) => {
+        response.cookies.set(c.name, "", { path: "/", maxAge: 0 });
+      });
 
     return response;
   } catch (error: any) {

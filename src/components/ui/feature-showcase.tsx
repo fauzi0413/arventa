@@ -35,6 +35,7 @@ import {
   Bell,
   Sliders,
 } from "lucide-react";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 import type { FeatureSlide } from "@/types/feature-showcase";
 import { DEFAULT_SLIDES } from "@/components/ui/feature-slides.default";
 
@@ -393,12 +394,11 @@ function MockupFrame({
     return (
       <div className="w-full h-full relative overflow-hidden bg-[#FAF9F5] flex items-center justify-center">
         {/* Full-Frame Edge-to-Edge Asset Photo */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <ImageWithSkeleton
           src={slide.imageUrl}
           alt={slide.title}
+          containerClassName="w-full h-full absolute inset-0"
           className="w-full h-full object-cover object-top select-none pointer-events-none"
-          loading="lazy"
         />
 
         {/* Top-Right Floating Pill Badge (Matching User Screenshot e.g. "PMS SAAS") */}

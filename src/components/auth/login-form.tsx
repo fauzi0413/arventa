@@ -109,18 +109,26 @@ export function LoginForm() {
 
       const dbData = json.data;
       let activeRole: UserRole = UserRole.OWNER;
-      let targetRoute = dbData?.destination || "/properties";
+      let targetRoute = dbData?.destination;
 
       if (dbData) {
         if (dbData.role === "TENANT" || dbData.role === "USER") {
           activeRole = UserRole.USER;
+          if (!targetRoute) targetRoute = "/portal/room";
         } else if (dbData.role === "HOUSEKEEPING") {
           activeRole = UserRole.HOUSEKEEPING;
+          if (!targetRoute) targetRoute = "/housekeeping/room-grid";
         } else if (dbData.role === "PLATFORM_ADMIN" || dbData.role === "SUPER_ADMIN") {
           activeRole = UserRole.PLATFORM_ADMIN;
+          if (!targetRoute) targetRoute = "/platform/dashboard";
         } else {
           activeRole = UserRole.OWNER;
+          if (!targetRoute) targetRoute = "/owner/dashboard";
         }
+      }
+
+      if (!targetRoute) {
+        targetRoute = getDestinationRoute(activeRole);
       }
 
       // 2. Set session cookies & localStorage with verified role & email
@@ -132,21 +140,21 @@ export function LoginForm() {
         localStorage.setItem("arventa_user_email", email);
       }
 
-      // 3. Attempt Supabase login if configured
+      // 3. Non-blocking background sync with Supabase client (if configured)
       try {
         const supabase = createClient();
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        supabase.auth.signInWithPassword({ email, password }).catch(() => {});
       } catch (err) {}
 
-      // 4. Navigate to destination route determined by user DB role
-      router.push(targetRoute);
+      // 4. Immediately perform hard navigation to target role dashboard for clean layout & auth hydration
+      if (typeof window !== "undefined") {
+        window.location.href = targetRoute;
+      } else {
+        router.push(targetRoute);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal melakukan login. Silakan coba lagi.";
       setErrorMessage(msg);
-    } finally {
       setIsLoading(false);
     }
   };

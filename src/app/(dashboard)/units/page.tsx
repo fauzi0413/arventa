@@ -1,17 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Plus, Filter, LayoutGrid, List, AlertTriangle, ArrowLeft, Check, Layers, Trash2, Edit3, DollarSign, Tag, CheckSquare, Square, Loader2 } from 'lucide-react';
-import { Unit, UnitStatus, BulkActionPayload, BulkActionType } from './_types';
+import { Search, Filter, LayoutGrid, List, AlertTriangle, Trash2, Loader2 } from 'lucide-react';
+import { Unit, UnitStatus } from './_types';
 import UnitCard from './_components/UnitCard';
 import { Property } from '../properties/_types';
-import { useSafeBack } from '@/app/_hooks/useSafeBack';
-
-// Lazy loading heavy modals
-const UnitFormModal = lazy(() => import('./_components/UnitFormModal'));
-const BulkActionModal = lazy(() => import('./_components/BulkActionModal'));
 
 const DEFAULT_UNITS = (propId1: string, propId2: string): Unit[] => [
   {
@@ -55,7 +50,6 @@ const DEFAULT_UNITS = (propId1: string, propId2: string): Unit[] => [
 function UnitsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const handleSafeBack = useSafeBack('/properties');
 
   const [units, setUnits] = useState<Unit[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
@@ -66,15 +60,6 @@ function UnitsPageContent() {
   const selectedPropertyId = searchParams.get('propertyId') || 'all';
   const selectedStatus = searchParams.get('status') || 'all';
   const viewMode = (searchParams.get('view') as 'grid' | 'table') || 'grid';
-
-  // Multi-select bulk state (SCRUM-252)
-  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([]);
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
-  const [bulkInitialTab, setBulkInitialTab] = useState<BulkActionType>('status');
-
-  // Modal Visibility
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingUnit, setEditingUnit] = useState<Unit | null>(null);
 
   // Custom Delete Unit Confirmation State
   const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
@@ -185,98 +170,6 @@ function UnitsPageContent() {
     return { total, occupied, available, maintenance, cleaning, reserved };
   }, [units]);
 
-  // CRUD Handlers
-  const handleAddOrEditUnit = async (data: Omit<Unit, 'id' | 'createdAt'>) => {
-    if (editingUnit) {
-      const updated = units.map((u) =>
-        u.id === editingUnit.id ? { ...u, ...data } : u
-      );
-      saveUnits(updated);
-      setEditingUnit(null);
-
-      // Backend Prisma sync
-      try {
-        await fetch(`/api/units/${editingUnit.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data),
-        });
-      } catch (e) {
-        console.error('Failed to update unit in database:', e);
-      }
-    } else {
-      const newUnit: Unit = {
-        ...data,
-        id: `unit-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-      };
-      saveUnits([...units, newUnit]);
-
-      // Backend Prisma create
-      try {
-        await fetch('/api/units', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            propertyId: data.propertyId,
-            name: data.name,
-            floor: 1,
-            basePrice: data.pricing.monthly,
-            transitPrice: data.pricing.daily,
-            deposit: data.pricing.deposit,
-            capacity: data.capacity.maxPersons,
-            dimensions: data.capacity.dimensions,
-            facilities: data.facilities,
-            description: data.description,
-            tenantName: data.tenantName,
-            tenantPhone: data.tenantPhone,
-            checkInDate: data.checkInDate,
-            inventoryIds: data.inventoryIds,
-            smartLockPin: data.smartLockPin,
-          }),
-        });
-      } catch (e) {
-        console.error('Failed to create unit in database:', e);
-      }
-    }
-  };
-
-  const handleAddBatchUnits = async (batchData: Omit<Unit, 'id' | 'createdAt'>[]) => {
-    const now = Date.now();
-    const newUnits: Unit[] = batchData.map((data, idx) => ({
-      ...data,
-      id: `unit-${now}-${idx}`,
-      createdAt: new Date().toISOString(),
-    }));
-    saveUnits([...units, ...newUnits]);
-
-    // Backend Prisma batch create
-    try {
-      if (batchData.length > 0) {
-        const propertyId = batchData[0].propertyId;
-        const mapped = batchData.map((d) => ({
-          propertyId: d.propertyId,
-          name: d.name,
-          basePrice: d.pricing.monthly,
-          transitPrice: d.pricing.daily,
-          deposit: d.pricing.deposit,
-          capacity: d.capacity.maxPersons,
-          dimensions: d.capacity.dimensions,
-          facilities: d.facilities,
-          description: d.description,
-          inventoryIds: d.inventoryIds,
-        }));
-        await fetch('/api/units', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ batch: true, propertyId, units: mapped }),
-        });
-      }
-    } catch (e) {
-      console.error('Failed to create batch units in database:', e);
-    }
-  };
-
   const handleDeleteUnit = (id: string) => {
     const found = units.find((u) => u.id === id);
     if (found) {
@@ -291,7 +184,6 @@ function UnitsPageContent() {
 
     const updated = units.filter((u) => u.id !== id);
     saveUnits(updated);
-    setSelectedUnitIds((prev) => prev.filter((item) => item !== id));
 
     // Backend Prisma delete
     try {
@@ -304,11 +196,6 @@ function UnitsPageContent() {
     }
   };
 
-  const triggerEditUnit = (unit: Unit) => {
-    setEditingUnit(unit);
-    setIsFormOpen(true);
-  };
-
   // Filter Logic
   const filteredUnits = useMemo(() => {
     return units.filter((u) => {
@@ -318,116 +205,6 @@ function UnitsPageContent() {
       return matchesSearch && matchesProperty && matchesStatus;
     });
   }, [units, searchQuery, selectedPropertyId, selectedStatus]);
-
-  // Bulk Selection Handlers (SCRUM-252)
-  const isAllSelected = useMemo(() => {
-    return filteredUnits.length > 0 && filteredUnits.every((u) => selectedUnitIds.includes(u.id));
-  }, [filteredUnits, selectedUnitIds]);
-
-  const toggleSelectAll = () => {
-    if (isAllSelected) {
-      setSelectedUnitIds([]);
-    } else {
-      setSelectedUnitIds(filteredUnits.map((u) => u.id));
-    }
-  };
-
-  const toggleSelectUnit = (id: string) => {
-    if (selectedUnitIds.includes(id)) {
-      setSelectedUnitIds(selectedUnitIds.filter((item) => item !== id));
-    } else {
-      setSelectedUnitIds([...selectedUnitIds, id]);
-    }
-  };
-
-  const openBulkModal = (tab: BulkActionType) => {
-    setBulkInitialTab(tab);
-    setIsBulkModalOpen(true);
-  };
-
-  // Bulk Action Mutation Handler (SCRUM-252)
-  const handleApplyBulkAction = async (payload: BulkActionPayload, customTargetIds?: string[]) => {
-    let updated = [...units];
-    const targetIds =
-      customTargetIds && customTargetIds.length > 0
-        ? customTargetIds
-        : selectedUnitIds.length > 0
-        ? selectedUnitIds
-        : units.map((u) => u.id);
-
-    if (payload.actionType === 'delete') {
-      updated = updated.filter((u) => !targetIds.includes(u.id));
-    } else if (payload.actionType === 'status' && payload.newStatus) {
-      updated = updated.map((u) =>
-        targetIds.includes(u.id) ? { ...u, status: payload.newStatus! } : u
-      );
-    } else if (payload.actionType === 'facilities' && payload.facilitiesToApply) {
-      const { facilityOperation, facilitiesToApply } = payload;
-      updated = updated.map((u) => {
-        if (!targetIds.includes(u.id)) return u;
-        let currentFacs = [...u.facilities];
-        if (facilityOperation === 'add') {
-          const toAdd = facilitiesToApply.filter((f) => !currentFacs.includes(f));
-          currentFacs = [...currentFacs, ...toAdd];
-        } else if (facilityOperation === 'remove') {
-          currentFacs = currentFacs.filter((f) => !facilitiesToApply.includes(f));
-        }
-        return { ...u, facilities: currentFacs };
-      });
-    } else if (payload.actionType === 'pricing' && payload.priceAdjustmentType && payload.priceValue !== undefined) {
-      const { priceAdjustmentType, priceValue } = payload;
-      updated = updated.map((u) => {
-        if (!targetIds.includes(u.id)) return u;
-        let newMonthly = u.pricing.monthly;
-
-        if (priceAdjustmentType === 'set') {
-          newMonthly = priceValue;
-        } else if (priceAdjustmentType === 'flat_increase') {
-          newMonthly = Math.max(0, newMonthly + priceValue);
-        } else if (priceAdjustmentType === 'flat_decrease') {
-          newMonthly = Math.max(0, Math.round(newMonthly - priceValue));
-        } else if (priceAdjustmentType === 'percent_increase') {
-          newMonthly = Math.max(0, Math.round(newMonthly * (1 + priceValue / 100)));
-        } else if (priceAdjustmentType === 'percent_decrease') {
-          newMonthly = Math.max(0, Math.round(newMonthly * (1 - priceValue / 100)));
-        }
-
-        return {
-          ...u,
-          pricing: {
-            ...u.pricing,
-            monthly: newMonthly,
-          },
-        };
-      });
-    }
-
-    saveUnits(updated);
-    setSelectedUnitIds([]);
-
-    // Backend Prisma Bulk API call
-    try {
-      await fetch('/api/units/bulk', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          unitIds: targetIds,
-          actionType: payload.actionType,
-          newStatus: payload.newStatus === 'Need Cleaning' ? 'CLEANING' : payload.newStatus?.toUpperCase(),
-          facilityOperation: payload.facilityOperation,
-          facilitiesToApply: payload.facilitiesToApply,
-          priceAdjustmentType: payload.priceAdjustmentType,
-          priceValue: payload.priceValue,
-        }),
-      });
-    } catch (e) {
-      console.error('Failed to apply bulk action in database:', e);
-    }
-  };
-
-  const selectedUnitsObjects = useMemo(() => {
-    return units.filter((u) => selectedUnitIds.includes(u.id));
-  }, [units, selectedUnitIds]);
 
   const formatRupiah = (val: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -439,18 +216,6 @@ function UnitsPageContent() {
 
   return (
     <div className="space-y-6 bg-background text-foreground dark:bg-background dark:text-foreground min-h-[85vh] p-4 sm:p-6 rounded-2xl border border-border dark:border-border relative pb-28">
-      {/* Back Button Navigation */}
-      <div className="flex items-center">
-        <button
-          type="button"
-          onClick={handleSafeBack}
-          className="min-h-[44px] flex items-center gap-1.5 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Kembali ke Properti
-        </button>
-      </div>
-
       {/* Top Header Card */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -461,45 +226,6 @@ function UnitsPageContent() {
           <p className="text-sm text-muted-foreground dark:text-muted-foreground mt-1">
             Pantau ketersediaan, kelola harga sewa bulanan/harian, fasilitas, dan detail penyewa unit properti Anda.
           </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div>
-          {properties.length === 0 ? (
-            <Link
-              href="/properties"
-              className="min-h-[44px] inline-flex items-center gap-1.5 rounded-xl bg-[#C8A96B] hover:bg-[#C8A96B]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              Buat Properti Terlebih Dahulu
-            </Link>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setEditingUnit(null);
-                  setIsFormOpen(true);
-                }}
-                className="min-h-[44px] flex items-center gap-1.5 rounded-xl bg-[#8FA28A] hover:bg-[#8FA28A]/90 text-white px-4 py-2.5 text-xs font-black transition-all shadow-sm hover:shadow"
-              >
-                <Plus className="h-4 w-4" />
-                Tambah Unit
-              </button>
-
-              <button
-                onClick={() => {
-                  if (selectedUnitIds.length === 0 && filteredUnits.length > 0) {
-                    setSelectedUnitIds(filteredUnits.map((u) => u.id));
-                  }
-                  setIsBulkModalOpen(true);
-                }}
-                className="min-h-[44px] flex items-center gap-1.5 rounded-xl border border-border bg-card dark:bg-card text-foreground dark:text-foreground hover:bg-muted dark:hover:bg-muted/80 px-4 py-2.5 text-xs font-bold transition-all shadow-sm"
-              >
-                <Edit3 className="h-4 w-4 text-[#8FA28A]" />
-                Edit Unit {selectedUnitIds.length > 0 ? `(${selectedUnitIds.length})` : ''}
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -559,22 +285,6 @@ function UnitsPageContent() {
 
         {/* Dropdown Filters & View Switcher */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Select All Toggle */}
-          {filteredUnits.length > 0 && (
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className="min-h-[44px] px-3 py-2 rounded-xl border border-border dark:border-border bg-muted/50 dark:bg-muted/40 hover:bg-muted text-xs font-bold text-foreground dark:text-foreground flex items-center gap-1.5 transition-colors"
-            >
-              {isAllSelected ? (
-                <CheckSquare className="h-4 w-4 text-[#8FA28A]" />
-              ) : (
-                <Square className="h-4 w-4 text-muted-foreground" />
-              )}
-              <span>{isAllSelected ? 'Batal Pilih Semua' : 'Pilih Semua'}</span>
-            </button>
-          )}
-
           {/* Property Dropdown Filter */}
           <div className="flex items-center gap-1.5">
             <Filter className="h-3.5 w-3.5 text-muted-foreground" />
@@ -611,7 +321,7 @@ function UnitsPageContent() {
             <button
               type="button"
               onClick={() => updateUrlParam('view', 'grid')}
-              className={`min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
+              className={`min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'grid' ? 'bg-card text-[#8FA28A] shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
               title="Tampilan Grid / Card"
@@ -621,7 +331,7 @@ function UnitsPageContent() {
             <button
               type="button"
               onClick={() => updateUrlParam('view', 'table')}
-              className={`min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-xs font-bold transition-all ${
+              className={`min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'table' ? 'bg-card text-[#8FA28A] shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}
               title="Tampilan Tabel Data"
@@ -676,7 +386,7 @@ function UnitsPageContent() {
             onClick={() => {
               router.replace('/units');
             }}
-            className="mt-3 min-h-[44px] px-3 py-1.5 text-xs font-bold text-[#8FA28A] hover:underline"
+            className="mt-3 min-h-[44px] px-3 py-1.5 text-xs font-bold text-[#8FA28A] hover:underline cursor-pointer"
           >
             Reset filter
           </button>
@@ -688,10 +398,7 @@ function UnitsPageContent() {
               key={unit.id}
               unit={unit}
               propertyName={properties.find((p) => p.id === unit.propertyId)?.name || 'Properti Lain'}
-              onEdit={triggerEditUnit}
               onDelete={handleDeleteUnit}
-              isSelected={selectedUnitIds.includes(unit.id)}
-              onToggleSelect={toggleSelectUnit}
             />
           ))}
         </div>
@@ -701,40 +408,27 @@ function UnitsPageContent() {
           <table className="w-full text-left text-xs">
             <thead className="bg-gray-50 border-b border-gray-100 text-[10px] font-black uppercase tracking-wider text-gray-400">
               <tr>
-                <th className="p-4 w-10 text-center">
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 rounded border-gray-300 text-[#8FA28A] focus:ring-[#8FA28A]"
-                  />
-                </th>
                 <th className="p-4">Nama Unit</th>
                 <th className="p-4">Properti</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Harga / Bln</th>
                 <th className="p-4">Kapasitas</th>
                 <th className="p-4">Penyewa</th>
-                <th className="p-4 text-right">Aksi</th>
+                <th className="p-4 text-left">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 font-semibold text-gray-700">
               {filteredUnits.map((unit) => {
                 const propName = properties.find((p) => p.id === unit.propertyId)?.name || 'Properti';
-                const isSelected = selectedUnitIds.includes(unit.id);
+                const detailUrl = unit.propertyId
+                  ? `/properties/${unit.propertyId}/units/${unit.id}`
+                  : `/units/${unit.id}`;
+
                 return (
                   <tr
                     key={unit.id}
-                    className={`hover:bg-gray-50/80 transition-colors ${isSelected ? 'bg-[#8FA28A]/5' : ''}`}
+                    className="hover:bg-gray-50/80 transition-colors"
                   >
-                    <td className="p-4 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelectUnit(unit.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-[#8FA28A] focus:ring-[#8FA28A]"
-                      />
-                    </td>
                     <td className="p-4 font-black text-gray-800">{unit.name}</td>
                     <td className="p-4 text-gray-500">{propName}</td>
                     <td className="p-4">
@@ -743,7 +437,7 @@ function UnitsPageContent() {
                       </span>
                     </td>
                     <td className="p-4 font-bold text-gray-800">{formatRupiah(unit.pricing.monthly)}</td>
-                    <td className="p-4 text-gray-500">{unit.capacity.maxPersons} Orang ({unit.capacity.dimensions})</td>
+                    <td className="p-4 text-gray-500">{typeof unit.capacity === 'object' && unit.capacity !== null ? (typeof unit.capacity.maxPersons === 'object' ? 1 : unit.capacity.maxPersons || 1) : (unit.capacity || 1)} Orang ({typeof unit.capacity === 'object' && unit.capacity !== null ? (unit.capacity.dimensions || '3x4 m') : '3x4 m'})</td>
                     <td className="p-4">
                       {unit.status === 'Occupied' && unit.tenantName ? (
                         <span className="text-blue-600 font-bold">{unit.tenantName}</span>
@@ -751,23 +445,23 @@ function UnitsPageContent() {
                         <span className="text-gray-400 italic">-</span>
                       )}
                     </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                    <td className="p-4 text-left">
+                      <div className="flex items-center justify-start gap-2">
                         <button
-                          onClick={() => triggerEditUnit(unit)}
-                          className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUnit(unit.id)}
-                          className="min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600"
+                          disabled={unit.status === 'Occupied'}
+                          onClick={() => unit.status !== 'Occupied' && handleDeleteUnit(unit.id)}
+                          className={`min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg transition-colors ${
+                            unit.status === 'Occupied'
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : 'text-gray-400 hover:bg-red-50 hover:text-red-600 cursor-pointer'
+                          }`}
+                          title={unit.status === 'Occupied' ? 'Unit sedang terisi oleh penyewa, tidak dapat dihapus' : 'Hapus Unit'}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
                         <Link
-                          href={`/units/${unit.id}`}
-                          className="min-h-[36px] px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-[#8FA28A] hover:text-white font-bold text-gray-600 transition-colors"
+                          href={detailUrl}
+                          className="min-h-[36px] px-3.5 py-1.5 rounded-xl bg-[#8FA28A]/10 hover:bg-[#8FA28A] text-[#8FA28A] hover:text-white font-bold transition-all shadow-xs flex items-center gap-1"
                         >
                           Detail
                         </Link>
@@ -781,96 +475,7 @@ function UnitsPageContent() {
         </div>
       )}
 
-      {/* FLOATING ACTION BAR / BOTTOM SHEET (SCRUM-252 BULK ACTIONS) */}
-      {selectedUnitIds.length > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 z-50 bg-gray-900 text-white rounded-2xl p-4 shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-gray-800 animate-in slide-in-from-bottom-5 duration-200 max-w-2xl">
-          <div className="flex items-center gap-3">
-            <span className="h-8 w-8 rounded-xl bg-[#8FA28A] text-white flex items-center justify-center font-black text-xs shadow-sm">
-              {selectedUnitIds.length}
-            </span>
-            <div>
-              <h4 className="text-xs font-black uppercase tracking-wider text-gray-200">
-                {selectedUnitIds.length} Unit Terpilih
-              </h4>
-              <p className="text-[11px] text-gray-400">Pilih opsi aksi massal di bawah ini</p>
-            </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
-            <button
-              type="button"
-              onClick={() => openBulkModal('status')}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-200 flex items-center gap-1.5 transition-colors"
-            >
-              <Check className="h-3.5 w-3.5 text-[#8FA28A]" />
-              Status
-            </button>
-            <button
-              type="button"
-              onClick={() => openBulkModal('facilities')}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-200 flex items-center gap-1.5 transition-colors"
-            >
-              <Tag className="h-3.5 w-3.5 text-[#8FA28A]" />
-              Fasilitas
-            </button>
-            <button
-              type="button"
-              onClick={() => openBulkModal('pricing')}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-200 flex items-center gap-1.5 transition-colors"
-            >
-              <DollarSign className="h-3.5 w-3.5 text-[#8FA28A]" />
-              Harga
-            </button>
-            <button
-              type="button"
-              onClick={() => openBulkModal('delete')}
-              className="min-h-[44px] px-3.5 py-2 rounded-xl bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors border border-red-500/30"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              Hapus
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedUnitIds([])}
-              className="min-h-[44px] px-3 py-2 text-xs text-gray-400 hover:text-white underline"
-            >
-              Batal
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* LAZY LOADED ADD / EDIT FORM MODAL */}
-      <Suspense fallback={null}>
-        {properties.length > 0 && isFormOpen && (
-          <UnitFormModal
-            key={editingUnit ? editingUnit.id : 'new-unit'}
-            isOpen={isFormOpen}
-            onClose={() => {
-              setIsFormOpen(false);
-              setEditingUnit(null);
-            }}
-            onSubmit={handleAddOrEditUnit}
-            onSubmitBatch={handleAddBatchUnits}
-            initialData={editingUnit}
-            properties={properties}
-          />
-        )}
-      </Suspense>
-
-      {/* LAZY LOADED BULK ACTION MODAL */}
-      <Suspense fallback={null}>
-        {isBulkModalOpen && (
-          <BulkActionModal
-            isOpen={isBulkModalOpen}
-            onClose={() => setIsBulkModalOpen(false)}
-            allUnits={units}
-            selectedUnits={selectedUnitsObjects}
-            onApplyBulkAction={handleApplyBulkAction}
-            initialAction={bulkInitialTab}
-          />
-        )}
-      </Suspense>
 
       {/* Custom Delete Unit Confirmation Modal */}
       {unitToDelete && (

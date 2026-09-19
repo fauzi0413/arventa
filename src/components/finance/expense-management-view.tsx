@@ -26,8 +26,13 @@ import {
   IconUpload,
   IconX,
   IconPaperclip,
+  IconDoor,
+  IconPhoto,
+  IconAlertCircle,
+  IconBuildingSkyscraper,
 } from "@tabler/icons-react";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface PropertyOption {
   id: string;
@@ -37,6 +42,7 @@ interface PropertyOption {
 interface UnitOption {
   id: string;
   unitNumber: string;
+  name?: string;
   propertyId: string;
 }
 
@@ -97,6 +103,7 @@ export function ExpenseManagementView() {
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [properties, setProperties] = useState<PropertyOption[]>([]);
   const [units, setUnits] = useState<UnitOption[]>([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
   const [stats, setStats] = useState<StatsData>({
     totalAmount: 0,
     totalCount: 0,
@@ -139,6 +146,24 @@ export function ExpenseManagementView() {
   const [deleting, setDeleting] = useState(false);
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
 
+  // Floating Toast Notification
+  const [toastNotification, setToastNotification] = useState<{
+    type: "success" | "error" | "warning" | "info";
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const showToast = (
+    type: "success" | "error" | "warning" | "info",
+    title: string,
+    message: string
+  ) => {
+    setToastNotification({ type, title, message });
+    setTimeout(() => {
+      setToastNotification((curr) => (curr?.title === title ? null : curr));
+    }, 4500);
+  };
+
   // Form Fields
   const [formTitle, setFormTitle] = useState("");
   const [formCategory, setFormCategory] = useState("MAINTENANCE");
@@ -148,6 +173,8 @@ export function ExpenseManagementView() {
   const [formExpenseDate, setFormExpenseDate] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formReceiptUrl, setFormReceiptUrl] = useState("");
+  const [selectedReceiptFile, setSelectedReceiptFile] = useState<File | null>(null);
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string>("");
 
   // Fetch properties assigned to or owned by logged-in user
   const fetchProperties = useCallback(async () => {
@@ -155,9 +182,10 @@ export function ExpenseManagementView() {
       const res = await fetch("/api/properties?limit=100");
       const json = await res.json();
       if (res.ok && json.success) {
-        setProperties(json.data.map((p: any) => ({ id: p.id, name: p.name })));
-        if (json.data.length > 0 && !formPropertyId) {
-          setFormPropertyId(json.data[0].id);
+        const propList = json.data.map((p: any) => ({ id: p.id, name: p.name }));
+        setProperties(propList);
+        if (propList.length > 0 && !formPropertyId) {
+          setFormPropertyId(propList[0].id);
         }
       }
     } catch (err) {
@@ -172,13 +200,25 @@ export function ExpenseManagementView() {
       return;
     }
     try {
+      setLoadingUnits(true);
       const res = await fetch(`/api/units?propertyId=${propId}&limit=100`);
       const json = await res.json();
-      if (res.ok && json.success) {
-        setUnits(json.data.map((u: any) => ({ id: u.id, unitNumber: u.unitNumber, propertyId: u.propertyId })));
+      if (res.ok && json.success && Array.isArray(json.data)) {
+        setUnits(
+          json.data.map((u: any) => ({
+            id: u.id,
+            unitNumber: u.unitNumber || u.name || "Unit",
+            propertyId: u.propertyId || propId,
+          }))
+        );
+      } else {
+        setUnits([]);
       }
     } catch (err) {
       console.error("Gagal memuat daftar unit:", err);
+      setUnits([]);
+    } finally {
+      setLoadingUnits(false);
     }
   }, []);
 
@@ -255,11 +295,17 @@ export function ExpenseManagementView() {
     setFormTitle("");
     setFormCategory("MAINTENANCE");
     setFormAmount("");
-    setFormPropertyId(properties[0]?.id || "");
+    const initialPropId = formPropertyId || properties[0]?.id || "";
+    setFormPropertyId(initialPropId);
     setFormUnitId("");
     setFormExpenseDate(new Date().toISOString().split("T")[0]);
     setFormNotes("");
     setFormReceiptUrl("");
+    setSelectedReceiptFile(null);
+    setReceiptPreviewUrl("");
+    if (initialPropId) {
+      fetchUnitsForProperty(initialPropId);
+    }
     setIsFormModalOpen(true);
   };
 
@@ -274,28 +320,87 @@ export function ExpenseManagementView() {
     setFormExpenseDate(new Date(exp.expenseDate).toISOString().split("T")[0]);
     setFormNotes(exp.notes || "");
     setFormReceiptUrl(exp.receiptUrl || "");
+    setSelectedReceiptFile(null);
+    setReceiptPreviewUrl(exp.receiptUrl || "");
+    if (exp.propertyId) {
+      fetchUnitsForProperty(exp.propertyId);
+    }
     setIsFormModalOpen(true);
   };
 
-  // Submit Create / Edit form
+  // Local file selection (Deferred Upload - stored in state without calling storage API)
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("warning", "File Terlalu Besar", "Maksimal ukuran file nota adalah 10 MB.");
+      return;
+    }
+
+    setSelectedReceiptFile(file);
+    const localPreview = URL.createObjectURL(file);
+    setReceiptPreviewUrl(localPreview);
+    setFormReceiptUrl(""); // clear manual url if local file selected
+    showToast("info", "File Dipilih", `File "${file.name}" siap diunggah saat disimpan.`);
+  };
+
+  // Clear selected file or receipt url
+  const handleClearReceipt = () => {
+    setSelectedReceiptFile(null);
+    setReceiptPreviewUrl("");
+    setFormReceiptUrl("");
+  };
+
+  // Submit Create / Edit form (Uploads file to bucket only on submit)
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim() || !formAmount || !formPropertyId || !formExpenseDate) {
-      alert("Mohon lengkapi judul, nominal, properti, dan tanggal pengeluaran.");
+    const rawAmount = Number(formAmount.replace(/\D/g, ""));
+    if (!formTitle.trim() || !rawAmount || rawAmount <= 0 || !formPropertyId || !formExpenseDate) {
+      showToast(
+        "warning",
+        "Data Belum Lengkap",
+        "Mohon lengkapi judul pengeluaran, nominal biaya (> 0), properti, dan tanggal transaksi."
+      );
       return;
     }
 
     try {
       setSubmitting(true);
+
+      // Step 1: Upload file to storage bucket ONLY if a new file was staged
+      let finalReceiptUrl = formReceiptUrl.trim() || null;
+
+      if (selectedReceiptFile) {
+        setUploadingReceipt(true);
+        const formData = new FormData();
+        formData.append("file", selectedReceiptFile);
+        formData.append("bucket", "expense-receipts");
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const uploadJson = await uploadRes.json();
+        const uploadedUrl = uploadJson.data?.url || uploadJson.url;
+
+        if (!uploadRes.ok || !uploadedUrl) {
+          throw new Error(uploadJson.message || "Gagal mengunggah file bukti nota ke Supabase Storage.");
+        }
+        finalReceiptUrl = uploadedUrl;
+      }
+
+      // Step 2: Save expense record into PostgreSQL database
       const payload = {
         title: formTitle.trim(),
         category: formCategory,
-        amount: parseFloat(formAmount),
+        amount: rawAmount,
         propertyId: formPropertyId,
         unitId: formUnitId || null,
         expenseDate: formExpenseDate,
         notes: formNotes.trim() || null,
-        receiptUrl: formReceiptUrl || null,
+        receiptUrl: finalReceiptUrl,
       };
 
       const url = editingExpense
@@ -315,11 +420,19 @@ export function ExpenseManagementView() {
       }
 
       setIsFormModalOpen(false);
+      setSelectedReceiptFile(null);
+      setReceiptPreviewUrl("");
+      showToast(
+        "success",
+        editingExpense ? "Pengeluaran Diperbarui" : "Pengeluaran Berhasil Ditambahkan",
+        `Catatan "${formTitle.trim()}" senilai ${formatIDR(rawAmount)} berhasil disimpan.`
+      );
       fetchExpenses(true);
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan saat menyimpan data.");
+      showToast("error", "Gagal Menyimpan", err.message || "Terjadi kesalahan saat menyimpan data.");
     } finally {
       setSubmitting(false);
+      setUploadingReceipt(false);
     }
   };
 
@@ -335,41 +448,14 @@ export function ExpenseManagementView() {
       if (!res.ok || !json.success) {
         throw new Error(json.message || "Gagal menghapus data pengeluaran.");
       }
+      const deletedTitle = deletingExpense.title;
       setDeletingExpense(null);
+      showToast("info", "Data Dihapus", `Pengeluaran "${deletedTitle}" berhasil dihapus dari sistem.`);
       fetchExpenses(true);
     } catch (err: any) {
-      alert(err.message || "Terjadi kesalahan saat menghapus data.");
+      showToast("error", "Gagal Menghapus", err.message || "Terjadi kesalahan saat menghapus data.");
     } finally {
       setDeleting(false);
-    }
-  };
-
-  // Handle receipt image upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      setUploadingReceipt(true);
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const json = await res.json();
-      if (res.ok && json.url) {
-        setFormReceiptUrl(json.url);
-      } else {
-        alert(json.message || "Gagal mengunggah file resi.");
-      }
-    } catch (err) {
-      console.error("Upload error:", err);
-      alert("Terjadi kesalahan saat upload resi.");
-    } finally {
-      setUploadingReceipt(false);
     }
   };
 
@@ -381,6 +467,18 @@ export function ExpenseManagementView() {
       currency: "IDR",
       maximumFractionDigits: 0,
     }).format(num);
+  };
+
+  // Thousand format helper for input (e.g. 150000 -> "150.000")
+  const formatDisplayAmount = (val: number | string) => {
+    if (val === "" || val === null || val === undefined) return "";
+    const clean = String(val).replace(/\D/g, "");
+    if (!clean) return "";
+    return new Intl.NumberFormat("id-ID").format(Number(clean));
+  };
+
+  const parseAmount = (val: string): string => {
+    return val.replace(/\D/g, "");
   };
 
   // Date Formatter
@@ -683,7 +781,7 @@ export function ExpenseManagementView() {
                   <th className="px-5 py-4">Tanggal</th>
                   <th className="px-5 py-4 text-right">Nominal (IDR)</th>
                   <th className="px-5 py-4 text-center">Resi</th>
-                  <th className="px-5 py-4 text-right">Aksi</th>
+                  <th className="px-5 py-4 text-left">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -731,7 +829,7 @@ export function ExpenseManagementView() {
                           <span className="text-[11px] text-gray-400 font-normal">-</span>
                         )}
                       </td>
-                      <td className="px-5 py-4 text-right whitespace-nowrap space-x-1">
+                      <td className="px-5 py-4 text-left whitespace-nowrap space-x-1">
                         <button
                           title="Lihat Detail"
                           onClick={() => setDetailExpense(exp)}
@@ -831,42 +929,58 @@ export function ExpenseManagementView() {
       {/* FORM MODAL (CREATE / EDIT) */}
       {/* --------------------------------------------------------------------- */}
       {isFormModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-lg font-black text-gray-900">
-                {editingExpense ? "Edit Pengeluaran Operasional" : "Tambah Pengeluaran Operasional"}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-slate-900 text-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <IconReceipt className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight text-white">
+                    {editingExpense ? "Edit Pengeluaran Operasional" : "Tambah Pengeluaran Operasional"}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Catat mutasi operasional, tagihan utilitas, maintenance, atau perbaikan properti.
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setIsFormModalOpen(false)}
-                className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
               >
                 <IconX className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmitForm} className="space-y-4 text-xs">
-              {/* Judul Pengeluaran */}
+            {/* Form Body with Scroll */}
+            <form onSubmit={handleSubmitForm} className="p-6 overflow-y-auto space-y-5 text-xs flex-1">
+              {/* Judul Pengeluaran (Full Width) */}
               <div>
-                <label className="block font-bold text-gray-700 mb-1">Judul / Deskripsi Pengeluaran *</label>
+                <label className="block font-bold text-gray-700 mb-1.5">
+                  Judul / Deskripsi Pengeluaran <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="Misal: Pembayaran Listrik PLN Bulan September"
-                  className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 font-semibold text-gray-800 focus:border-emerald-500 focus:outline-none"
+                  placeholder="Misal: Pembayaran Listrik PLN Bulan September / Servis AC Rutin"
+                  className="w-full rounded-2xl border border-gray-200 bg-gray-50/50 px-4 py-3 text-sm font-semibold text-gray-900 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all placeholder:text-gray-400"
                 />
               </div>
 
-              {/* Kategori & Nominal */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 2 Kolom: Kategori & Nominal Biaya */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Kategori *</label>
+                  <label className="block font-bold text-gray-700 mb-1.5">
+                    Kategori Pengeluaran <span className="text-rose-500">*</span>
+                  </label>
                   <select
                     value={formCategory}
                     onChange={(e) => setFormCategory(e.target.value)}
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 font-bold text-gray-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-xs font-bold text-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer transition-all shadow-2xs"
                   >
                     {Object.entries(CATEGORY_LABELS).map(([catKey, catInfo]) => (
                       <option key={catKey} value={catKey}>
@@ -877,32 +991,45 @@ export function ExpenseManagementView() {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Nominal Biaya (IDR) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="0"
-                    step="1000"
-                    value={formAmount}
-                    onChange={(e) => setFormAmount(e.target.value)}
-                    placeholder="150000"
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 font-mono font-bold text-gray-900 focus:border-emerald-500 focus:outline-none"
-                  />
+                  <label className="block font-bold text-gray-700 mb-1.5">
+                    Nominal Biaya (IDR) <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400 text-xs">
+                      Rp
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      required
+                      value={formatDisplayAmount(formAmount)}
+                      onChange={(e) => setFormAmount(parseAmount(e.target.value))}
+                      placeholder="150.000"
+                      className="w-full rounded-2xl border border-gray-200 bg-white pl-10 pr-4 py-3 font-mono text-sm font-black text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Properti & Unit */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 2 Kolom: Properti & Unit Spesifik (Sinkronisasi Otomatis) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Properti *</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-gray-800">
+                      Pilih Properti <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-gray-400 font-medium">Wajib dipilih</span>
+                  </div>
                   <select
                     required
                     value={formPropertyId}
                     onChange={(e) => {
-                      setFormPropertyId(e.target.value);
+                      const newPropId = e.target.value;
+                      setFormPropertyId(newPropId);
                       setFormUnitId("");
+                      fetchUnitsForProperty(newPropId);
                     }}
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 font-bold text-gray-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                    className="w-full rounded-2xl border border-gray-300 bg-white px-3.5 py-2.5 font-bold text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer shadow-2xs"
                   >
                     {properties.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -910,89 +1037,211 @@ export function ExpenseManagementView() {
                       </option>
                     ))}
                   </select>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Memilih properti akan otomatis memperbarui daftar unit di sebelah kanan.
+                  </p>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Unit Spensifik (Opsional)</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-gray-800">
+                      Unit Spesifik <span className="text-gray-400 font-normal">(Opsional)</span>
+                    </label>
+                    {loadingUnits && (
+                      <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600">
+                        <IconLoader2 className="h-3 w-3 animate-spin" />
+                        Sinkronisasi unit...
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={formUnitId}
+                    disabled={loadingUnits}
                     onChange={(e) => setFormUnitId(e.target.value)}
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 font-bold text-gray-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
+                    className="w-full rounded-2xl border border-gray-300 bg-white px-3.5 py-2.5 font-bold text-gray-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer shadow-2xs disabled:bg-gray-100 disabled:text-gray-400"
                   >
-                    <option value="">-- Umum (Seluruh Properti) --</option>
+                    <option value="">-- Biaya Umum (Seluruh Bangunan Properti) --</option>
                     {units.map((u) => (
                       <option key={u.id} value={u.id}>
-                        Unit {u.unitNumber}
+                        Unit {u.unitNumber || u.name}
                       </option>
                     ))}
                   </select>
-                </div>
-              </div>
-
-              {/* Tanggal Pengeluaran */}
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">Tanggal Transaksi *</label>
-                <input
-                  type="date"
-                  required
-                  value={formExpenseDate}
-                  onChange={(e) => setFormExpenseDate(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 font-bold text-gray-800 focus:border-emerald-500 focus:outline-none cursor-pointer"
-                />
-              </div>
-
-              {/* Bukti Resi (Upload / URL) */}
-              <div>
-                <label className="block font-bold text-gray-700 mb-1">Bukti Resi / Nota (URL atau File Upload)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={formReceiptUrl}
-                    onChange={(e) => setFormReceiptUrl(e.target.value)}
-                    placeholder="https://... atau upload file"
-                    className="w-full rounded-2xl border border-gray-200 px-3.5 py-2.5 text-xs focus:border-emerald-500 focus:outline-none"
-                  />
-                  <label className="flex items-center gap-1 rounded-2xl bg-gray-100 hover:bg-gray-200 px-3 py-2.5 text-xs font-bold text-gray-700 shrink-0 cursor-pointer transition-all">
-                    <IconUpload className={`h-4 w-4 ${uploadingReceipt ? "animate-bounce" : ""}`} />
-                    <span>{uploadingReceipt ? "Uploading..." : "Upload"}</span>
-                    <input type="file" accept="image/*,.pdf" onChange={handleFileUpload} className="hidden" />
-                  </label>
-                </div>
-                {formReceiptUrl && (
-                  <p className="text-[11px] text-emerald-600 font-medium mt-1 truncate">
-                    Resi terhubung: {formReceiptUrl}
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    {units.length > 0
+                      ? `Tersedia ${units.length} unit terdaftar untuk properti terpilih.`
+                      : "Pilih opsi ini jika biaya untuk seluruh gedung/fasilitas umum."}
                   </p>
-                )}
+                </div>
               </div>
 
-              {/* Catatan Tambahan */}
+              {/* 2 Kolom: Tanggal Transaksi & Lampiran Resi */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-gray-700 mb-1.5">
+                    Tanggal Transaksi <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formExpenseDate}
+                    onChange={(e) => setFormExpenseDate(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 font-bold text-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none cursor-pointer shadow-2xs"
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-gray-700">
+                      Bukti Resi / Nota Pembayaran
+                    </label>
+                    <span className="text-[10px] text-gray-400 font-medium">Opsional</span>
+                  </div>
+
+                  {selectedReceiptFile ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                          <IconPaperclip className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 text-xs truncate max-w-[200px] sm:max-w-[240px]">
+                            {selectedReceiptFile.name}
+                          </p>
+                          <p className="text-[10px] text-emerald-700 font-medium">
+                            {(selectedReceiptFile.size / 1024).toFixed(0)} KB &bull; Disimpan di draft lokal
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <label className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer px-2 py-1 rounded-lg hover:bg-emerald-100 transition-all">
+                          Ganti
+                          <input type="file" accept="image/*,.pdf" onChange={handleFileSelect} className="hidden" />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={handleClearReceipt}
+                          className="text-[11px] font-bold text-rose-600 hover:text-rose-800 cursor-pointer px-2 py-1 rounded-lg hover:bg-rose-50 transition-all"
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={formReceiptUrl}
+                          onChange={(e) => {
+                            setFormReceiptUrl(e.target.value);
+                            setReceiptPreviewUrl(e.target.value);
+                          }}
+                          placeholder="https://... atau klik Pilih File"
+                          className="w-full rounded-2xl border border-gray-200 bg-white px-3.5 py-2.5 text-xs focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+                        />
+                        <label className="flex items-center gap-1.5 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white px-4 py-2.5 text-xs font-bold shrink-0 cursor-pointer shadow-2xs transition-all">
+                          <IconUpload className="h-4 w-4" />
+                          <span>Pilih File</span>
+                          <input type="file" accept="image/*,.pdf" onChange={handleFileSelect} className="hidden" />
+                        </label>
+                      </div>
+                      {formReceiptUrl && (
+                        <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-1.5">
+                          <span className="text-[11px] font-semibold text-emerald-800 truncate max-w-[240px]">
+                            {formReceiptUrl}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleClearReceipt}
+                            className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer ml-2"
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Pratinjau Bukti jika ada file terpilih atau URL terpasang */}
+              {receiptPreviewUrl && (
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-between gap-4 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-3">
+                    <div className="h-14 w-14 rounded-xl overflow-hidden bg-slate-900 shrink-0 flex items-center justify-center border border-gray-300">
+                      {selectedReceiptFile?.type === "application/pdf" || receiptPreviewUrl.toLowerCase().endsWith(".pdf") ? (
+                        <div className="flex flex-col items-center justify-center text-white">
+                          <IconFileText className="h-6 w-6 text-rose-400" />
+                          <span className="text-[9px] font-black uppercase text-rose-300 mt-0.5">PDF</span>
+                        </div>
+                      ) : (
+                        <ImageWithSkeleton
+                          src={receiptPreviewUrl}
+                          alt="Thumbnail Nota"
+                          containerClassName="h-14 w-14"
+                          className="h-14 w-14 object-cover"
+                        />
+                      )}
+                    </div>
+                    <div className="text-xs space-y-0.5">
+                      <p className="font-bold text-gray-900">
+                        {selectedReceiptFile ? "Pratinjau File Nota (Draft Lokal)" : "Pratinjau Nota Terlampir"}
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        {selectedReceiptFile
+                          ? "File akan diunggah otomatis ke bucket expense-receipts saat Anda klik Simpan."
+                          : "Tautan bukti pembayaran tersimpan di sistem."}
+                      </p>
+                    </div>
+                  </div>
+                  <a
+                    href={receiptPreviewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline shrink-0"
+                  >
+                    Buka File &rarr;
+                  </a>
+                </div>
+              )}
+
+              {/* Catatan Keterangan (Full Width) */}
               <div>
-                <label className="block font-bold text-gray-700 mb-1">Catatan Keterangan (Opsional)</label>
+                <label className="block font-bold text-gray-700 mb-1.5">
+                  Catatan Keterangan <span className="text-gray-400 font-normal">(Opsional)</span>
+                </label>
                 <textarea
                   rows={2}
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Keterangan tambahan rincian pengeluaran..."
-                  className="w-full rounded-2xl border border-gray-200 p-3 text-xs focus:border-emerald-500 focus:outline-none"
+                  placeholder="Rincian tambahan (misal: nomor rekening tujuan, teknisi yang mengerjakan, masa berlaku servis)..."
+                  className="w-full rounded-2xl border border-gray-200 bg-white p-3.5 text-xs text-gray-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none transition-all placeholder:text-gray-400"
                 />
               </div>
 
-              {/* Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+              {/* Modal Footer Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsFormModalOpen(false)}
-                  className="rounded-2xl border border-gray-200 px-4 py-2.5 font-bold text-gray-600 hover:bg-gray-50 cursor-pointer"
+                  className="rounded-2xl border border-gray-200 px-5 py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-100 cursor-pointer transition-all"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 font-black text-white shadow-md disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-6 py-2.5 text-xs font-black text-white shadow-md hover:shadow-emerald-500/20 disabled:opacity-50 cursor-pointer transition-all"
                 >
                   {submitting && <IconLoader2 className="h-4 w-4 animate-spin" />}
-                  <span>{editingExpense ? "Simpan Perubahan" : "Tambah Pengeluaran"}</span>
+                  <span>
+                    {submitting
+                      ? "Menyimpan & Mengunggah..."
+                      : editingExpense
+                      ? "Simpan Perubahan"
+                      : "Simpan Pengeluaran"}
+                  </span>
                 </button>
               </div>
             </form>
@@ -1004,95 +1253,110 @@ export function ExpenseManagementView() {
       {/* DETAIL MODAL */}
       {/* --------------------------------------------------------------------- */}
       {detailExpense && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-black text-gray-900">Rincian Pengeluaran Operasional</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[92vh]">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 bg-slate-900 text-white shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  <IconReceipt className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">Rincian Pengeluaran Operasional</h3>
+                  <p className="text-xs text-slate-400">ID: {detailExpense.id}</p>
+                </div>
+              </div>
               <button
                 onClick={() => setDetailExpense(null)}
-                className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 cursor-pointer"
+                className="rounded-full p-2 text-slate-400 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
               >
                 <IconX className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="bg-gray-50 p-3.5 rounded-2xl space-y-1">
-                <p className="text-[11px] text-gray-400 font-bold uppercase">Judul Transaksi</p>
-                <p className="text-sm font-black text-gray-900">{detailExpense.title}</p>
+            <div className="p-6 overflow-y-auto space-y-4 text-xs flex-1">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-1">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Judul Transaksi</p>
+                <p className="text-base font-black text-gray-900">{detailExpense.title}</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 p-3 rounded-2xl space-y-1">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Nominal</p>
-                  <p className="text-sm font-mono font-black text-emerald-700">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-emerald-50/60 border border-emerald-100 p-3.5 rounded-2xl space-y-1">
+                  <p className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider">Nominal Biaya</p>
+                  <p className="text-lg font-mono font-black text-emerald-700">
                     {formatIDR(detailExpense.amount)}
                   </p>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-2xl space-y-1">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Kategori</p>
-                  <p className="font-bold text-gray-800">
-                    {CATEGORY_LABELS[detailExpense.category]?.label || detailExpense.category}
-                  </p>
+                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl space-y-1">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Kategori Biaya</p>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+                    <p className="font-black text-gray-800 text-sm">
+                      {CATEGORY_LABELS[detailExpense.category]?.label || detailExpense.category}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 p-3 rounded-2xl space-y-1">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Properti & Unit</p>
-                  <p className="font-bold text-gray-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl space-y-1">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Properti & Unit</p>
+                  <p className="font-bold text-gray-900 text-xs">
                     {detailExpense.property?.name || "Properti"}
-                    {detailExpense.unit && ` (Unit ${detailExpense.unit.unitNumber})`}
+                  </p>
+                  <p className="text-[11px] text-emerald-700 font-semibold">
+                    {detailExpense.unit ? `Unit ${detailExpense.unit.unitNumber}` : "Biaya Umum (Seluruh Properti)"}
                   </p>
                 </div>
 
-                <div className="bg-gray-50 p-3 rounded-2xl space-y-1">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Tanggal Transaksi</p>
-                  <p className="font-bold text-gray-800">{formatDate(detailExpense.expenseDate)}</p>
+                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl space-y-1">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Tanggal Transaksi</p>
+                  <p className="font-bold text-gray-900 text-sm">{formatDate(detailExpense.expenseDate)}</p>
                 </div>
               </div>
 
               {detailExpense.notes && (
-                <div className="bg-gray-50 p-3 rounded-2xl space-y-1">
-                  <p className="text-[10px] text-gray-400 font-bold uppercase">Catatan Keterangan</p>
-                  <p className="text-gray-700 font-medium">{detailExpense.notes}</p>
+                <div className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl space-y-1">
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Catatan Keterangan</p>
+                  <p className="text-gray-700 font-medium leading-relaxed">{detailExpense.notes}</p>
                 </div>
               )}
 
               {detailExpense.receiptUrl ? (
                 <div className="space-y-2 pt-2 border-t border-gray-100">
-                  <p className="text-[11px] font-bold text-gray-700">Pratinjau Bukti Resi / Nota:</p>
-                  <div className="rounded-2xl border border-gray-200 overflow-hidden max-h-56 bg-slate-900 flex items-center justify-center">
-                    <img
+                  <p className="text-[11px] font-bold text-gray-700">Lampiran Bukti Resi / Nota:</p>
+                  <div className="rounded-2xl border border-gray-200 overflow-hidden min-h-48 max-h-72 bg-slate-900 flex items-center justify-center">
+                    <ImageWithSkeleton
                       src={detailExpense.receiptUrl}
                       alt="Resi Nota"
-                      className="max-h-56 object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLElement).style.display = "none";
-                      }}
+                      containerClassName="min-h-48 max-h-72 w-full flex items-center justify-center"
+                      className="max-h-72 w-auto object-contain mx-auto"
                     />
                   </div>
-                  <a
-                    href={detailExpense.receiptUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block text-xs font-bold text-blue-600 hover:underline"
-                  >
-                    Buka Resi di Tab Baru &rarr;
-                  </a>
+                  <div className="flex justify-end">
+                    <a
+                      href={detailExpense.receiptUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                    >
+                      Buka Resi di Tab Baru &rarr;
+                    </a>
+                  </div>
                 </div>
               ) : (
-                <p className="text-xs text-gray-400 italic">Tidak ada lampiran resi/nota.</p>
+                <p className="text-xs text-gray-400 italic bg-gray-50 p-3 rounded-2xl text-center">
+                  Tidak ada lampiran resi/nota untuk transaksi ini.
+                </p>
               )}
             </div>
 
-            <div className="pt-2 flex justify-end">
+            <div className="p-4 border-t border-gray-100 flex justify-end bg-gray-50">
               <button
                 onClick={() => setDetailExpense(null)}
-                className="rounded-2xl bg-gray-900 hover:bg-gray-800 px-5 py-2 text-xs font-bold text-white cursor-pointer"
+                className="rounded-2xl bg-slate-900 hover:bg-slate-800 px-6 py-2.5 text-xs font-bold text-white cursor-pointer transition-all"
               >
-                Tutup
+                Tutup Rincian
               </button>
             </div>
           </div>
@@ -1121,6 +1385,42 @@ export function ExpenseManagementView() {
         cancelText="Batal"
         variant="danger"
       />
+
+      {/* --------------------------------------------------------------------- */}
+      {/* FLOATING TOAST NOTIFICATION */}
+      {/* --------------------------------------------------------------------- */}
+      {toastNotification && (
+        <div className="fixed bottom-6 right-6 z-60 flex max-w-sm items-start gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-2xl animate-in slide-in-from-bottom-5 duration-300">
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-md ${
+              toastNotification.type === "success"
+                ? "bg-emerald-600 shadow-emerald-600/30"
+                : toastNotification.type === "error"
+                ? "bg-rose-600 shadow-rose-600/30"
+                : toastNotification.type === "warning"
+                ? "bg-amber-500 shadow-amber-500/30"
+                : "bg-blue-600 shadow-blue-600/30"
+            }`}
+          >
+            {toastNotification.type === "success" && <IconCheck className="h-5 w-5" />}
+            {toastNotification.type === "error" && <IconX className="h-5 w-5" />}
+            {toastNotification.type === "warning" && <IconAlertCircle className="h-5 w-5" />}
+            {toastNotification.type === "info" && <IconSparkles className="h-5 w-5" />}
+          </div>
+          <div className="flex-1 text-xs pr-2">
+            <h4 className="font-bold text-gray-900">{toastNotification.title}</h4>
+            <p className="mt-0.5 font-medium text-gray-600 leading-relaxed">
+              {toastNotification.message}
+            </p>
+          </div>
+          <button
+            onClick={() => setToastNotification(null)}
+            className="text-gray-400 hover:text-gray-700 cursor-pointer p-0.5 transition-all"
+          >
+            <IconX className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

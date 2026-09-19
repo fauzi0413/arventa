@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 interface ImageFileInputProps {
   label: string;
@@ -71,11 +72,16 @@ export default function ImageFileInput({
         <div className="grid grid-cols-4 gap-2 pt-2">
           {images.map((img, i) => (
             <div key={i} className="relative group rounded-xl overflow-hidden border border-gray-200 h-20 bg-gray-100">
-              <img src={img} alt={`Preview ${i + 1}`} className="w-full h-full object-cover" />
+              <ImageWithSkeleton
+                src={img}
+                alt={`Preview ${i + 1}`}
+                className="w-full h-full object-cover"
+                showIconPlaceholder={false}
+              />
               <button
                 type="button"
                 onClick={() => handleRemove(i)}
-                className="absolute top-1 right-1 bg-black/60 hover:bg-red-600 text-white p-1 rounded-full transition-colors"
+                className="absolute top-1 right-1 z-10 bg-black/60 hover:bg-red-600 text-white p-1 rounded-full transition-colors cursor-pointer"
                 title="Hapus Foto"
               >
                 <X className="h-3 w-3" />

@@ -63,17 +63,29 @@ export async function getAuthenticatedUser(request?: NextRequest): Promise<AuthU
     }
   }
 
-  // 2. Check Supabase Auth server session
+  // 2. Check Supabase Auth server session (only if Supabase auth cookie exists)
   if (!authUserEmail) {
     try {
-      const supabase = await createClient();
-      const {
-        data: { user: authUser },
-      } = await supabase.auth.getUser();
+      let hasSbCookie = false;
+      if (request) {
+        hasSbCookie = request.cookies.getAll().some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+      } else {
+        try {
+          const cookieStore = await cookies();
+          hasSbCookie = cookieStore.getAll().some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+        } catch {}
+      }
 
-      if (authUser) {
-        authUserId = authUser.id;
-        authUserEmail = authUser.email;
+      if (hasSbCookie) {
+        const supabase = await createClient();
+        const {
+          data: { user: authUser },
+        } = await supabase.auth.getUser();
+
+        if (authUser) {
+          authUserId = authUser.id;
+          authUserEmail = authUser.email;
+        }
       }
     } catch (err) {}
   }

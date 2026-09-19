@@ -23,6 +23,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { UserRole } from "@/types/roles";
 import { ScrollReveal } from "@/components/ui/scroll-reveal";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface LandingPlan {
   id: string;
@@ -323,7 +324,7 @@ export function LandingPage({ initialFeatureSlides }: LandingPageProps = {}) {
           <div className="rounded-3xl border border-[#C7D3C0]/40 bg-white/70 backdrop-blur-xs p-5 space-y-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
             <div className="space-y-4">
               <div className="h-44 w-full rounded-2xl overflow-hidden bg-gray-100 relative">
-                <img
+                <ImageWithSkeleton
                   src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?auto=format&fit=crop&q=80&w=800"
                   alt="Kos-kosan"
                   className="h-full w-full object-cover"
@@ -347,7 +348,7 @@ export function LandingPage({ initialFeatureSlides }: LandingPageProps = {}) {
           <div className="rounded-3xl border border-[#C7D3C0]/40 bg-white/70 backdrop-blur-xs p-5 space-y-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
             <div className="space-y-4">
               <div className="h-44 w-full rounded-2xl overflow-hidden bg-gray-100 relative">
-                <img
+                <ImageWithSkeleton
                   src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=800"
                   alt="Apartemen"
                   className="h-full w-full object-cover"
@@ -371,7 +372,7 @@ export function LandingPage({ initialFeatureSlides }: LandingPageProps = {}) {
           <div className="rounded-3xl border border-[#C7D3C0]/40 bg-white/70 backdrop-blur-xs p-5 space-y-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
             <div className="space-y-4">
               <div className="h-44 w-full rounded-2xl overflow-hidden bg-gray-100 relative">
-                <img
+                <ImageWithSkeleton
                   src="https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&q=80&w=800"
                   alt="Kontrakan"
                   className="h-full w-full object-cover"
@@ -395,7 +396,7 @@ export function LandingPage({ initialFeatureSlides }: LandingPageProps = {}) {
           <div className="rounded-3xl border border-[#C7D3C0]/40 bg-white/70 backdrop-blur-xs p-5 space-y-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
             <div className="space-y-4">
               <div className="h-44 w-full rounded-2xl overflow-hidden bg-gray-100 relative">
-                <img
+                <ImageWithSkeleton
                   src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&q=80&w=800"
                   alt="Ruko"
                   className="h-full w-full object-cover"

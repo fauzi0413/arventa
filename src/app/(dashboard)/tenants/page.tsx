@@ -1108,7 +1108,7 @@ function TenantsPageContent() {
                   <th className="px-6 py-4">Status Penyewa</th>
                   <th className="px-6 py-4">Penempatan Unit</th>
                   <th className="px-6 py-4">Terdaftar Pada</th>
-                  <th className="px-6 py-4 text-right">Aksi</th>
+                  <th className="px-6 py-4 text-left">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
@@ -1197,8 +1197,8 @@ function TenantsPageContent() {
                     </td>
 
                     {/* Actions */}
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                    <td className="px-6 py-4 text-left">
+                      <div className="flex items-center justify-start gap-1.5">
                         {/* Pindah Unit */}
                         {tenant.status === 'AKTIF' && tenant.currentUnitName && (
                           <button

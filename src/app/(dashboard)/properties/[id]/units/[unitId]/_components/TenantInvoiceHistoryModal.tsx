@@ -268,7 +268,7 @@ export default function TenantInvoiceHistoryModal({
                     <th className="py-3 px-4 whitespace-nowrap min-w-[160px]">Jatuh Tempo</th>
                     <th className="py-3 px-4 whitespace-nowrap">Nominal</th>
                     <th className="py-3 px-4 whitespace-nowrap">Status</th>
-                    <th className="py-3 px-4 text-center whitespace-nowrap">AKSI</th>
+                    <th className="py-3 px-4 text-left whitespace-nowrap">AKSI</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -365,7 +365,7 @@ export default function TenantInvoiceHistoryModal({
                             )}
                           </td>
 
-                          <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <td className="py-3 px-4 text-left whitespace-nowrap">
                             <Link
                               href={`/finance?search=${encodeURIComponent(inv.invoiceNumber)}`}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8FA28A]/15 hover:bg-[#8FA28A]/25 text-[#5e7059] dark:text-[#a8b8a4] text-xs font-bold transition-all border border-[#8FA28A]/30 hover:shadow-xs shrink-0 whitespace-nowrap"

@@ -21,6 +21,7 @@ import { useUIStore } from "@/store/use-ui-store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserRole } from "@/types/roles";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface UserProfile {
   id: string;
@@ -260,7 +261,12 @@ export function Header() {
           >
             <div className="h-full w-full bg-background rounded-full flex items-center justify-center overflow-hidden">
               {user.avatarUrl ? (
-                <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+                <ImageWithSkeleton
+                  src={user.avatarUrl}
+                  alt={user.fullName}
+                  className="h-full w-full object-cover"
+                  showIconPlaceholder={false}
+                />
               ) : (
                 <IconUser className="h-4 w-4 text-[#8FA28A] group-hover:text-[#C8A96B] transition-colors" />
               )}
@@ -305,7 +311,12 @@ export function Header() {
               <div className="h-20 w-20 rounded-full bg-gradient-to-tr from-[#8FA28A] to-[#C8A96B] p-1 shadow-md">
                 <div className="h-full w-full bg-background rounded-full flex items-center justify-center overflow-hidden">
                   {user.avatarUrl ? (
-                    <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+                    <ImageWithSkeleton
+                      src={user.avatarUrl}
+                      alt={user.fullName}
+                      className="h-full w-full object-cover"
+                      showIconPlaceholder={false}
+                    />
                   ) : (
                     <IconUser className="h-10 w-10 text-[#8FA28A]" />
                   )}

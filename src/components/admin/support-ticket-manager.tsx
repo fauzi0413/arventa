@@ -17,14 +17,14 @@ import {
   IconUser,
   IconMail,
   IconPhone,
-  IconFilter,
   IconSparkles,
-  IconTrash,
   IconHelpCircle,
   IconSend,
   IconChecklist,
   IconShieldCheck,
   IconAlertTriangle,
+  IconChevronLeft,
+  IconChevronRight,
 } from "@tabler/icons-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,20 @@ export function SupportTicketManager() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [priorityFilter, setPriorityFilter] = useState<string>("ALL");
   const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+
+  // Pagination States
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+
+  const totalPages = Math.max(1, Math.ceil(tickets.length / pageSize));
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, tickets.length);
+  const paginatedTickets = tickets.slice(startIndex, endIndex);
+
+  // Auto reset to page 1 on filter or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, priorityFilter, categoryFilter, searchQuery]);
 
   const [stats, setStats] = useState({
     total: 0,
@@ -130,8 +144,11 @@ export function SupportTicketManager() {
   };
 
   useEffect(() => {
-    fetchTickets();
-  }, [statusFilter, priorityFilter, categoryFilter]);
+    const timer = setTimeout(() => {
+      fetchTickets();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [statusFilter, priorityFilter, categoryFilter, searchQuery]);
 
   const handleOpenDetailModal = (ticket: SupportTicketItem) => {
     setSelectedTicket(ticket);
@@ -168,28 +185,6 @@ export function SupportTicketManager() {
       showToast("error", "Terjadi kesalahan jaringan saat menyimpan");
     } finally {
       setIsSubmittingReply(false);
-    }
-  };
-
-  const handleDeleteTicket = async (ticketId: string, ticketNumber: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus tiket ${ticketNumber}?`)) return;
-
-    try {
-      const res = await fetch(`/api/admin/support-tickets/${ticketId}`, {
-        method: "DELETE",
-      });
-
-      const json = await res.json();
-      if (json.success) {
-        showToast("success", `Tiket ${ticketNumber} berhasil dihapus`);
-        if (selectedTicket?.id === ticketId) setSelectedTicket(null);
-        fetchTickets();
-      } else {
-        showToast("error", json.message || "Gagal menghapus tiket");
-      }
-    } catch (err) {
-      console.error("Delete ticket error:", err);
-      showToast("error", "Gagal menghapus tiket support");
     }
   };
 
@@ -439,10 +434,6 @@ export function SupportTicketManager() {
                 <option value="ACCOUNT_ACCESS">Akses Akun</option>
                 <option value="GENERAL">Pertanyaan Umum</option>
               </select>
-
-              <Button size="sm" variant="secondary" onClick={fetchTickets} className="gap-1.5 text-xs font-bold">
-                <IconFilter className="size-4" /> Filter
-              </Button>
             </div>
           </div>
 
@@ -474,7 +465,7 @@ export function SupportTicketManager() {
                     </tr>
                   </thead>
                   <tbody className="divide-y font-medium">
-                    {tickets.map((t) => (
+                    {paginatedTickets.map((t) => (
                       <tr key={t.id} className="hover:bg-muted/30 transition-colors">
                         <td className="p-3.5">
                           <span className="font-mono font-extrabold text-amber-600 dark:text-amber-400 block">
@@ -497,7 +488,7 @@ export function SupportTicketManager() {
                         <td className="p-3.5">{getStatusBadge(t.status)}</td>
                         <td className="p-3.5 font-mono text-[11px] text-muted-foreground">{formatDate(t.createdAt)}</td>
                         <td className="p-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end">
                             <Button
                               size="sm"
                               variant="outline"
@@ -505,14 +496,6 @@ export function SupportTicketManager() {
                               className="gap-1 h-7 text-[11px] font-bold"
                             >
                               <IconMessageCircle className="size-3.5" /> Detail & Respon
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteTicket(t.id, t.ticketNumber)}
-                              className="size-7 p-0 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
-                            >
-                              <IconTrash className="size-4" />
                             </Button>
                           </div>
                         </td>
@@ -523,6 +506,54 @@ export function SupportTicketManager() {
               </div>
             )}
           </div>
+
+          {/* Pagination Toolbar */}
+          {!loading && totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <p className="text-xs text-muted-foreground font-medium">
+                Menampilkan <span className="font-bold text-foreground">{startIndex + 1}</span> - <span className="font-bold text-foreground">{endIndex}</span> dari <span className="font-bold text-foreground">{tickets.length}</span> tiket
+              </p>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border bg-background text-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted transition-colors cursor-pointer shadow-2xs"
+                  title="Halaman Sebelumnya"
+                >
+                  <IconChevronLeft className="size-4" />
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`h-8 min-w-8 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        currentPage === page
+                          ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                          : "border bg-background text-foreground hover:bg-muted shadow-2xs"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl border bg-background text-foreground disabled:opacity-40 disabled:cursor-not-allowed hover:bg-muted transition-colors cursor-pointer shadow-2xs"
+                  title="Halaman Selanjutnya"
+                >
+                  <IconChevronRight className="size-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

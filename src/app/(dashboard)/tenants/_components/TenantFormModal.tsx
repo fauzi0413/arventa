@@ -27,6 +27,7 @@ import {
   Heart,
   Home,
 } from 'lucide-react';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 import { Tenant, TenantStatus } from '../_types';
 
 interface PropertyOption {
@@ -643,7 +644,12 @@ export default function TenantFormModal({
                 {/* Preview KTP */}
                 <div className="relative h-32 w-full rounded-xl border border-dashed border-border bg-muted/40 overflow-hidden flex flex-col items-center justify-center text-center shadow-xs">
                   {ktpImageUrl ? (
-                    <img src={ktpImageUrl} alt="KTP Preview" className="h-full w-full object-cover" />
+                    <ImageWithSkeleton
+                      src={ktpImageUrl}
+                      alt="KTP Preview"
+                      className="h-full w-full object-cover"
+                      showIconPlaceholder={false}
+                    />
                   ) : (
                     <div className="space-y-1 p-2">
                       <Camera className="h-6 w-6 text-muted-foreground mx-auto" />

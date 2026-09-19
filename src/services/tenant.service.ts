@@ -18,7 +18,19 @@ async function deleteStorageFiles(urls: (string | null | undefined)[]) {
       auth: { persistSession: false },
     });
 
-    const knownBuckets = ["ktp-documents", "avatars", "contracts", "invoices", "properties", "units"];
+    const knownBuckets = [
+      "expense-receipts",
+      "tenant-receipts",
+      "saas-receipts",
+      "receipts",
+      "ktp-documents",
+      "avatars",
+      "contracts",
+      "invoices",
+      "properties",
+      "property-images",
+      "units",
+    ];
 
     for (const url of validUrls) {
       let deleted = false;

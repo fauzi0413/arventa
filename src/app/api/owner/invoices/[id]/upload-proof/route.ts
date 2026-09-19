@@ -4,6 +4,22 @@ import { ApiResponse } from "@/lib/api-response";
 import { getAuthenticatedUser } from "@/lib/auth/get-authenticated-user";
 import { sendSupportPaymentProofNotificationEmail } from "@/lib/email";
 
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+
+async function getStorageClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (supabaseUrl && serviceRoleKey) {
+    return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
+  }
+
+  return await createClient();
+}
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -41,11 +57,32 @@ export async function POST(
     let paymentProofUrl = "";
 
     if (file) {
-      // Convert file to base64 data URL or save locally
       const buffer = await file.arrayBuffer();
-      const base64 = Buffer.from(buffer).toString("base64");
+      const fileBuffer = Buffer.from(buffer);
       const mimeType = file.type || "image/jpeg";
-      paymentProofUrl = `data:${mimeType};base64,${base64}`;
+      const isPdf = mimeType === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const ext = file.name.split(".").pop()?.toLowerCase() || (isPdf ? "pdf" : "jpg");
+      const fileName = `saas_pay_${invoice.invoiceNumber.replace(/[^a-zA-Z0-9_-]/g, "")}_${Date.now()}.${ext}`;
+
+      try {
+        const supabase = await getStorageClient();
+        const { error: uploadErr } = await supabase.storage
+          .from("saas-receipts")
+          .upload(fileName, fileBuffer, { contentType: mimeType, upsert: true });
+
+        if (!uploadErr) {
+          const { data: publicUrlData } = supabase.storage
+            .from("saas-receipts")
+            .getPublicUrl(fileName);
+          paymentProofUrl = publicUrlData.publicUrl;
+        } else {
+          console.warn("Supabase Storage Notice (saas-receipts):", uploadErr.message);
+          paymentProofUrl = `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+        }
+      } catch (storageErr) {
+        console.warn("Supabase Storage Catch (saas-receipts):", storageErr);
+        paymentProofUrl = `data:${mimeType};base64,${fileBuffer.toString("base64")}`;
+      }
     } else if (proofUrlInput) {
       paymentProofUrl = proofUrlInput;
     } else {

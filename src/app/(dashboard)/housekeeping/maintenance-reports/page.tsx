@@ -156,7 +156,7 @@ function MaintenanceReportsContent() {
             className="flex items-center gap-2 rounded-xl bg-[#8FA28A] px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#8FA28A]/90 transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" />
-            <span>+ Buat Laporan / Tiket Baru</span>
+            <span>Buat Laporan / Tiket Baru</span>
           </button>
           {/* CSV Export Engine */}
           <ExportReportButton
@@ -171,11 +171,10 @@ function MaintenanceReportsContent() {
       <div className="flex items-center gap-2 border-b border-border pb-1 overflow-x-auto">
         <button
           onClick={() => handleTabChange('HOUSEKEEPING')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'HOUSEKEEPING'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${activeTab === 'HOUSEKEEPING'
               ? 'bg-[#8FA28A] text-white shadow-sm'
               : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
+            }`}
         >
           <Sparkles className="h-4 w-4" />
           <span>Layanan Kebersihan (Housekeeping)</span>
@@ -186,11 +185,10 @@ function MaintenanceReportsContent() {
 
         <button
           onClick={() => handleTabChange('MAINTENANCE')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'MAINTENANCE'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${activeTab === 'MAINTENANCE'
               ? 'bg-amber-500 text-white shadow-sm'
               : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
+            }`}
         >
           <Wrench className="h-4 w-4" />
           <span>Laporan Kerusakan & Perbaikan (Maintenance)</span>
@@ -201,11 +199,10 @@ function MaintenanceReportsContent() {
 
         <button
           onClick={() => handleTabChange('HISTORY')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${
-            activeTab === 'HISTORY'
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black transition-all shrink-0 ${activeTab === 'HISTORY'
               ? 'bg-[#2F332E] dark:bg-[#3D443C] text-white shadow-sm'
               : 'bg-card border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
+            }`}
         >
           <History className="h-4 w-4" />
           <span>Riwayat Audit & Semua Laporan (All History)</span>
@@ -253,7 +250,7 @@ function MaintenanceReportsContent() {
               setSelectedHousekeeping(report);
               setIsDetailOpen(true);
             }}
-            onSelectMaintenance={() => {}}
+            onSelectMaintenance={() => { }}
           />
         </>
       ) : activeTab === 'MAINTENANCE' ? (
@@ -279,7 +276,7 @@ function MaintenanceReportsContent() {
             activeTab="MAINTENANCE"
             housekeepingReports={[]}
             maintenanceReports={maintenanceList}
-            onSelectHousekeeping={() => {}}
+            onSelectHousekeeping={() => { }}
             onSelectMaintenance={(report) => {
               setSelectedMaintenance(report);
               setIsDetailOpen(true);
@@ -354,22 +351,20 @@ function MaintenanceReportsContent() {
                     <button
                       type="button"
                       onClick={() => setNewTicketType('HOUSEKEEPING')}
-                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${
-                        newTicketType === 'HOUSEKEEPING'
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${newTicketType === 'HOUSEKEEPING'
                           ? 'bg-[#8FA28A] text-white border-[#8FA28A] shadow-sm'
                           : 'bg-muted/40 text-foreground border-border'
-                      }`}
+                        }`}
                     >
                       <Sparkles className="h-4 w-4" /> Kebersihan (Housekeeping)
                     </button>
                     <button
                       type="button"
                       onClick={() => setNewTicketType('REPAIR')}
-                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${
-                        newTicketType === 'REPAIR'
+                      className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-1.5 border transition-all ${newTicketType === 'REPAIR'
                           ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
                           : 'bg-muted/40 text-foreground border-border'
-                      }`}
+                        }`}
                     >
                       <Wrench className="h-4 w-4" /> Kerusakan (Repair)
                     </button>

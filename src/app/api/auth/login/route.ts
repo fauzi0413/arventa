@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ApiResponse } from "@/lib/api-response";
 import { prisma } from "@/lib/prisma";
-import { signJwt } from "@/lib/auth/jwt";
+import { signJwt, generateAuthTokens } from "@/lib/auth/jwt";
 
 /**
  * POST /api/auth/login
@@ -181,16 +181,12 @@ export async function POST(request: NextRequest) {
       destination = "/owner/dashboard";
     }
 
-    // 4. Generate Short-lived Access Token (15 min) & Long-lived Refresh Token (7 days)
-    const accessToken = signJwt(
-      { userId: user.id, email: user.email, role: dbRole, type: "access" },
-      15 * 60 // 15 minutes
-    );
-
-    const refreshToken = signJwt(
-      { userId: user.id, email: user.email, role: dbRole, type: "refresh" },
-      7 * 24 * 60 * 60 // 7 days
-    );
+    // 4. Generate Short-lived Access Token & Long-lived Refresh Token (Standard JWT RTR)
+    const tokens = generateAuthTokens({
+      id: user.id,
+      email: user.email,
+      role: dbRole,
+    });
 
     // 5. Create Response and set secure HttpOnly cookies
     const response = NextResponse.json({
@@ -203,27 +199,29 @@ export async function POST(request: NextRequest) {
         role: dbRole,
         destination,
         unitNumber: user.unitAccount?.unitNumber,
+        accessToken: tokens.accessToken,
+        expiresIn: tokens.expiresIn,
       },
     });
 
     const isProduction = process.env.NODE_ENV === "production";
 
     // Access Token Cookie (Short-lived 15 min)
-    response.cookies.set("arventa_access_token", accessToken, {
+    response.cookies.set("arventa_access_token", tokens.accessToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: "lax",
       path: "/",
-      maxAge: 15 * 60,
+      maxAge: tokens.expiresIn,
     });
 
     // Refresh Token Cookie (If rememberMe = true: 7 days, else Session Cookie)
-    response.cookies.set("arventa_refresh_token", refreshToken, {
+    response.cookies.set("arventa_refresh_token", tokens.refreshToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: "lax",
       path: "/",
-      ...(rememberMe ? { maxAge: 7 * 24 * 60 * 60 } : {}),
+      ...(rememberMe ? { maxAge: tokens.refreshExpiresIn } : {}),
     });
 
     // Client session fallback cookies

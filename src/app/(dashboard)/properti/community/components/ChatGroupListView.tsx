@@ -13,6 +13,7 @@ import {
   IconMapPin,
 } from "@tabler/icons-react";
 import { AvailablePropertyOption, ChatCurrentUser } from "../types/chat";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface ChatGroupListViewProps {
   properties: AvailablePropertyOption[];
@@ -170,12 +171,14 @@ export function ChatGroupListView({
                 className="group flex items-center gap-3.5 p-3 sm:p-4 rounded-2xl hover:bg-muted/60 transition-all cursor-pointer border border-transparent hover:border-border/70 hover:shadow-xs"
               >
                 {/* Avatar / Cover */}
-                <div className="relative shrink-0">
+                <div className="relative shrink-0 w-13 h-13 sm:w-14 sm:h-14">
                   {prop.coverImage ? (
-                    <img
+                    <ImageWithSkeleton
                       src={prop.coverImage}
                       alt={prop.name}
-                      className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl object-cover border border-border shadow-xs group-hover:scale-105 transition-transform duration-200"
+                      containerClassName="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border border-border shadow-xs group-hover:scale-105 transition-transform duration-200"
+                      className="w-full h-full object-cover"
+                      showIconPlaceholder={false}
                     />
                   ) : (
                     <div className="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-[#8FA28A] to-[#6E8269] text-white flex items-center justify-center font-black text-lg shadow-xs group-hover:scale-105 transition-transform duration-200">

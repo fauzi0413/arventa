@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Camera, Trash2, CheckCircle2 } from 'lucide-react';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 interface PhotoUploaderProps {
   value?: string;
@@ -45,11 +46,16 @@ export default function PhotoUploader({ value, onChange }: PhotoUploaderProps) {
       <div className="flex items-center gap-4">
         {preview ? (
           <div className="relative group h-20 w-20 rounded-xl overflow-hidden border border-border shadow-sm">
-            <img src={preview} alt="Pratinjau" className="h-full w-full object-cover" />
+            <ImageWithSkeleton
+              src={preview}
+              alt="Pratinjau"
+              className="h-full w-full object-cover"
+              showIconPlaceholder={false}
+            />
             <button
               type="button"
               onClick={handleRemove}
-              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-200"
+              className="absolute inset-0 z-10 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity duration-200 cursor-pointer"
             >
               <Trash2 className="h-4 w-4 text-red-400" />
             </button>

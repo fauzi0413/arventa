@@ -44,6 +44,7 @@ import UnitFormModal from '@/app/(dashboard)/units/_components/UnitFormModal';
 import ImageFileInput from '@/app/(dashboard)/housekeeping/maintenance-reports/components/common/ImageFileInput';
 import TenantInvoiceHistoryModal from './_components/TenantInvoiceHistoryModal';
 import FacilityIcon from '@/components/common/FacilityIcon';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 const CONDITION_BADGE_STYLE = (cond: InventoryCondition) => {
   switch (cond) {
@@ -1144,7 +1145,12 @@ Silakan gunakan data di atas untuk login ke sistem Arventa. Terima kasih!`;
                                 }`}
                               >
                                 {item.imageUrl ? (
-                                  <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                                  <ImageWithSkeleton
+                                    src={item.imageUrl}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover"
+                                    showIconPlaceholder={false}
+                                  />
                                 ) : (
                                   <FacilityIcon name={item.name} className="h-5 w-5" />
                                 )}

@@ -697,12 +697,17 @@ export function ReportsManagementView() {
               {/* OpEx Expense Category Share Progress Bars */}
               {reportData.expenseCategoryBreakdown && reportData.expenseCategoryBreakdown.length > 0 && (
                 <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                       <h3 className="font-black text-gray-900 text-sm">Distribusi Biaya Operasional (OpEx)</h3>
                       <p className="text-xs text-gray-500">Breakdown pengeluaran berdasarkan kategori biaya</p>
                     </div>
-                    <span className="text-xs font-black text-rose-600">{formatIDR(reportData.summary?.totalExpenses)}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-500">Keseluruhan Pengeluaran:</span>
+                      <span className="text-xs font-mono font-black text-rose-600">
+                        {formatIDR(reportData.summary?.totalExpenses)}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">

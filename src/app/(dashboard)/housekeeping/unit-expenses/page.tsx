@@ -577,7 +577,7 @@ export default function HousekeepingUnitExpensesPage() {
                   <th className="px-5 py-4 text-right">Total Tagihan</th>
                   <th className="px-5 py-4">Jatuh Tempo</th>
                   <th className="px-5 py-4">Status Pembayaran</th>
-                  <th className="px-5 py-4 text-right">Aksi</th>
+                  <th className="px-5 py-4 text-left">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -623,7 +623,7 @@ export default function HousekeepingUnitExpensesPage() {
                       <td className="px-5 py-4 whitespace-nowrap">
                         {renderStatusBadge(inv.status)}
                       </td>
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
+                      <td className="px-5 py-4 text-left whitespace-nowrap">
                         <button
                           title="Lihat Detail Rincian & Bukti Transfer"
                           onClick={() => setSelectedInvoice(inv)}

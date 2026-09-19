@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { X, AlertTriangle, Loader2, Image as ImageIcon, Send, Upload, Trash2 } from 'lucide-react';
 import { TenantComplaint, ComplaintCategory, ComplaintPriority } from '../_types';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 export interface UnitInventoryOption {
   id: string;
@@ -237,10 +238,12 @@ export default function TenantComplaintModal({
             {photoBase64 ? (
               <div className="relative rounded-xl border border-border bg-muted/40 p-2 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <img
+                  <ImageWithSkeleton
                     src={photoBase64}
                     alt="Foto Kerusakan"
-                    className="h-16 w-16 object-cover rounded-lg border border-border"
+                    containerClassName="h-16 w-16 shrink-0 rounded-lg overflow-hidden border border-border"
+                    className="h-full w-full object-cover"
+                    showIconPlaceholder={false}
                   />
                   <div>
                     <span className="text-xs font-bold text-foreground block">Foto Berhasil Diunggah</span>

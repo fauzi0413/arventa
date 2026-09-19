@@ -16,6 +16,7 @@ import {
   ExternalLink,
   CreditCard,
 } from "lucide-react";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 export interface HousekeepingInvoiceItem {
   id: string;
@@ -325,11 +326,12 @@ export default function HousekeepingInvoiceDetailModal({
 
                 {invoice.paymentReceipt ? (
                   <div className="space-y-2">
-                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-gray-900 max-h-56 flex items-center justify-center">
-                      <img
+                    <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-gray-900 min-h-40 max-h-56 flex items-center justify-center">
+                      <ImageWithSkeleton
                         src={invoice.paymentReceipt}
                         alt={`Bukti Transfer ${invoice.invoiceNumber}`}
-                        className="max-h-56 object-contain"
+                        containerClassName="w-full h-full min-h-40 max-h-56 flex items-center justify-center"
+                        className="max-h-56 w-auto object-contain mx-auto"
                       />
                     </div>
                     <a

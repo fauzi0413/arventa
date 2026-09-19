@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MOCKUP_TYPE_LABELS } from "@/lib/feature-showcase";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface SlideRecord {
   id: string;
@@ -646,8 +647,7 @@ export function FeatureShowcaseManager() {
                               {/* 16:9 Thumbnail Photo */}
                               <div className="w-16 h-10 rounded-lg border bg-[#FAF9F5] overflow-hidden shrink-0 aspect-video flex items-center justify-center">
                                 {slide.imageUrl ? (
-                                  // eslint-disable-next-line @next/next/no-img-element
-                                  <img
+                                  <ImageWithSkeleton
                                     src={slide.imageUrl}
                                     alt={slide.title}
                                     className="w-full h-full object-cover object-top"
@@ -807,8 +807,7 @@ export function FeatureShowcaseManager() {
                       {/* 16:9 Thumbnail (Full Width on Mobile) */}
                       <div className="w-full aspect-video rounded-xl border bg-[#FAF9F5] overflow-hidden flex items-center justify-center relative shadow-xs">
                         {slide.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
+                          <ImageWithSkeleton
                             src={slide.imageUrl}
                             alt={slide.title}
                             className="w-full h-full object-cover object-top"
@@ -1157,8 +1156,7 @@ export function FeatureShowcaseManager() {
                 {/* Card persis seperti di Landing Page Feature Showcase (aspect-video / 16:9) */}
                 <div className="w-full rounded-2xl sm:rounded-3xl border-2 border-[#8FA28A]/80 shadow-xl ring-4 ring-[#8FA28A]/10 bg-white overflow-hidden aspect-video relative flex items-center justify-center transition-all">
                   {formImageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <ImageWithSkeleton
                       src={formImageUrl}
                       alt={formTitle || "Preview Card"}
                       className="w-full h-full object-cover object-top select-none pointer-events-none"

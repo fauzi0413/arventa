@@ -16,6 +16,7 @@ import {
   ChatRoomProperty,
   AvailablePropertyOption,
 } from "../types/chat";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface ChatHeaderProps {
   property: ChatRoomProperty | null;
@@ -83,10 +84,11 @@ export function ChatHeader({
         {/* Avatar / Initial */}
         <div className="relative shrink-0">
           {property?.coverImage ? (
-            <img
+            <ImageWithSkeleton
               src={property.coverImage}
               alt={property.name}
-              className="h-12 w-12 sm:h-13 sm:w-13 rounded-2xl object-cover border border-border shadow-xs"
+              containerClassName="h-12 w-12 sm:h-13 sm:w-13 rounded-2xl overflow-hidden border border-border shadow-xs"
+              className="h-full w-full object-cover"
             />
           ) : (
             <div className="flex h-12 w-12 sm:h-13 sm:w-13 items-center justify-center rounded-2xl bg-gradient-to-br from-[#8FA28A] to-[#6E8069] text-white font-black text-lg shadow-sm border border-white/20">

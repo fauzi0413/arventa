@@ -35,13 +35,39 @@ export async function updateSession(request: NextRequest) {
       }
     );
 
-    const {
-      data: { user: supabaseUser },
-    } = await supabase.auth.getUser();
+    // Check if any supabase auth cookie is present before attempting getUser()
+    const allCookies = request.cookies.getAll();
+    const hasSupabaseCookie = allCookies.some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
 
-    user = supabaseUser;
-  } catch (err) {
-    console.warn("Supabase auth session refresh warning:", err);
+    if (hasSupabaseCookie) {
+      const {
+        data: { user: supabaseUser },
+        error: getUserError,
+      } = await supabase.auth.getUser();
+
+      if (getUserError) {
+        // If the refresh token was not found or is invalid, clean up stale cookies silently
+        if (
+          getUserError.message?.includes("Refresh Token Not Found") ||
+          (getUserError as any).code === "refresh_token_not_found" ||
+          getUserError.status === 400
+        ) {
+          allCookies
+            .filter((c) => c.name.startsWith("sb-"))
+            .forEach((c) => {
+              request.cookies.delete(c.name);
+              supabaseResponse.cookies.delete(c.name);
+            });
+        }
+      } else {
+        user = supabaseUser;
+      }
+    }
+  } catch (err: any) {
+    // Suppress console spam for expected refresh token expiry
+    if (!err?.message?.includes("Refresh Token Not Found") && err?.code !== "refresh_token_not_found") {
+      console.warn("Supabase auth session refresh warning:", err?.message || err);
+    }
   }
 
   // Fallback check for demo / local session cookie

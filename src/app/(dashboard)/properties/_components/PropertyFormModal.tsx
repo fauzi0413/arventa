@@ -5,6 +5,7 @@ import { X, UploadCloud, Image as ImageIcon, Trash2, Loader2, AlertCircle, Check
 import { Property, PropertyCategory, PropertyStatus } from '../_types';
 import { getPropertyTypeConfig } from '@/lib/utils/propertyTypeConfig';
 import { INDONESIA_CITIES } from '@/lib/constants/indonesia-cities';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 interface PropertyFormModalProps {
   isOpen: boolean;
@@ -640,12 +641,12 @@ export default function PropertyFormModal({
                 /* Image Preview Box */
                 <div className={`relative rounded-2xl border-2 border-dashed border-[#8FA28A] bg-card p-3 shadow-2xs space-y-2 ${isSubmitting ? 'opacity-70' : ''}`}>
                   <div className="relative h-40 w-full overflow-hidden rounded-xl bg-muted flex items-center justify-center">
-                    <img
+                    <ImageWithSkeleton
                       src={previewUrl}
                       alt="Preview Properti"
                       className="h-full w-full object-cover"
                     />
-                    <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs rounded-xl p-1.5">
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-xs rounded-xl p-1.5 z-10">
                       <button
                         type="button"
                         disabled={isSubmitting}

@@ -37,6 +37,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface PlanItem {
   id: string;
@@ -1696,11 +1697,14 @@ export default function OwnerSubscriptionPage() {
                     createdInvoice.paymentProof.startsWith("data:image") ||
                       createdInvoice.paymentProof.startsWith("http") ? (
                       <div className="space-y-1.5 text-center">
-                        <img
-                          src={createdInvoice.paymentProof}
-                          alt="Bukti Transfer Diunggah"
-                          className="max-h-44 mx-auto rounded-xl object-contain border border-emerald-500/30 shadow-xs"
-                        />
+                        <div className="max-h-44 mx-auto rounded-xl overflow-hidden border border-emerald-500/30 shadow-xs flex items-center justify-center">
+                          <ImageWithSkeleton
+                            src={createdInvoice.paymentProof}
+                            alt="Bukti Transfer Diunggah"
+                            containerClassName="max-h-44 w-full flex items-center justify-center"
+                            className="max-h-44 w-auto object-contain mx-auto"
+                          />
+                        </div>
                         <p className="text-[10px] text-emerald-600 font-semibold">
                           File bukti transfer berhasil tersimpan di database
                         </p>
@@ -1989,14 +1993,15 @@ export default function OwnerSubscriptionPage() {
                             e.stopPropagation();
                             setZoomImage(proofPreview);
                           }}
-                          className="relative max-h-44 mx-auto rounded-xl overflow-hidden border border-border shadow-xs group cursor-pointer"
+                          className="relative max-h-44 mx-auto rounded-xl overflow-hidden border border-border shadow-xs group cursor-pointer flex items-center justify-center"
                         >
-                          <img
+                          <ImageWithSkeleton
                             src={proofPreview}
                             alt="Preview Bukti Transfer"
-                            className="max-h-44 mx-auto rounded-xl object-contain transition-all group-hover:scale-[1.01]"
+                            containerClassName="max-h-44 w-full flex items-center justify-center"
+                            className="max-h-44 w-auto object-contain mx-auto transition-all group-hover:scale-[1.01]"
                           />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold gap-1 text-xs">
+                          <div className="absolute inset-0 z-10 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold gap-1 text-xs">
                             <IconZoomIn className="size-4" /> Perbesar Foto
                           </div>
                         </div>
@@ -2551,14 +2556,15 @@ export default function OwnerSubscriptionPage() {
                   <p className="font-bold text-xs mb-1.5">Bukti Resi Transfer Yang Diunggah:</p>
                   <div
                     onClick={() => setZoomImage(selectedHistoryDetailItem.paymentProof)}
-                    className="relative rounded-2xl border overflow-hidden bg-black/5 p-1 cursor-pointer group"
+                    className="relative rounded-2xl border overflow-hidden bg-black/5 p-1 cursor-pointer group flex items-center justify-center"
                   >
-                    <img
+                    <ImageWithSkeleton
                       src={selectedHistoryDetailItem.paymentProof}
                       alt="Bukti Transfer Resi"
-                      className="max-h-56 w-full object-contain rounded-xl transition-all group-hover:scale-[1.01]"
+                      containerClassName="max-h-56 w-full flex items-center justify-center"
+                      className="max-h-56 w-auto object-contain rounded-xl transition-all group-hover:scale-[1.01]"
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold gap-1 text-xs">
+                    <div className="absolute inset-0 z-10 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-bold gap-1 text-xs">
                       <IconZoomIn className="size-5" /> Perbesar Foto
                     </div>
                   </div>
@@ -2618,12 +2624,17 @@ export default function OwnerSubscriptionPage() {
           onClick={() => setZoomImage(null)}
           className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 cursor-pointer animate-in fade-in duration-200"
         >
-          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/20 shadow-2xl">
-            <img src={zoomImage} alt="Zoomed Resi Transfer" className="max-h-[85vh] w-auto object-contain mx-auto" />
+          <div className="relative max-w-4xl max-h-[90vh] min-h-[300px] min-w-[300px] overflow-hidden rounded-2xl border border-white/20 shadow-2xl flex items-center justify-center">
+            <ImageWithSkeleton
+              src={zoomImage}
+              alt="Zoomed Resi Transfer"
+              containerClassName="max-h-[85vh] w-full flex items-center justify-center"
+              className="max-h-[85vh] w-auto object-contain mx-auto"
+            />
             <button
               type="button"
               onClick={() => setZoomImage(null)}
-              className="absolute top-3 right-3 rounded-full bg-black/70 p-2 text-white hover:bg-black transition-all cursor-pointer"
+              className="absolute top-3 right-3 z-10 rounded-full bg-black/70 p-2 text-white hover:bg-black transition-all cursor-pointer"
             >
               <IconX className="size-6" />
             </button>

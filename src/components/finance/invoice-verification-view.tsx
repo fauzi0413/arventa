@@ -23,6 +23,7 @@ import {
   IconDeviceFloppy,
   IconHelpCircle,
 } from "@tabler/icons-react";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface VerificationInvoice {
   id: string;
@@ -827,10 +828,11 @@ export function InvoiceVerificationView() {
                           </a>
                         </div>
                       ) : (
-                        <img
+                        <ImageWithSkeleton
                           src={inspectInvoice.paymentReceipt}
                           alt="Bukti Transfer Tenant"
-                          className="max-h-80 mx-auto rounded-lg object-contain"
+                          containerClassName="max-h-80 w-full flex items-center justify-center"
+                          className="max-h-80 w-auto mx-auto rounded-lg object-contain"
                           onError={() => setImgError(true)}
                         />
                       )}

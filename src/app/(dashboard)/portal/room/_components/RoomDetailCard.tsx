@@ -5,6 +5,7 @@ import { Bed, Compass, User, Package } from 'lucide-react';
 import { Unit } from '@/app/(dashboard)/units/_types';
 import { InventoryItem } from '@/app/(dashboard)/properties/_types';
 import FacilityIcon from '@/components/common/FacilityIcon';
+import ImageWithSkeleton from '@/components/common/ImageWithSkeleton';
 
 const getConditionStyle = (cond?: string) => {
   const c = (cond || '').toUpperCase();
@@ -95,7 +96,12 @@ export default function RoomDetailCard({ unit, inventories }: RoomDetailCardProp
                       }`}
                     >
                       {item.imageUrl ? (
-                        <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                        <ImageWithSkeleton
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                          showIconPlaceholder={false}
+                        />
                       ) : (
                         <FacilityIcon name={item.name} className="h-4 w-4" />
                       )}

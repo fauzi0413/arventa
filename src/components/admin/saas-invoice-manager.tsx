@@ -25,6 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface InvoiceSubItem {
   id: string;
@@ -957,11 +958,12 @@ export function SaasInvoiceManager() {
               <div>
                 <label className="font-bold block mb-1.5 text-xs">Bukti Transfer Pembayaran:</label>
                 {verifyInvoiceItem.paymentProof ? (
-                  <div className="rounded-xl border overflow-hidden bg-black/5 p-1 text-center">
-                    <img
+                  <div className="rounded-xl border overflow-hidden bg-black/5 p-1 text-center min-h-40 flex items-center justify-center">
+                    <ImageWithSkeleton
                       src={verifyInvoiceItem.paymentProof}
                       alt="Bukti Transfer"
-                      className="max-h-48 w-full object-contain rounded-lg"
+                      containerClassName="min-h-40 max-h-48 w-full flex items-center justify-center"
+                      className="max-h-48 w-auto mx-auto object-contain rounded-lg"
                     />
                   </div>
                 ) : (

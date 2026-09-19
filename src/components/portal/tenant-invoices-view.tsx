@@ -25,6 +25,7 @@ import {
   IconBrandWhatsapp,
   IconCopy,
 } from "@tabler/icons-react";
+import ImageWithSkeleton from "@/components/common/ImageWithSkeleton";
 
 interface TenantInvoiceItem {
   id: string;
@@ -203,7 +204,7 @@ export function TenantInvoicesView() {
       try {
         const formData = new FormData();
         formData.append("file", selectedFile);
-        formData.append("bucket", "receipts");
+        formData.append("bucket", "tenant-receipts");
 
         const uploadRes = await fetch("/api/upload", {
           method: "POST",
@@ -424,7 +425,7 @@ export function TenantInvoicesView() {
                   <th className="px-4 py-3.5 text-right">Total Tagihan</th>
                   <th className="px-4 py-3.5">Jatuh Tempo</th>
                   <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 text-right">Aksi</th>
+                  <th className="px-4 py-3.5 text-left">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200">
@@ -442,11 +443,11 @@ export function TenantInvoicesView() {
                         <div className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Unit {unitNumber}</div>
                       </td>
                       <td className="px-4 py-3.5 text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 font-medium">
-                        <div>Sewa: {formatIDR(inv.amount)}</div>
-                        {Number(inv.utilityAmount) > 0 && <div>Util: {formatIDR(inv.utilityAmount)}</div>}
-                        {Number(inv.penaltyAmount) > 0 && <div className="text-rose-600 font-bold">Denda: {formatIDR(inv.penaltyAmount)}</div>}
+                        <div>Sewa Pokok: {formatIDR(inv.amount)}</div>
+                        {Number(inv.utilityAmount || 0) > 0 && <div>Utilitas: {formatIDR(inv.utilityAmount)}</div>}
+                        {Number(inv.penaltyAmount || 0) > 0 && <div className="text-rose-500 font-bold">Denda: +{formatIDR(inv.penaltyAmount)}</div>}
                       </td>
-                      <td className="px-4 py-3.5 font-black text-slate-900 dark:text-white text-right whitespace-nowrap text-sm">
+                      <td className="px-4 py-3.5 font-extrabold text-slate-900 dark:text-white text-right whitespace-nowrap">
                         {formatIDR(inv.totalAmount)}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-slate-600 dark:text-slate-300 font-medium">
@@ -457,8 +458,8 @@ export function TenantInvoicesView() {
                         })}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap">{getStatusBadge(inv.status)}</td>
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-4 py-3.5 text-left whitespace-nowrap">
+                        <div className="flex items-center justify-start gap-2">
                           <button
                             onClick={() => setDetailModalInvoice(inv)}
                             className="flex items-center gap-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 text-xs font-bold transition-all dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200"
@@ -647,13 +648,14 @@ export function TenantInvoicesView() {
                           <div className="space-y-3">
                             {/* File Preview Card */}
                             {previewUrl ? (
-                              <div className="relative max-h-40 mx-auto rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 shadow-xs group">
-                                <img
+                              <div className="relative max-h-40 mx-auto rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 shadow-xs group flex items-center justify-center">
+                                <ImageWithSkeleton
                                   src={previewUrl}
                                   alt="Preview Bukti Pembayaran"
-                                  className="max-h-40 mx-auto rounded-xl object-contain"
+                                  containerClassName="max-h-40 w-full flex items-center justify-center"
+                                  className="max-h-40 w-auto object-contain mx-auto"
                                 />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                <div className="absolute inset-0 z-10 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
                                   <IconEye className="h-4 w-4" /> Pratinjau Gambar
                                 </div>
                               </div>
@@ -858,11 +860,12 @@ export function TenantInvoicesView() {
                     )}
                   </div>
                   {detailModalInvoice.paymentReceipt.match(/\.(jpeg|jpg|png|webp)($|\?)/i) || detailModalInvoice.paymentReceipt.startsWith("data:image/") ? (
-                    <div className="max-h-36 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-900">
-                      <img
+                    <div className="max-h-36 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-900 flex items-center justify-center">
+                      <ImageWithSkeleton
                         src={detailModalInvoice.paymentReceipt}
                         alt="Bukti Transfer"
-                        className="max-h-36 mx-auto object-contain"
+                        containerClassName="max-h-36 w-full flex items-center justify-center"
+                        className="max-h-36 w-auto mx-auto object-contain"
                       />
                     </div>
                   ) : detailModalInvoice.paymentReceipt.match(/\.pdf($|\?)/i) || detailModalInvoice.paymentReceipt.startsWith("data:application/pdf") ? (

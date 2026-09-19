@@ -639,6 +639,16 @@ export function DynamicMenuManager() {
     groupedMenuItems[groupKey] = sortByOrder(groupedMenuItems[groupKey]);
   });
 
+  // Extract all unique created groups across all menu items in the database + standard presets
+  const allCreatedGroups = Array.from(
+    new Set([
+      ...menuItems
+        .map((m) => m.group?.trim().toUpperCase())
+        .filter((g): g is string => Boolean(g && g.length > 0)),
+      ...GROUP_PRESETS,
+    ])
+  );
+
   const getRoleBadgeLabel = (code: string) => {
     const found = roles.find((r) => r.code === code);
     if (found) return found.name;
@@ -1128,30 +1138,61 @@ export function DynamicMenuManager() {
 
               {/* Group Section Header Selection */}
               <div>
-                <label className="font-bold block mb-1 flex items-center gap-1">
-                  <IconFolder className="size-3.5 text-amber-500" /> Grup Menu (Section Header)
+                <label className="font-bold block mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <IconFolder className="size-3.5 text-amber-500" /> Grup Menu (Section Header)
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-normal">
+                    {allCreatedGroups.length} Grup Terdaftar
+                  </span>
                 </label>
                 <input
                   type="text"
+                  list="registered-menu-groups"
                   placeholder="Contoh: UTAMA, MANAJEMEN SAAS, KEUANGAN..."
                   value={newGroup}
                   onChange={(e) => setNewGroup(e.target.value.toUpperCase())}
                   className="w-full rounded-lg border p-2.5 bg-background font-mono uppercase text-xs focus:ring-2 focus:ring-amber-500 mb-1.5"
                   required
                 />
-                <div className="flex flex-wrap gap-1">
-                  {GROUP_PRESETS.map((preset) => (
-                    <button
-                      type="button"
-                      key={preset}
-                      onClick={() => setNewGroup(preset)}
-                      className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-colors ${
-                        newGroup === preset ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                      }`}
-                    >
-                      {preset}
-                    </button>
+                <datalist id="registered-menu-groups">
+                  {allCreatedGroups.map((grp) => (
+                    <option key={grp} value={grp} />
                   ))}
+                </datalist>
+
+                <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto p-1.5 rounded-lg bg-muted/30 border border-border/50">
+                  {allCreatedGroups.map((preset) => {
+                    const countInItems = menuItems.filter(
+                      (m) => (m.group || "UTAMA").toUpperCase() === preset
+                    ).length;
+                    const isSelected = newGroup === preset;
+                    return (
+                      <button
+                        type="button"
+                        key={preset}
+                        onClick={() => setNewGroup(preset)}
+                        className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-all flex items-center gap-1 cursor-pointer ${
+                          isSelected
+                            ? "bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/50 shadow-xs"
+                            : "bg-background text-muted-foreground hover:bg-muted hover:text-foreground border-border/60"
+                        }`}
+                      >
+                        <span>{preset}</span>
+                        {countInItems > 0 && (
+                          <span
+                            className={`text-[8px] px-1 py-0.2 rounded-full font-mono ${
+                              isSelected
+                                ? "bg-amber-500/30 text-amber-800 dark:text-amber-200"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {countInItems}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

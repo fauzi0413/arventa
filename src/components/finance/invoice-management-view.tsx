@@ -537,7 +537,7 @@ export function InvoiceManagementView() {
                   <th className="px-4 py-3.5 text-right">Total Tagihan</th>
                   <th className="px-4 py-3.5">Jatuh Tempo</th>
                   <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 text-right">Aksi</th>
+                  <th className="px-4 py-3.5 text-left">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200">
@@ -563,10 +563,14 @@ export function InvoiceManagementView() {
                       </td>
                       <td className="px-4 py-3.5 text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 font-medium">
                         <div>Sewa: {formatIDR(inv.amount)}</div>
-                        {Number(inv.utilityAmount) > 0 && <div>Util: {formatIDR(inv.utilityAmount)}</div>}
-                        {Number(inv.penaltyAmount) > 0 && <div className="text-rose-600 font-bold">Denda: {formatIDR(inv.penaltyAmount)}</div>}
+                        {Number(inv.utilityAmount || 0) > 0 && (
+                          <div>Utilitas: {formatIDR(inv.utilityAmount)}</div>
+                        )}
+                        {Number(inv.penaltyAmount || 0) > 0 && (
+                          <div className="text-rose-500 font-bold">Denda: +{formatIDR(inv.penaltyAmount)}</div>
+                        )}
                       </td>
-                      <td className="px-4 py-3.5 font-black text-slate-900 dark:text-white text-right whitespace-nowrap text-sm">
+                      <td className="px-4 py-3.5 text-right font-extrabold text-slate-900 dark:text-white whitespace-nowrap">
                         {formatIDR(inv.totalAmount)}
                       </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-slate-600 dark:text-slate-300 font-medium">
@@ -579,8 +583,8 @@ export function InvoiceManagementView() {
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         {getStatusBadge(inv.status)}
                       </td>
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="px-4 py-3.5 text-left whitespace-nowrap">
+                        <div className="flex items-center justify-start gap-1">
                           {/* Detail Button */}
                           <button
                             title="Lihat Detail & Kuitansi"
